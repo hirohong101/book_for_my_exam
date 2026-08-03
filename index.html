@@ -1,0 +1,410 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>手稿進度 Ledger</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+  :root{
+    --paper: #E9E4D8;
+    --paper-line: #d9d2bf;
+    --card: #FCFAF5;
+    --card-border: #DAD3C1;
+    --ink: #2B2A26;
+    --ink-soft: #6b6659;
+    --ledger-green: #2F5D50;
+    --ledger-green-soft: #E4ECE9;
+    --brass: #B0812C;
+    --brass-soft: #F3E6C8;
+    --danger: #A03A2E;
+    --radius: 6px;
+    --shadow: 0 1px 2px rgba(43,42,38,0.06), 0 4px 10px rgba(43,42,38,0.05);
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:
+      repeating-linear-gradient(180deg, transparent, transparent 27px, var(--paper-line) 28px),
+      var(--paper);
+    color:var(--ink);
+    font-family:'Inter', sans-serif;
+    min-height:100vh;
+    padding:28px 20px 60px;
+  }
+  ::selection{ background: var(--brass-soft); }
+  :focus-visible{ outline:2px solid var(--ledger-green); outline-offset:2px; border-radius:3px; }
+
+  .wrap{ max-width:980px; margin:0 auto; }
+
+  header.top{
+    display:flex; justify-content:space-between; align-items:flex-end;
+    gap:16px; margin-bottom:24px; flex-wrap:wrap;
+  }
+  .title-block h1{
+    font-family:'Fraunces', serif; font-weight:600; font-size:clamp(28px,4vw,38px);
+    margin:0 0 4px; letter-spacing:-0.01em;
+  }
+  .title-block .stamp{
+    font-family:'JetBrains Mono', monospace; font-size:12px; color:var(--ink-soft);
+    letter-spacing:0.04em; text-transform:uppercase;
+  }
+  .export-btn{
+    font-family:'Inter',sans-serif; font-weight:600; font-size:14px;
+    background:var(--ledger-green); color:#fff; border:none; border-radius:var(--radius);
+    padding:11px 18px; cursor:pointer; box-shadow:var(--shadow);
+    display:inline-flex; align-items:center; gap:8px; transition:transform .12s ease, background .12s ease;
+  }
+  .export-btn:hover{ background:#264c41; transform:translateY(-1px); }
+  .export-btn:active{ transform:translateY(0); }
+  .export-btn svg{ width:15px; height:15px; }
+
+  .layout{ display:grid; grid-template-columns:220px 1fr; gap:20px; align-items:start; }
+  @media (max-width:720px){ .layout{ grid-template-columns:1fr; } }
+
+  .shelf{
+    background:var(--card); border:1px solid var(--card-border); border-radius:var(--radius);
+    box-shadow:var(--shadow); padding:10px; display:flex; flex-direction:column; gap:6px;
+  }
+  .shelf h2{
+    font-family:'JetBrains Mono',monospace; font-size:11px; text-transform:uppercase;
+    letter-spacing:0.08em; color:var(--ink-soft); margin:4px 6px 2px; font-weight:700;
+  }
+  .book-tab{
+    display:flex; align-items:center; gap:8px; text-align:left; width:100%;
+    background:transparent; border:none; border-left:4px solid var(--tab-color, var(--ledger-green));
+    border-radius:3px; padding:9px 10px; cursor:pointer; font-family:'Inter',sans-serif;
+    font-size:14px; color:var(--ink); transition:background .12s ease;
+  }
+  .book-tab .name{ flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .book-tab .pct{ font-family:'JetBrains Mono',monospace; font-size:11px; color:var(--ink-soft); }
+  .book-tab:hover{ background:var(--ledger-green-soft); }
+  .book-tab.active{ background:var(--ledger-green-soft); font-weight:600; }
+
+  .add-book{ border-top:1px dashed var(--card-border); margin-top:4px; padding-top:8px; }
+  .add-book input{
+    width:100%; font-family:'Inter',sans-serif; font-size:13px; padding:7px 8px;
+    border:1px solid var(--card-border); border-radius:4px; margin-bottom:6px; background:#fff;
+  }
+  .add-book .row{ display:flex; gap:6px; }
+  .add-book .row input.pages{ width:70px; }
+  .add-book button{
+    font-family:'Inter',sans-serif; font-size:13px; font-weight:600; width:100%;
+    background:#fff; border:1px solid var(--ledger-green); color:var(--ledger-green);
+    border-radius:4px; padding:7px; cursor:pointer;
+  }
+  .add-book button:hover{ background:var(--ledger-green-soft); }
+
+  .panel{
+    background:var(--card); border:1px solid var(--card-border); border-radius:var(--radius);
+    box-shadow:var(--shadow); padding:22px 24px;
+  }
+  .panel-head{ display:flex; justify-content:space-between; align-items:flex-start; gap:12px; flex-wrap:wrap; margin-bottom:6px;}
+  .panel-head h2{ font-family:'Fraunces',serif; font-size:22px; font-weight:600; margin:0; }
+  .panel-head .target-edit{ display:flex; align-items:center; gap:6px; font-size:13px; color:var(--ink-soft); }
+  .panel-head .target-edit input{
+    width:70px; font-family:'JetBrains Mono',monospace; font-size:13px; padding:4px 6px;
+    border:1px solid var(--card-border); border-radius:4px; text-align:right;
+  }
+  .delete-book{ background:none; border:none; color:var(--danger); font-size:12px; cursor:pointer; text-decoration:underline; padding:0; }
+
+  /* Signature element: bookmark ruler progress */
+  .ruler{ margin:22px 0 26px; }
+  .ruler .stats{ display:flex; justify-content:space-between; font-family:'JetBrains Mono',monospace; font-size:13px; color:var(--ink-soft); margin-bottom:8px; }
+  .ruler .stats b{ color:var(--ink); font-size:15px; }
+  .ruler-track{ position:relative; height:22px; background:#fff; border:1px solid var(--card-border); border-radius:3px; overflow:visible; }
+  .ruler-ticks{ position:absolute; inset:0; display:flex; }
+  .ruler-ticks span{ flex:1; border-right:1px solid var(--paper-line); }
+  .ruler-ticks span:last-child{ border-right:none; }
+  .ruler-fill{ position:absolute; top:0; left:0; bottom:0; background:linear-gradient(90deg, var(--brass-soft), var(--brass)); border-radius:3px 0 0 3px; transition:width .35s ease; }
+  .ruler-fill.over{ background:linear-gradient(90deg, #cfe3da, var(--ledger-green)); }
+  .bookmark{
+    position:absolute; top:-10px; width:20px; height:32px; background:var(--ledger-green);
+    clip-path:polygon(0 0, 100% 0, 100% 100%, 50% 78%, 0 100%);
+    transform:translateX(-10px); transition:left .35s ease; box-shadow:0 2px 4px rgba(0,0,0,0.25);
+  }
+  .bookmark::after{
+    content:attr(data-val); position:absolute; top:-20px; left:50%; transform:translateX(-50%);
+    font-family:'JetBrains Mono',monospace; font-size:10px; color:var(--ink-soft); white-space:nowrap;
+  }
+
+  .entry-form{ display:flex; gap:10px; align-items:flex-end; flex-wrap:wrap; padding:16px; background:var(--ledger-green-soft); border-radius:var(--radius); margin-bottom:20px; }
+  .entry-form .field{ display:flex; flex-direction:column; gap:4px; }
+  .entry-form label{ font-size:11px; text-transform:uppercase; letter-spacing:0.05em; color:var(--ink-soft); font-family:'JetBrains Mono',monospace; }
+  .entry-form input{ font-family:'Inter',sans-serif; font-size:14px; padding:8px 10px; border:1px solid var(--card-border); border-radius:4px; background:#fff; }
+  .entry-form input[type=number]{ width:90px; }
+  .entry-form input[type=text]{ width:180px; }
+  .entry-form .submit{
+    background:var(--ledger-green); color:#fff; border:none; border-radius:4px; padding:9px 18px;
+    font-weight:600; cursor:pointer; font-family:'Inter',sans-serif; font-size:14px; height:38px;
+  }
+  .entry-form .submit:hover{ background:#264c41; }
+
+  table.ledger{ width:100%; border-collapse:collapse; font-size:14px; }
+  table.ledger th{ text-align:left; font-family:'JetBrains Mono',monospace; font-size:11px; text-transform:uppercase; letter-spacing:0.05em; color:var(--ink-soft); border-bottom:1px solid var(--card-border); padding:6px 8px; font-weight:700; }
+  table.ledger td{ padding:8px; border-bottom:1px solid var(--paper-line); font-family:'JetBrains Mono',monospace; }
+  table.ledger td.note{ font-family:'Inter',sans-serif; color:var(--ink-soft); }
+  table.ledger tr:hover td{ background:#faf7ee; }
+  table.ledger .del{ background:none; border:none; color:var(--danger); cursor:pointer; font-size:12px; }
+
+  .empty{ text-align:center; padding:50px 20px; color:var(--ink-soft); }
+  .empty h2{ font-family:'Fraunces',serif; font-size:20px; color:var(--ink); margin-bottom:6px; }
+
+  .loading{ text-align:center; padding:60px; color:var(--ink-soft); font-family:'JetBrains Mono',monospace; font-size:13px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <div class="title-block">
+      <h1>手稿進度 Ledger</h1>
+      <div class="stamp" id="todayStamp"></div>
+    </div>
+    <button class="export-btn" id="exportBtn">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3v12m0 0l-4-4m4 4l4-4"/><path d="M4 17v3a1 1 0 001 1h14a1 1 0 001-1v-3"/></svg>
+      匯出 Excel
+    </button>
+  </header>
+
+  <div id="app"><div class="loading">讀取資料中…</div></div>
+</div>
+
+<script>
+const PALETTE = ['#2F5D50','#B0812C','#7A4A6B','#3A6B8A','#8A4A3A','#4A6B3A'];
+const STORAGE_KEY = 'tracker-data';
+let state = null; // { books:[{id,name,target}], entries:{bookId:[{id,date,pages,note}]}, activeBookId }
+
+function uid(){ return Math.random().toString(36).slice(2,9); }
+function todayStr(){ const d=new Date(); return d.toISOString().slice(0,10); }
+
+function formatStamp(){
+  const d = new Date();
+  const w = ['日','一','二','三','四','五','六'][d.getDay()];
+  document.getElementById('todayStamp').textContent = `今天 ${d.getFullYear()}.${String(d.getMonth()+1).padStart(2,'0')}.${String(d.getDate()).padStart(2,'0')}（週${w}）`;
+}
+
+async function loadState(){
+  try{
+    const res = await window.storage.get(STORAGE_KEY, false);
+    if(res && res.value){ return JSON.parse(res.value); }
+  }catch(e){ /* key not found or error -> fresh state */ }
+  return { books:[], entries:{}, activeBookId:null };
+}
+
+async function saveState(){
+  try{
+    await window.storage.set(STORAGE_KEY, JSON.stringify(state), false);
+  }catch(e){ console.error('儲存失敗', e); }
+}
+
+function cumulativeFor(bookId){
+  const list = (state.entries[bookId]||[]).slice().sort((a,b)=>a.date.localeCompare(b.date));
+  let sum = 0;
+  return list.map(e=>{ sum += Number(e.pages)||0; return {...e, cum:sum}; });
+}
+function totalFor(bookId){
+  return (state.entries[bookId]||[]).reduce((s,e)=>s+(Number(e.pages)||0),0);
+}
+
+function render(){
+  const app = document.getElementById('app');
+  if(state.books.length === 0){
+    app.innerHTML = `
+      <div class="layout">
+        <aside class="shelf">
+          <h2>書目 / 科目</h2>
+          ${addBookFormHTML()}
+        </aside>
+        <div class="panel">
+          <div class="empty">
+            <h2>還沒有任何一本書</h2>
+            <p>從左側新增你正在寫的參考書或科目，開始記錄每天寫的頁數。</p>
+          </div>
+        </div>
+      </div>`;
+    bindAddBook();
+    return;
+  }
+
+  if(!state.activeBookId || !state.books.find(b=>b.id===state.activeBookId)){
+    state.activeBookId = state.books[0].id;
+  }
+  const active = state.books.find(b=>b.id===state.activeBookId);
+  const total = totalFor(active.id);
+  const target = Number(active.target)||0;
+  const pct = target>0 ? Math.min(100, Math.round((total/target)*100)) : 0;
+  const rows = cumulativeFor(active.id).slice().reverse();
+
+  app.innerHTML = `
+    <div class="layout">
+      <aside class="shelf">
+        <h2>書目 / 科目</h2>
+        ${state.books.map((b,i)=>{
+          const t = totalFor(b.id); const tg = Number(b.target)||0;
+          const p = tg>0 ? Math.min(100, Math.round((t/tg)*100)) : 0;
+          const color = PALETTE[i % PALETTE.length];
+          return `<button class="book-tab ${b.id===active.id?'active':''}" style="--tab-color:${color}" data-id="${b.id}">
+            <span class="name">${escapeHtml(b.name)}</span>
+            <span class="pct">${tg>0 ? p+'%' : t+'頁'}</span>
+          </button>`;
+        }).join('')}
+        <div class="add-book">${addBookFormHTML()}</div>
+      </aside>
+
+      <div class="panel">
+        <div class="panel-head">
+          <h2>${escapeHtml(active.name)}</h2>
+          <div class="target-edit">
+            目標頁數
+            <input type="number" min="0" id="targetInput" value="${target||''}" placeholder="未設定">
+            <button class="delete-book" id="delBookBtn">刪除此書</button>
+          </div>
+        </div>
+
+        <div class="ruler">
+          <div class="stats">
+            <span>已寫 <b>${total}</b> 頁</span>
+            <span>${target>0 ? `目標 <b>${target}</b> 頁・完成 <b>${pct}%</b>` : '尚未設定目標頁數'}</span>
+          </div>
+          <div class="ruler-track">
+            <div class="ruler-ticks">${Array.from({length:10}).map(()=>'<span></span>').join('')}</div>
+            <div class="ruler-fill ${pct>=100?'over':''}" style="width:${pct}%"></div>
+            ${target>0 ? `<div class="bookmark" data-val="${total}/${target}" style="left:${pct}%"></div>` : ''}
+          </div>
+        </div>
+
+        <form class="entry-form" id="entryForm">
+          <div class="field">
+            <label>日期</label>
+            <input type="date" id="entryDate" value="${todayStr()}" required>
+          </div>
+          <div class="field">
+            <label>今天寫了幾頁</label>
+            <input type="number" id="entryPages" min="1" placeholder="頁數" required>
+          </div>
+          <div class="field">
+            <label>備註（選填）</label>
+            <input type="text" id="entryNote" placeholder="例如：第三章草稿">
+          </div>
+          <button type="submit" class="submit">記錄</button>
+        </form>
+
+        ${rows.length===0 ? `<div class="empty"><p>還沒有紀錄，開始寫下今天的頁數吧。</p></div>` : `
+        <table class="ledger">
+          <thead><tr><th>日期</th><th>當日頁數</th><th>累計頁數</th><th>備註</th><th></th></tr></thead>
+          <tbody>
+            ${rows.map(r=>`
+              <tr>
+                <td>${r.date}</td>
+                <td>${r.pages}</td>
+                <td>${r.cum}</td>
+                <td class="note">${escapeHtml(r.note||'')}</td>
+                <td><button class="del" data-entry="${r.id}">刪除</button></td>
+              </tr>`).join('')}
+          </tbody>
+        </table>`}
+      </div>
+    </div>
+  `;
+
+  bindAddBook();
+  document.querySelectorAll('.book-tab').forEach(el=>{
+    el.addEventListener('click', ()=>{ state.activeBookId = el.dataset.id; saveState(); render(); });
+  });
+  document.getElementById('targetInput').addEventListener('change', (e)=>{
+    active.target = e.target.value === '' ? null : Number(e.target.value);
+    saveState(); render();
+  });
+  document.getElementById('delBookBtn').addEventListener('click', ()=>{
+    if(confirm(`確定要刪除「${active.name}」以及它的所有紀錄嗎？此動作無法復原。`)){
+      state.books = state.books.filter(b=>b.id!==active.id);
+      delete state.entries[active.id];
+      state.activeBookId = state.books[0]?.id || null;
+      saveState(); render();
+    }
+  });
+  document.getElementById('entryForm').addEventListener('submit', (e)=>{
+    e.preventDefault();
+    const date = document.getElementById('entryDate').value;
+    const pages = document.getElementById('entryPages').value;
+    const note = document.getElementById('entryNote').value.trim();
+    if(!date || !pages || Number(pages)<=0) return;
+    if(!state.entries[active.id]) state.entries[active.id] = [];
+    state.entries[active.id].push({ id:uid(), date, pages:Number(pages), note });
+    saveState(); render();
+  });
+  document.querySelectorAll('.del').forEach(el=>{
+    el.addEventListener('click', ()=>{
+      state.entries[active.id] = state.entries[active.id].filter(e=>e.id!==el.dataset.entry);
+      saveState(); render();
+    });
+  });
+}
+
+function addBookFormHTML(){
+  return `
+    <input type="text" id="newBookName" placeholder="書名／科目名稱">
+    <div class="row">
+      <input type="number" min="0" class="pages" id="newBookTarget" placeholder="目標頁數">
+      <button id="addBookBtn" style="flex:1">新增</button>
+    </div>`;
+}
+function bindAddBook(){
+  document.getElementById('addBookBtn').addEventListener('click', ()=>{
+    const name = document.getElementById('newBookName').value.trim();
+    if(!name) return;
+    const target = document.getElementById('newBookTarget').value;
+    const id = uid();
+    state.books.push({ id, name, target: target ? Number(target) : null });
+    state.entries[id] = [];
+    state.activeBookId = id;
+    saveState(); render();
+  });
+}
+
+function escapeHtml(s){
+  return String(s).replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+function exportExcel(){
+  if(!state.books.length){ alert('目前還沒有任何資料可以匯出。'); return; }
+  const wb = XLSX.utils.book_new();
+
+  const summary = state.books.map(b=>{
+    const total = totalFor(b.id);
+    const target = Number(b.target)||0;
+    return {
+      '書名/科目': b.name,
+      '已完成頁數': total,
+      '目標頁數': target || '',
+      '完成率': target ? Math.round((total/target)*100)+'%' : ''
+    };
+  });
+  const wsSummary = XLSX.utils.json_to_sheet(summary);
+  XLSX.utils.book_append_sheet(wb, wsSummary, '總覽');
+
+  state.books.forEach(b=>{
+    const rows = cumulativeFor(b.id).map(r=>({
+      '日期': r.date, '當日頁數': r.pages, '累計頁數': r.cum, '備註': r.note||''
+    }));
+    const ws = XLSX.utils.json_to_sheet(rows.length ? rows : [{'日期':'','當日頁數':'','累計頁數':'','備註':''}]);
+    let sheetName = b.name.replace(/[\\/?*\[\]:]/g,'').slice(0,31) || '未命名';
+    XLSX.utils.book_append_sheet(wb, ws, sheetName);
+  });
+
+  const stamp = todayStr().replace(/-/g,'');
+  XLSX.writeFile(wb, `寫書進度_${stamp}.xlsx`);
+}
+
+(async function init(){
+  formatStamp();
+  state = await loadState();
+  render();
+  document.getElementById('exportBtn').addEventListener('click', exportExcel);
+})();
+</script>
+</body>
+</html>
