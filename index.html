@@ -9,214 +9,351 @@
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <style>
-  :root{
-    --paper: #E9E4D8;
-    --paper-line: #d9d2bf;
-    --card: #FCFAF5;
-    --card-border: #DAD3C1;
-    --ink: #2B2A26;
-    --ink-soft: #6b6659;
-    --ledger-green: #2F5D50;
-    --ledger-green-soft: #E4ECE9;
-    --brass: #B0812C;
-    --brass-soft: #F3E6C8;
-    --danger: #A03A2E;
-    --radius: 6px;
-    --shadow: 0 1px 2px rgba(43,42,38,0.06), 0 4px 10px rgba(43,42,38,0.05);
-  }
-  *{box-sizing:border-box;}
-  html,body{margin:0;padding:0;}
-  body{
-    background:
-      repeating-linear-gradient(180deg, transparent, transparent 27px, var(--paper-line) 28px),
-      var(--paper);
-    color:var(--ink);
-    font-family:'Inter', sans-serif;
-    min-height:100vh;
-    padding:28px 20px 60px;
-  }
-  ::selection{ background: var(--brass-soft); }
-  :focus-visible{ outline:2px solid var(--ledger-green); outline-offset:2px; border-radius:3px; }
+:root{
+  --paper: #E9E4D8;
+  --paper-line: #d9d2bf;
+  --card: #FCFAF5;
+  --card-border: #DAD3C1;
+  --ink: #2B2A26;
+  --ink-soft: #6b6659;
+  --ledger-green: #2F5D50;
+  --ledger-green-soft: #E4ECE9;
+  --brass: #B0812C;
+  --brass-soft: #F3E6C8;
+  --danger: #A03A2E;
+  --radius: 6px;
+  --shadow: 0 1px 2px rgba(43,42,38,0.06), 0 4px 10px rgba(43,42,38,0.05);
+}
+*{box-sizing:border-box;}
+html,body{margin:0;padding:0;}
+body{
+  background:
+    repeating-linear-gradient(180deg, transparent, transparent 27px, var(--paper-line) 28px),
+    var(--paper);
+  color:var(--ink);
+  font-family:'Inter', sans-serif;
+  min-height:100vh;
+  padding:28px 20px 60px;
+}
+::selection{ background: var(--brass-soft); }
+:focus-visible{ outline:2px solid var(--ledger-green); outline-offset:2px; border-radius:3px; }
+.hidden{ display:none !important; }
 
-  .wrap{ max-width:980px; margin:0 auto; }
+.wrap{ max-width:980px; margin:0 auto; }
 
-  header.top{
-    display:flex; justify-content:space-between; align-items:flex-end;
-    gap:16px; margin-bottom:24px; flex-wrap:wrap;
-  }
-  .title-block h1{
-    font-family:'Fraunces', serif; font-weight:600; font-size:clamp(28px,4vw,38px);
-    margin:0 0 4px; letter-spacing:-0.01em;
-  }
-  .title-block .stamp{
-    font-family:'JetBrains Mono', monospace; font-size:12px; color:var(--ink-soft);
-    letter-spacing:0.04em; text-transform:uppercase;
-  }
-  .export-btn{
-    font-family:'Inter',sans-serif; font-weight:600; font-size:14px;
-    background:var(--ledger-green); color:#fff; border:none; border-radius:var(--radius);
-    padding:11px 18px; cursor:pointer; box-shadow:var(--shadow);
-    display:inline-flex; align-items:center; gap:8px; transition:transform .12s ease, background .12s ease;
-  }
-  .export-btn:hover{ background:#264c41; transform:translateY(-1px); }
-  .export-btn:active{ transform:translateY(0); }
-  .export-btn svg{ width:15px; height:15px; }
+header.top{
+  display:flex; justify-content:space-between; align-items:flex-end;
+  gap:16px; margin-bottom:24px; flex-wrap:wrap;
+}
+.title-block h1{
+  font-family:'Fraunces', serif; font-weight:600; font-size:clamp(28px,4vw,38px);
+  margin:0 0 4px; letter-spacing:-0.01em;
+}
+.title-block .stamp{
+  font-family:'JetBrains Mono', monospace; font-size:12px; color:var(--ink-soft);
+  letter-spacing:0.04em; text-transform:uppercase;
+}
+.header-actions{ display:flex; align-items:center; gap:10px; }
+.user-badge{ font-family:'JetBrains Mono',monospace; font-size:12px; color:var(--ink-soft); }
+.export-btn, .logout-btn{
+  font-family:'Inter',sans-serif; font-weight:600; font-size:14px;
+  border:none; border-radius:var(--radius);
+  padding:11px 18px; cursor:pointer; box-shadow:var(--shadow);
+  display:inline-flex; align-items:center; gap:8px; transition:transform .12s ease, background .12s ease;
+}
+.export-btn{ background:var(--ledger-green); color:#fff; }
+.export-btn:hover{ background:#264c41; transform:translateY(-1px); }
+.logout-btn{ background:#fff; color:var(--danger); border:1px solid var(--card-border); }
+.logout-btn:hover{ background:#f7f0ee; }
+.export-btn svg{ width:15px; height:15px; }
 
-  .layout{ display:grid; grid-template-columns:220px 1fr; gap:20px; align-items:start; }
-  @media (max-width:720px){ .layout{ grid-template-columns:1fr; } }
+/* ---------- 登入畫面 ---------- */
+.auth-wrap{ max-width:380px; margin:8vh auto 0; }
+.auth-card{
+  background:var(--card); border:1px solid var(--card-border); border-radius:var(--radius);
+  box-shadow:var(--shadow); padding:32px 28px;
+}
+.auth-card h1{ font-family:'Fraunces',serif; font-size:26px; margin:0 0 4px; text-align:center; }
+.auth-card .sub{ text-align:center; color:var(--ink-soft); font-size:13px; margin-bottom:22px; }
+.auth-field{ display:flex; flex-direction:column; gap:5px; margin-bottom:14px; }
+.auth-field label{ font-size:11px; text-transform:uppercase; letter-spacing:0.05em; color:var(--ink-soft); font-family:'JetBrains Mono',monospace; }
+.auth-field input{ font-family:'Inter',sans-serif; font-size:14px; padding:10px 12px; border:1px solid var(--card-border); border-radius:4px; background:#fff; }
+.auth-submit{
+  width:100%; background:var(--ledger-green); color:#fff; border:none; border-radius:4px;
+  padding:11px; font-weight:600; font-size:14px; cursor:pointer; margin-top:4px;
+}
+.auth-submit:hover{ background:#264c41; }
+.auth-submit:disabled{ opacity:0.6; cursor:default; }
+.auth-toggle{ text-align:center; margin-top:16px; font-size:13px; color:var(--ink-soft); }
+.auth-toggle button{ background:none; border:none; color:var(--ledger-green); font-weight:600; cursor:pointer; text-decoration:underline; padding:0; font-size:13px; }
+.auth-msg{ font-size:13px; text-align:center; margin-top:12px; padding:8px; border-radius:4px; }
+.auth-msg.error{ background:#f7e3e0; color:var(--danger); }
+.auth-msg.success{ background:var(--ledger-green-soft); color:var(--ledger-green); }
 
-  .shelf{
-    background:var(--card); border:1px solid var(--card-border); border-radius:var(--radius);
-    box-shadow:var(--shadow); padding:10px; display:flex; flex-direction:column; gap:6px;
-  }
-  .shelf h2{
-    font-family:'JetBrains Mono',monospace; font-size:11px; text-transform:uppercase;
-    letter-spacing:0.08em; color:var(--ink-soft); margin:4px 6px 2px; font-weight:700;
-  }
-  .book-tab{
-    display:flex; align-items:center; gap:8px; text-align:left; width:100%;
-    background:transparent; border:none; border-left:4px solid var(--tab-color, var(--ledger-green));
-    border-radius:3px; padding:9px 10px; cursor:pointer; font-family:'Inter',sans-serif;
-    font-size:14px; color:var(--ink); transition:background .12s ease;
-  }
-  .book-tab .name{ flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-  .book-tab .pct{ font-family:'JetBrains Mono',monospace; font-size:11px; color:var(--ink-soft); }
-  .book-tab:hover{ background:var(--ledger-green-soft); }
-  .book-tab.active{ background:var(--ledger-green-soft); font-weight:600; }
+/* ---------- 主應用程式 ---------- */
+.layout{ display:grid; grid-template-columns:220px 1fr; gap:20px; align-items:start; }
+@media (max-width:720px){ .layout{ grid-template-columns:1fr; } }
 
-  .add-book{ border-top:1px dashed var(--card-border); margin-top:4px; padding-top:8px; }
-  .add-book input{
-    width:100%; font-family:'Inter',sans-serif; font-size:13px; padding:7px 8px;
-    border:1px solid var(--card-border); border-radius:4px; margin-bottom:6px; background:#fff;
-  }
-  .add-book .row{ display:flex; gap:6px; }
-  .add-book .row input.pages{ width:70px; }
-  .add-book button{
-    font-family:'Inter',sans-serif; font-size:13px; font-weight:600; width:100%;
-    background:#fff; border:1px solid var(--ledger-green); color:var(--ledger-green);
-    border-radius:4px; padding:7px; cursor:pointer;
-  }
-  .add-book button:hover{ background:var(--ledger-green-soft); }
+.shelf{
+  background:var(--card); border:1px solid var(--card-border); border-radius:var(--radius);
+  box-shadow:var(--shadow); padding:10px; display:flex; flex-direction:column; gap:6px;
+}
+.shelf h2{
+  font-family:'JetBrains Mono',monospace; font-size:11px; text-transform:uppercase;
+  letter-spacing:0.08em; color:var(--ink-soft); margin:4px 6px 2px; font-weight:700;
+}
+.book-tab{
+  display:flex; align-items:center; gap:8px; text-align:left; width:100%;
+  background:transparent; border:none; border-left:4px solid var(--tab-color, var(--ledger-green));
+  border-radius:3px; padding:9px 10px; cursor:pointer; font-family:'Inter',sans-serif;
+  font-size:14px; color:var(--ink); transition:background .12s ease;
+}
+.book-tab .name{ flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.book-tab .pct{ font-family:'JetBrains Mono',monospace; font-size:11px; color:var(--ink-soft); }
+.book-tab:hover{ background:var(--ledger-green-soft); }
+.book-tab.active{ background:var(--ledger-green-soft); font-weight:600; }
 
-  .panel{
-    background:var(--card); border:1px solid var(--card-border); border-radius:var(--radius);
-    box-shadow:var(--shadow); padding:22px 24px;
-  }
-  .panel-head{ display:flex; justify-content:space-between; align-items:flex-start; gap:12px; flex-wrap:wrap; margin-bottom:6px;}
-  .panel-head h2{ font-family:'Fraunces',serif; font-size:22px; font-weight:600; margin:0; }
-  .panel-head .target-edit{ display:flex; align-items:center; gap:6px; font-size:13px; color:var(--ink-soft); }
-  .panel-head .target-edit input{
-    width:70px; font-family:'JetBrains Mono',monospace; font-size:13px; padding:4px 6px;
-    border:1px solid var(--card-border); border-radius:4px; text-align:right;
-  }
-  .delete-book{ background:none; border:none; color:var(--danger); font-size:12px; cursor:pointer; text-decoration:underline; padding:0; }
+.add-book{ border-top:1px dashed var(--card-border); margin-top:4px; padding-top:8px; }
+.add-book input{
+  width:100%; font-family:'Inter',sans-serif; font-size:13px; padding:7px 8px;
+  border:1px solid var(--card-border); border-radius:4px; margin-bottom:6px; background:#fff;
+}
+.add-book .row{ display:flex; gap:6px; }
+.add-book .row input.pages{ width:70px; }
+.add-book button{
+  font-family:'Inter',sans-serif; font-size:13px; font-weight:600; width:100%;
+  background:#fff; border:1px solid var(--ledger-green); color:var(--ledger-green);
+  border-radius:4px; padding:7px; cursor:pointer;
+}
+.add-book button:hover{ background:var(--ledger-green-soft); }
 
-  /* Signature element: bookmark ruler progress */
-  .ruler{ margin:22px 0 26px; }
-  .ruler .stats{ display:flex; justify-content:space-between; font-family:'JetBrains Mono',monospace; font-size:13px; color:var(--ink-soft); margin-bottom:8px; }
-  .ruler .stats b{ color:var(--ink); font-size:15px; }
-  .ruler-track{ position:relative; height:22px; background:#fff; border:1px solid var(--card-border); border-radius:3px; overflow:visible; }
-  .ruler-ticks{ position:absolute; inset:0; display:flex; }
-  .ruler-ticks span{ flex:1; border-right:1px solid var(--paper-line); }
-  .ruler-ticks span:last-child{ border-right:none; }
-  .ruler-fill{ position:absolute; top:0; left:0; bottom:0; background:linear-gradient(90deg, var(--brass-soft), var(--brass)); border-radius:3px 0 0 3px; transition:width .35s ease; }
-  .ruler-fill.over{ background:linear-gradient(90deg, #cfe3da, var(--ledger-green)); }
-  .bookmark{
-    position:absolute; top:-10px; width:20px; height:32px; background:var(--ledger-green);
-    clip-path:polygon(0 0, 100% 0, 100% 100%, 50% 78%, 0 100%);
-    transform:translateX(-10px); transition:left .35s ease; box-shadow:0 2px 4px rgba(0,0,0,0.25);
-  }
-  .bookmark::after{
-    content:attr(data-val); position:absolute; top:-20px; left:50%; transform:translateX(-50%);
-    font-family:'JetBrains Mono',monospace; font-size:10px; color:var(--ink-soft); white-space:nowrap;
-  }
+.panel{
+  background:var(--card); border:1px solid var(--card-border); border-radius:var(--radius);
+  box-shadow:var(--shadow); padding:22px 24px;
+}
+.panel-head{ display:flex; justify-content:space-between; align-items:flex-start; gap:12px; flex-wrap:wrap; margin-bottom:6px;}
+.panel-head h2{ font-family:'Fraunces',serif; font-size:22px; font-weight:600; margin:0; }
+.panel-head .target-edit{ display:flex; align-items:center; gap:6px; font-size:13px; color:var(--ink-soft); }
+.panel-head .target-edit input{
+  width:70px; font-family:'JetBrains Mono',monospace; font-size:13px; padding:4px 6px;
+  border:1px solid var(--card-border); border-radius:4px; text-align:right;
+}
+.delete-book{ background:none; border:none; color:var(--danger); font-size:12px; cursor:pointer; text-decoration:underline; padding:0; }
 
-  .entry-form{ display:flex; gap:10px; align-items:flex-end; flex-wrap:wrap; padding:16px; background:var(--ledger-green-soft); border-radius:var(--radius); margin-bottom:20px; }
-  .entry-form .field{ display:flex; flex-direction:column; gap:4px; }
-  .entry-form label{ font-size:11px; text-transform:uppercase; letter-spacing:0.05em; color:var(--ink-soft); font-family:'JetBrains Mono',monospace; }
-  .entry-form input{ font-family:'Inter',sans-serif; font-size:14px; padding:8px 10px; border:1px solid var(--card-border); border-radius:4px; background:#fff; }
-  .entry-form input[type=number]{ width:90px; }
-  .entry-form input[type=text]{ width:180px; }
-  .entry-form .submit{
-    background:var(--ledger-green); color:#fff; border:none; border-radius:4px; padding:9px 18px;
-    font-weight:600; cursor:pointer; font-family:'Inter',sans-serif; font-size:14px; height:38px;
-  }
-  .entry-form .submit:hover{ background:#264c41; }
+.ruler{ margin:22px 0 26px; }
+.ruler .stats{ display:flex; justify-content:space-between; font-family:'JetBrains Mono',monospace; font-size:13px; color:var(--ink-soft); margin-bottom:8px; }
+.ruler .stats b{ color:var(--ink); font-size:15px; }
+.ruler-track{ position:relative; height:22px; background:#fff; border:1px solid var(--card-border); border-radius:3px; overflow:visible; }
+.ruler-ticks{ position:absolute; inset:0; display:flex; }
+.ruler-ticks span{ flex:1; border-right:1px solid var(--paper-line); }
+.ruler-ticks span:last-child{ border-right:none; }
+.ruler-fill{ position:absolute; top:0; left:0; bottom:0; background:linear-gradient(90deg, var(--brass-soft), var(--brass)); border-radius:3px 0 0 3px; transition:width .35s ease; }
+.ruler-fill.over{ background:linear-gradient(90deg, #cfe3da, var(--ledger-green)); }
+.bookmark{
+  position:absolute; top:-10px; width:20px; height:32px; background:var(--ledger-green);
+  clip-path:polygon(0 0, 100% 0, 100% 100%, 50% 78%, 0 100%);
+  transform:translateX(-10px); transition:left .35s ease; box-shadow:0 2px 4px rgba(0,0,0,0.25);
+}
+.bookmark::after{
+  content:attr(data-val); position:absolute; top:-20px; left:50%; transform:translateX(-50%);
+  font-family:'JetBrains Mono',monospace; font-size:10px; color:var(--ink-soft); white-space:nowrap;
+}
 
-  table.ledger{ width:100%; border-collapse:collapse; font-size:14px; }
-  table.ledger th{ text-align:left; font-family:'JetBrains Mono',monospace; font-size:11px; text-transform:uppercase; letter-spacing:0.05em; color:var(--ink-soft); border-bottom:1px solid var(--card-border); padding:6px 8px; font-weight:700; }
-  table.ledger td{ padding:8px; border-bottom:1px solid var(--paper-line); font-family:'JetBrains Mono',monospace; }
-  table.ledger td.note{ font-family:'Inter',sans-serif; color:var(--ink-soft); }
-  table.ledger tr:hover td{ background:#faf7ee; }
-  table.ledger .del{ background:none; border:none; color:var(--danger); cursor:pointer; font-size:12px; }
+.entry-form{ display:flex; gap:10px; align-items:flex-end; flex-wrap:wrap; padding:16px; background:var(--ledger-green-soft); border-radius:var(--radius); margin-bottom:20px; }
+.entry-form .field{ display:flex; flex-direction:column; gap:4px; }
+.entry-form label{ font-size:11px; text-transform:uppercase; letter-spacing:0.05em; color:var(--ink-soft); font-family:'JetBrains Mono',monospace; }
+.entry-form input{ font-family:'Inter',sans-serif; font-size:14px; padding:8px 10px; border:1px solid var(--card-border); border-radius:4px; background:#fff; }
+.entry-form input[type=number]{ width:90px; }
+.entry-form input[type=text]{ width:180px; }
+.entry-form .submit{
+  background:var(--ledger-green); color:#fff; border:none; border-radius:4px; padding:9px 18px;
+  font-weight:600; cursor:pointer; font-family:'Inter',sans-serif; font-size:14px; height:38px;
+}
+.entry-form .submit:hover{ background:#264c41; }
 
-  .empty{ text-align:center; padding:50px 20px; color:var(--ink-soft); }
-  .empty h2{ font-family:'Fraunces',serif; font-size:20px; color:var(--ink); margin-bottom:6px; }
+table.ledger{ width:100%; border-collapse:collapse; font-size:14px; }
+table.ledger th{ text-align:left; font-family:'JetBrains Mono',monospace; font-size:11px; text-transform:uppercase; letter-spacing:0.05em; color:var(--ink-soft); border-bottom:1px solid var(--card-border); padding:6px 8px; font-weight:700; }
+table.ledger td{ padding:8px; border-bottom:1px solid var(--paper-line); font-family:'JetBrains Mono',monospace; }
+table.ledger td.note{ font-family:'Inter',sans-serif; color:var(--ink-soft); }
+table.ledger tr:hover td{ background:#faf7ee; }
+table.ledger .del{ background:none; border:none; color:var(--danger); cursor:pointer; font-size:12px; }
 
-  .loading{ text-align:center; padding:60px; color:var(--ink-soft); font-family:'JetBrains Mono',monospace; font-size:13px; }
+.empty{ text-align:center; padding:50px 20px; color:var(--ink-soft); }
+.empty h2{ font-family:'Fraunces',serif; font-size:20px; color:var(--ink); margin-bottom:6px; }
+
+.loading{ text-align:center; padding:60px; color:var(--ink-soft); font-family:'JetBrains Mono',monospace; font-size:13px; }
 </style>
 </head>
 <body>
-<div class="wrap">
+
+<!-- 登入 / 註冊畫面 -->
+<div id="authView" class="auth-wrap">
+  <div class="auth-card">
+    <h1 id="authTitle">登入</h1>
+    <div class="sub">手稿進度 Ledger・每人專屬的寫作紀錄</div>
+    <form id="authForm">
+      <div class="auth-field">
+        <label>Email</label>
+        <input type="email" id="authEmail" required autocomplete="email">
+      </div>
+      <div class="auth-field">
+        <label>密碼</label>
+        <input type="password" id="authPassword" required autocomplete="current-password" minlength="6">
+      </div>
+      <button type="submit" class="auth-submit" id="authSubmitBtn">登入</button>
+    </form>
+    <div class="auth-toggle">
+      <span id="authToggleText">還沒有帳號？</span>
+      <button id="authToggleBtn">註冊一個</button>
+    </div>
+    <div class="auth-msg" id="authMsg"></div>
+  </div>
+</div>
+
+<!-- 主應用程式畫面 -->
+<div id="mainView" class="wrap hidden">
   <header class="top">
     <div class="title-block">
       <h1>手稿進度 Ledger</h1>
       <div class="stamp" id="todayStamp"></div>
     </div>
-    <button class="export-btn" id="exportBtn">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3v12m0 0l-4-4m4 4l4-4"/><path d="M4 17v3a1 1 0 001 1h14a1 1 0 001-1v-3"/></svg>
-      匯出 Excel
-    </button>
+    <div class="header-actions">
+      <span class="user-badge" id="userBadge"></span>
+      <button class="export-btn" id="exportBtn">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3v12m0 0l-4-4m4 4l4-4"/><path d="M4 17v3a1 1 0 001 1h14a1 1 0 001-1v-3"/></svg>
+        匯出 Excel
+      </button>
+      <button class="logout-btn" id="logoutBtn">登出</button>
+    </div>
   </header>
 
-  <div id="app"><div class="loading">讀取資料中…</div></div>
+  <div id="appPanel"><div class="loading">讀取資料中…</div></div>
 </div>
 
-<script>
+<script type="module">
+import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm';
+
+/* ============================================================
+   請把下面兩個值換成你自己 Supabase 專案的資訊
+   Supabase 專案後台 → Project Settings → API 可以找到：
+     Project URL         → SUPABASE_URL
+     anon public API key → SUPABASE_ANON_KEY
+   這個 anon key 設計上就是可以公開放在前端程式碼裡的，不是機密金鑰，
+   可以放心把這整個檔案推上 GitHub。
+   ============================================================ */
+const SUPABASE_URL = "https://vpvtgksmxgbvzwummoqs.supabase.co";
+const SUPABASE_ANON_KEY = "sb_publishable_a0-qYVHS78mHYxBPsFo7sg_n3X5xiAj";
+const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
 const PALETTE = ['#2F5D50','#B0812C','#7A4A6B','#3A6B8A','#8A4A3A','#4A6B3A'];
-const STORAGE_KEY = 'tracker-data';
-let state = null; // { books:[{id,name,target}], entries:{bookId:[{id,date,pages,note}]}, activeBookId }
 
-function uid(){ return Math.random().toString(36).slice(2,9); }
-function todayStr(){ const d=new Date(); return d.toISOString().slice(0,10); }
+let currentUser = null;
+let books = [];              // [{id,name,target}]
+let entriesByBook = {};      // { bookId: [{id,date,pages,note}] }
+let activeBookId = null;
+let isSignUpMode = false;
 
+function todayStr(){ return new Date().toISOString().slice(0,10); }
+function escapeHtml(s){
+  return String(s).replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
 function formatStamp(){
   const d = new Date();
   const w = ['日','一','二','三','四','五','六'][d.getDay()];
-  document.getElementById('todayStamp').textContent = `今天 ${d.getFullYear()}.${String(d.getMonth()+1).padStart(2,'0')}.${String(d.getDate()).padStart(2,'0')}（週${w}）`;
+  const el = document.getElementById('todayStamp');
+  if(el) el.textContent = `今天 ${d.getFullYear()}.${String(d.getMonth()+1).padStart(2,'0')}.${String(d.getDate()).padStart(2,'0')}（週${w}）`;
 }
 
-async function loadState(){
-  try{
-    const res = await window.storage.get(STORAGE_KEY, false);
-    if(res && res.value){ return JSON.parse(res.value); }
-  }catch(e){ /* key not found or error -> fresh state */ }
-  return { books:[], entries:{}, activeBookId:null };
+/* ---------------- Auth ---------------- */
+
+function checkConfig(){
+  if(SUPABASE_URL.includes('YOUR_') || SUPABASE_ANON_KEY.includes('YOUR_')){
+    setAuthMsg('⚠️ 尚未設定檔案開頭的 SUPABASE_URL 與 SUPABASE_ANON_KEY，請參考 README.md。', 'error');
+    return false;
+  }
+  return true;
 }
 
-async function saveState(){
-  try{
-    await window.storage.set(STORAGE_KEY, JSON.stringify(state), false);
-  }catch(e){ console.error('儲存失敗', e); }
+function setAuthMsg(text, type){
+  const el = document.getElementById('authMsg');
+  el.textContent = text || '';
+  el.className = 'auth-msg' + (type ? ' ' + type : '');
+}
+
+async function handleAuthSubmit(e){
+  e.preventDefault();
+  if(!checkConfig()) return;
+  const email = document.getElementById('authEmail').value.trim();
+  const password = document.getElementById('authPassword').value;
+  const btn = document.getElementById('authSubmitBtn');
+  btn.disabled = true;
+  setAuthMsg('');
+
+  if(isSignUpMode){
+    const { error } = await supabase.auth.signUp({ email, password });
+    if(error){ setAuthMsg(error.message, 'error'); }
+    else{ setAuthMsg('註冊成功！請檢查信箱完成驗證後再登入（若專案關閉了信箱驗證，可直接登入）。', 'success'); }
+  }else{
+    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    if(error){ setAuthMsg(error.message, 'error'); }
+  }
+  btn.disabled = false;
+}
+
+function toggleAuthMode(){
+  isSignUpMode = !isSignUpMode;
+  document.getElementById('authTitle').textContent = isSignUpMode ? '建立帳號' : '登入';
+  document.getElementById('authSubmitBtn').textContent = isSignUpMode ? '註冊' : '登入';
+  document.getElementById('authToggleText').textContent = isSignUpMode ? '已經有帳號了？' : '還沒有帳號？';
+  document.getElementById('authToggleBtn').textContent = isSignUpMode ? '登入' : '註冊一個';
+  setAuthMsg('');
+}
+
+async function handleLogout(){
+  await supabase.auth.signOut();
+}
+
+/* ---------------- Data loading ---------------- */
+
+async function loadAllData(){
+  const { data: bookRows, error: bErr } = await supabase
+    .from('books').select('*').order('created_at', { ascending: true });
+  if(bErr){ console.error(bErr); books = []; } else { books = bookRows; }
+
+  entriesByBook = {};
+  if(books.length){
+    const { data: entryRows, error: eErr } = await supabase
+      .from('entries').select('*').order('date', { ascending: true });
+    if(eErr){ console.error(eErr); }
+    else{
+      entryRows.forEach(r=>{
+        if(!entriesByBook[r.book_id]) entriesByBook[r.book_id] = [];
+        entriesByBook[r.book_id].push(r);
+      });
+    }
+  }
 }
 
 function cumulativeFor(bookId){
-  const list = (state.entries[bookId]||[]).slice().sort((a,b)=>a.date.localeCompare(b.date));
+  const list = (entriesByBook[bookId]||[]).slice().sort((a,b)=>a.date.localeCompare(b.date));
   let sum = 0;
   return list.map(e=>{ sum += Number(e.pages)||0; return {...e, cum:sum}; });
 }
 function totalFor(bookId){
-  return (state.entries[bookId]||[]).reduce((s,e)=>s+(Number(e.pages)||0),0);
+  return (entriesByBook[bookId]||[]).reduce((s,e)=>s+(Number(e.pages)||0),0);
 }
 
+/* ---------------- Rendering ---------------- */
+
 function render(){
-  const app = document.getElementById('app');
-  if(state.books.length === 0){
+  const app = document.getElementById('appPanel');
+
+  if(books.length === 0){
     app.innerHTML = `
       <div class="layout">
         <aside class="shelf">
           <h2>書目 / 科目</h2>
-          ${addBookFormHTML()}
+          <div class="add-book">${addBookFormHTML()}</div>
         </aside>
         <div class="panel">
           <div class="empty">
@@ -229,10 +366,10 @@ function render(){
     return;
   }
 
-  if(!state.activeBookId || !state.books.find(b=>b.id===state.activeBookId)){
-    state.activeBookId = state.books[0].id;
+  if(!activeBookId || !books.find(b=>b.id===activeBookId)){
+    activeBookId = books[0].id;
   }
-  const active = state.books.find(b=>b.id===state.activeBookId);
+  const active = books.find(b=>b.id===activeBookId);
   const total = totalFor(active.id);
   const target = Number(active.target)||0;
   const pct = target>0 ? Math.min(100, Math.round((total/target)*100)) : 0;
@@ -242,7 +379,7 @@ function render(){
     <div class="layout">
       <aside class="shelf">
         <h2>書目 / 科目</h2>
-        ${state.books.map((b,i)=>{
+        ${books.map((b,i)=>{
           const t = totalFor(b.id); const tg = Number(b.target)||0;
           const p = tg>0 ? Math.min(100, Math.round((t/tg)*100)) : 0;
           const color = PALETTE[i % PALETTE.length];
@@ -312,34 +449,45 @@ function render(){
 
   bindAddBook();
   document.querySelectorAll('.book-tab').forEach(el=>{
-    el.addEventListener('click', ()=>{ state.activeBookId = el.dataset.id; saveState(); render(); });
+    el.addEventListener('click', ()=>{ activeBookId = el.dataset.id; render(); });
   });
-  document.getElementById('targetInput').addEventListener('change', (e)=>{
-    active.target = e.target.value === '' ? null : Number(e.target.value);
-    saveState(); render();
+  document.getElementById('targetInput').addEventListener('change', async (e)=>{
+    const val = e.target.value === '' ? null : Number(e.target.value);
+    const { error } = await supabase.from('books').update({ target: val }).eq('id', active.id);
+    if(error){ alert('更新失敗：' + error.message); return; }
+    active.target = val;
+    render();
   });
-  document.getElementById('delBookBtn').addEventListener('click', ()=>{
-    if(confirm(`確定要刪除「${active.name}」以及它的所有紀錄嗎？此動作無法復原。`)){
-      state.books = state.books.filter(b=>b.id!==active.id);
-      delete state.entries[active.id];
-      state.activeBookId = state.books[0]?.id || null;
-      saveState(); render();
-    }
+  document.getElementById('delBookBtn').addEventListener('click', async ()=>{
+    if(!confirm(`確定要刪除「${active.name}」以及它的所有紀錄嗎？此動作無法復原。`)) return;
+    const { error } = await supabase.from('books').delete().eq('id', active.id);
+    if(error){ alert('刪除失敗：' + error.message); return; }
+    books = books.filter(b=>b.id!==active.id);
+    delete entriesByBook[active.id];
+    activeBookId = books[0]?.id || null;
+    render();
   });
-  document.getElementById('entryForm').addEventListener('submit', (e)=>{
+  document.getElementById('entryForm').addEventListener('submit', async (e)=>{
     e.preventDefault();
     const date = document.getElementById('entryDate').value;
-    const pages = document.getElementById('entryPages').value;
+    const pages = Number(document.getElementById('entryPages').value);
     const note = document.getElementById('entryNote').value.trim();
-    if(!date || !pages || Number(pages)<=0) return;
-    if(!state.entries[active.id]) state.entries[active.id] = [];
-    state.entries[active.id].push({ id:uid(), date, pages:Number(pages), note });
-    saveState(); render();
+    if(!date || !pages || pages<=0) return;
+    const { data, error } = await supabase.from('entries')
+      .insert({ book_id: active.id, user_id: currentUser.id, date, pages, note })
+      .select().single();
+    if(error){ alert('新增失敗：' + error.message); return; }
+    if(!entriesByBook[active.id]) entriesByBook[active.id] = [];
+    entriesByBook[active.id].push(data);
+    render();
   });
   document.querySelectorAll('.del').forEach(el=>{
-    el.addEventListener('click', ()=>{
-      state.entries[active.id] = state.entries[active.id].filter(e=>e.id!==el.dataset.entry);
-      saveState(); render();
+    el.addEventListener('click', async ()=>{
+      const entryId = el.dataset.entry;
+      const { error } = await supabase.from('entries').delete().eq('id', entryId);
+      if(error){ alert('刪除失敗：' + error.message); return; }
+      entriesByBook[active.id] = entriesByBook[active.id].filter(e=>e.id!==entryId);
+      render();
     });
   });
 }
@@ -353,27 +501,29 @@ function addBookFormHTML(){
     </div>`;
 }
 function bindAddBook(){
-  document.getElementById('addBookBtn').addEventListener('click', ()=>{
+  document.getElementById('addBookBtn').addEventListener('click', async ()=>{
     const name = document.getElementById('newBookName').value.trim();
     if(!name) return;
-    const target = document.getElementById('newBookTarget').value;
-    const id = uid();
-    state.books.push({ id, name, target: target ? Number(target) : null });
-    state.entries[id] = [];
-    state.activeBookId = id;
-    saveState(); render();
+    const targetVal = document.getElementById('newBookTarget').value;
+    const target = targetVal ? Number(targetVal) : null;
+    const { data, error } = await supabase.from('books')
+      .insert({ name, target, user_id: currentUser.id })
+      .select().single();
+    if(error){ alert('新增失敗：' + error.message); return; }
+    books.push(data);
+    entriesByBook[data.id] = [];
+    activeBookId = data.id;
+    render();
   });
 }
 
-function escapeHtml(s){
-  return String(s).replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-}
+/* ---------------- Export ---------------- */
 
 function exportExcel(){
-  if(!state.books.length){ alert('目前還沒有任何資料可以匯出。'); return; }
+  if(!books.length){ alert('目前還沒有任何資料可以匯出。'); return; }
   const wb = XLSX.utils.book_new();
 
-  const summary = state.books.map(b=>{
+  const summary = books.map(b=>{
     const total = totalFor(b.id);
     const target = Number(b.target)||0;
     return {
@@ -386,7 +536,7 @@ function exportExcel(){
   const wsSummary = XLSX.utils.json_to_sheet(summary);
   XLSX.utils.book_append_sheet(wb, wsSummary, '總覽');
 
-  state.books.forEach(b=>{
+  books.forEach(b=>{
     const rows = cumulativeFor(b.id).map(r=>({
       '日期': r.date, '當日頁數': r.pages, '累計頁數': r.cum, '備註': r.note||''
     }));
@@ -399,12 +549,49 @@ function exportExcel(){
   XLSX.writeFile(wb, `寫書進度_${stamp}.xlsx`);
 }
 
-(async function init(){
-  formatStamp();
-  state = await loadState();
+/* ---------------- View switching ---------------- */
+
+function showAuthView(){
+  document.getElementById('authView').classList.remove('hidden');
+  document.getElementById('mainView').classList.add('hidden');
+}
+async function showMainView(){
+  document.getElementById('authView').classList.add('hidden');
+  document.getElementById('mainView').classList.remove('hidden');
+  document.getElementById('userBadge').textContent = currentUser.email;
+  document.getElementById('appPanel').innerHTML = '<div class="loading">讀取資料中…</div>';
+  await loadAllData();
   render();
+}
+
+/* ---------------- Init ---------------- */
+
+async function init(){
+  formatStamp();
+  checkConfig();
+
+  document.getElementById('authForm').addEventListener('submit', handleAuthSubmit);
+  document.getElementById('authToggleBtn').addEventListener('click', toggleAuthMode);
+  document.getElementById('logoutBtn').addEventListener('click', handleLogout);
   document.getElementById('exportBtn').addEventListener('click', exportExcel);
-})();
+
+  const { data: { session } } = await supabase.auth.getSession();
+  if(session){ currentUser = session.user; await showMainView(); }
+  else{ showAuthView(); }
+
+  supabase.auth.onAuthStateChange(async (event, session) => {
+    if(session){
+      currentUser = session.user;
+      await showMainView();
+    }else{
+      currentUser = null;
+      books = []; entriesByBook = {}; activeBookId = null;
+      showAuthView();
+    }
+  });
+}
+
+init();
 </script>
 </body>
 </html>
