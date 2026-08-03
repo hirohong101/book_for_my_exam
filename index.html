@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>手稿進度 Ledger</title>
+<title>自我紀錄講義! Ledger</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
@@ -182,6 +182,27 @@ table.ledger .del{ background:none; border:none; color:var(--danger); cursor:poi
 .empty h2{ font-family:'Fraunces',serif; font-size:20px; color:var(--ink); margin-bottom:6px; }
 
 .loading{ text-align:center; padding:60px; color:var(--ink-soft); font-family:'JetBrains Mono',monospace; font-size:13px; }
+
+/* ---------- 修改密碼彈窗 ---------- */
+.modal-overlay{
+  position:fixed; inset:0; background:rgba(43,42,38,0.45); display:flex;
+  align-items:center; justify-content:center; padding:20px; z-index:50;
+}
+.modal-card{
+  background:var(--card); border:1px solid var(--card-border); border-radius:var(--radius);
+  box-shadow:var(--shadow); padding:26px 26px; width:100%; max-width:360px;
+}
+.modal-card h2{ font-family:'Fraunces',serif; font-size:20px; margin:0 0 16px; }
+.modal-card .auth-field{ margin-bottom:12px; }
+.modal-actions{ display:flex; gap:8px; margin-top:6px; }
+.modal-actions button{ flex:1; border-radius:4px; padding:10px; font-weight:600; font-size:14px; cursor:pointer; font-family:'Inter',sans-serif; }
+.modal-actions .cancel-btn{ background:#fff; border:1px solid var(--card-border); color:var(--ink); }
+.modal-actions .cancel-btn:hover{ background:var(--ledger-green-soft); }
+.modal-actions .confirm-btn{ background:var(--ledger-green); border:none; color:#fff; }
+.modal-actions .confirm-btn:hover{ background:#264c41; }
+.modal-actions .confirm-btn:disabled{ opacity:0.6; cursor:default; }
+.change-pw-btn{ background:#fff; color:var(--ink); border:1px solid var(--card-border); }
+.change-pw-btn:hover{ background:var(--ledger-green-soft); }
 </style>
 </head>
 <body>
@@ -190,7 +211,7 @@ table.ledger .del{ background:none; border:none; color:var(--danger); cursor:poi
 <div id="authView" class="auth-wrap">
   <div class="auth-card">
     <h1 id="authTitle">登入</h1>
-    <div class="sub">手稿進度 Ledger・每人專屬的寫作紀錄</div>
+    <div class="sub">自我紀錄.讓寫好的講義躍然"網"上</div>
     <form id="authForm">
       <div class="auth-field">
         <label>Email</label>
@@ -214,11 +235,12 @@ table.ledger .del{ background:none; border:none; color:var(--danger); cursor:poi
 <div id="mainView" class="wrap hidden">
   <header class="top">
     <div class="title-block">
-      <h1>手稿進度 Ledger</h1>
+      <h1>自我講義複習紀錄!</h1>
       <div class="stamp" id="todayStamp"></div>
     </div>
     <div class="header-actions">
       <span class="user-badge" id="userBadge"></span>
+      <button class="logout-btn change-pw-btn" id="changePwBtn">修改密碼</button>
       <button class="export-btn" id="exportBtn">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3v12m0 0l-4-4m4 4l4-4"/><path d="M4 17v3a1 1 0 001 1h14a1 1 0 001-1v-3"/></svg>
         匯出 Excel
@@ -228,6 +250,32 @@ table.ledger .del{ background:none; border:none; color:var(--danger); cursor:poi
   </header>
 
   <div id="appPanel"><div class="loading">讀取資料中…</div></div>
+</div>
+
+<!-- 修改密碼彈窗 -->
+<div id="changePwOverlay" class="modal-overlay hidden">
+  <div class="modal-card">
+    <h2>修改密碼</h2>
+    <form id="changePwForm">
+      <div class="auth-field">
+        <label>目前密碼</label>
+        <input type="password" id="oldPassword" required autocomplete="current-password">
+      </div>
+      <div class="auth-field">
+        <label>新密碼</label>
+        <input type="password" id="newPassword" required minlength="6" autocomplete="new-password">
+      </div>
+      <div class="auth-field">
+        <label>確認新密碼</label>
+        <input type="password" id="newPasswordConfirm" required minlength="6" autocomplete="new-password">
+      </div>
+      <div class="auth-msg" id="changePwMsg"></div>
+      <div class="modal-actions">
+        <button type="button" class="cancel-btn" id="cancelPwBtn">取消</button>
+        <button type="submit" class="confirm-btn" id="confirmPwBtn">確認修改</button>
+      </div>
+    </form>
+  </div>
 </div>
 
 <script type="module">
@@ -243,7 +291,14 @@ import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js
    ============================================================ */
 const SUPABASE_URL = "https://vpvtgksmxgbvzwummoqs.supabase.co";
 const SUPABASE_ANON_KEY = "sb_publishable_a0-qYVHS78mHYxBPsFo7sg_n3X5xiAj";
-const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+const CONFIG_OK = SUPABASE_URL.startsWith('http') && !SUPABASE_ANON_KEY.includes('YOUR_');
+
+// 尚未填入正確設定時，用一個假的網址建立 client，避免整頁直接噴錯崩潰。
+// 實際的登入/資料操作在呼叫前都會先檢查 CONFIG_OK 並顯示提示訊息。
+const supabase = createClient(
+  CONFIG_OK ? SUPABASE_URL : 'https://placeholder.supabase.co',
+  CONFIG_OK ? SUPABASE_ANON_KEY : 'placeholder-anon-key'
+);
 
 const PALETTE = ['#2F5D50','#B0812C','#7A4A6B','#3A6B8A','#8A4A3A','#4A6B3A'];
 
@@ -311,6 +366,67 @@ function toggleAuthMode(){
 
 async function handleLogout(){
   await supabase.auth.signOut();
+}
+
+/* ---------------- Change password ---------------- */
+
+function openChangePwModal(){
+  document.getElementById('oldPassword').value = '';
+  document.getElementById('newPassword').value = '';
+  document.getElementById('newPasswordConfirm').value = '';
+  setChangePwMsg('');
+  document.getElementById('changePwOverlay').classList.remove('hidden');
+  document.getElementById('oldPassword').focus();
+}
+function closeChangePwModal(){
+  document.getElementById('changePwOverlay').classList.add('hidden');
+}
+function setChangePwMsg(text, type){
+  const el = document.getElementById('changePwMsg');
+  el.textContent = text || '';
+  el.className = 'auth-msg' + (type ? ' ' + type : '');
+}
+
+async function handleChangePwSubmit(e){
+  e.preventDefault();
+  const oldPassword = document.getElementById('oldPassword').value;
+  const newPassword = document.getElementById('newPassword').value;
+  const newPasswordConfirm = document.getElementById('newPasswordConfirm').value;
+  const btn = document.getElementById('confirmPwBtn');
+
+  if(newPassword !== newPasswordConfirm){
+    setChangePwMsg('兩次輸入的新密碼不一致。', 'error');
+    return;
+  }
+  if(newPassword === oldPassword){
+    setChangePwMsg('新密碼不能跟目前密碼一樣。', 'error');
+    return;
+  }
+
+  btn.disabled = true;
+  setChangePwMsg('確認中…');
+
+  // 先用「目前密碼」重新登入一次，確認使用者真的知道原密碼
+  const { error: verifyError } = await supabase.auth.signInWithPassword({
+    email: currentUser.email,
+    password: oldPassword
+  });
+  if(verifyError){
+    setChangePwMsg('目前密碼不正確，請再確認一次。', 'error');
+    btn.disabled = false;
+    return;
+  }
+
+  // 驗證通過，才真的更新成新密碼
+  const { error: updateError } = await supabase.auth.updateUser({ password: newPassword });
+  btn.disabled = false;
+  if(updateError){
+    setChangePwMsg('修改失敗：' + updateError.message, 'error');
+    return;
+  }
+
+  setChangePwMsg('密碼修改成功！', 'success');
+  setTimeout(closeChangePwModal, 1200);
 }
 
 /* ---------------- Data loading ---------------- */
@@ -574,6 +690,12 @@ async function init(){
   document.getElementById('authToggleBtn').addEventListener('click', toggleAuthMode);
   document.getElementById('logoutBtn').addEventListener('click', handleLogout);
   document.getElementById('exportBtn').addEventListener('click', exportExcel);
+  document.getElementById('changePwBtn').addEventListener('click', openChangePwModal);
+  document.getElementById('cancelPwBtn').addEventListener('click', closeChangePwModal);
+  document.getElementById('changePwForm').addEventListener('submit', handleChangePwSubmit);
+  document.getElementById('changePwOverlay').addEventListener('click', (e)=>{
+    if(e.target.id === 'changePwOverlay') closeChangePwModal();
+  });
 
   const { data: { session } } = await supabase.auth.getSession();
   if(session){ currentUser = session.user; await showMainView(); }
