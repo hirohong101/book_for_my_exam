@@ -91,6 +91,24 @@ header.top{
 .auth-msg.success{ background:var(--ledger-green-soft); color:var(--ledger-green); }
 
 /* ---------- 主應用程式 ---------- */
+.overview{ margin-bottom:22px; }
+.overview h2{ font-family:'Fraunces',serif; font-size:18px; font-weight:600; margin:0 0 10px; }
+.overview-grid{ display:grid; grid-template-columns:repeat(auto-fill,minmax(200px,1fr)); gap:12px; }
+.overview-card{
+  background:var(--card); border:1px solid var(--card-border); border-radius:var(--radius);
+  box-shadow:var(--shadow); padding:14px 16px; cursor:pointer; text-align:left;
+  font-family:inherit; display:flex; flex-direction:column; gap:8px;
+  border-left:4px solid var(--tab-color, var(--brass)); transition:transform .12s ease, box-shadow .12s ease;
+}
+.overview-card:hover{ transform:translateY(-1px); box-shadow:0 2px 4px rgba(43,42,38,0.08), 0 6px 14px rgba(43,42,38,0.08); }
+.overview-card.active{ outline:2px solid var(--tab-color, var(--ledger-green)); outline-offset:1px; }
+.overview-card .name{ font-weight:600; font-size:14px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.overview-card .num{ font-family:'JetBrains Mono',monospace; font-size:12px; color:var(--ink-soft); }
+.overview-card .num b{ color:var(--ink); font-size:14px; }
+.overview-bar{ height:8px; background:#fff; border:1px solid var(--card-border); border-radius:4px; overflow:hidden; }
+.overview-bar-fill{ height:100%; background:var(--tab-color, var(--brass)); transition:width .35s ease; }
+.overview-card .no-target{ font-family:'JetBrains Mono',monospace; font-size:12px; color:var(--ink-soft); }
+
 .layout{ display:grid; grid-template-columns:220px 1fr; gap:20px; align-items:start; }
 @media (max-width:720px){ .layout{ grid-template-columns:1fr; } }
 
@@ -165,6 +183,11 @@ header.top{
 .entry-form input{ font-family:'Inter',sans-serif; font-size:14px; padding:8px 10px; border:1px solid var(--card-border); border-radius:4px; background:#fff; }
 .entry-form input[type=number]{ width:90px; }
 .entry-form input[type=text]{ width:180px; }
+.entry-form input#entryPages{ width:130px; }
+.page-range{ display:flex; align-items:center; gap:6px; }
+.page-range input{ width:70px !important; }
+.page-range .tilde{ color:var(--ink-soft); font-family:'JetBrains Mono',monospace; }
+.field-hint{ font-size:11px; color:var(--ink-soft); max-width:160px; line-height:1.3; }
 .entry-form .submit{
   background:var(--ledger-green); color:#fff; border:none; border-radius:4px; padding:9px 18px;
   font-weight:600; cursor:pointer; font-family:'Inter',sans-serif; font-size:14px; height:38px;
@@ -459,6 +482,57 @@ function totalFor(bookId){
   return (entriesByBook[bookId]||[]).reduce((s,e)=>s+(Number(e.pages)||0),0);
 }
 
+// 從「起始頁」「結束頁」兩個欄位算出實際寫了幾頁
+// 只填起始頁 = 1 頁；起訖都填 = 終-起+1 頁（自動處理順序顛倒）
+function parsePageRange(startRaw, endRaw){
+  const startStr = String(startRaw||'').trim();
+  const endStr = String(endRaw||'').trim();
+  if(startStr === '') return null;
+  const startNum = Number(startStr);
+  if(!Number.isFinite(startNum) || startNum <= 0) return null;
+
+  if(endStr === ''){
+    return { pages: 1, rangeLabel: `第${startNum}頁`, start: startNum, end: startNum };
+  }
+  const endNum = Number(endStr);
+  if(!Number.isFinite(endNum) || endNum <= 0) return null;
+  const start = Math.min(startNum, endNum), end = Math.max(startNum, endNum);
+  return { pages: end - start + 1, rangeLabel: `第${start}~${end}頁`, start, end };
+}
+
+// 把某本書「目前所有紀錄」的頁碼區間合併成互不重疊、由小到大排序的區間陣列
+// excludeEntryId：如果是在編輯某一筆舊紀錄，記得排除自己，不然會跟自己重疊
+function mergedRangesFor(bookId, excludeEntryId){
+  const ranges = (entriesByBook[bookId]||[])
+    .filter(e => e.id !== excludeEntryId && Number.isFinite(e.page_start) && Number.isFinite(e.page_end))
+    .map(e => [e.page_start, e.page_end])
+    .sort((a,b)=>a[0]-b[0]);
+  const merged = [];
+  for(const [s,e] of ranges){
+    const last = merged[merged.length-1];
+    if(last && s <= last[1] + 1){ last[1] = Math.max(last[1], e); }
+    else{ merged.push([s,e]); }
+  }
+  return merged;
+}
+
+// 用「已經寫過的區間」去扣掉這次新輸入的 start~end，算出真正「新寫的頁數」跟「重疊掉的頁數」
+function subtractWrittenRanges(start, end, mergedRanges){
+  let segments = [[start,end]];
+  for(const [rs,re] of mergedRanges){
+    const next = [];
+    for(const [s,e] of segments){
+      if(re < s || rs > e){ next.push([s,e]); continue; } // 完全沒重疊
+      if(s < rs) next.push([s, rs-1]);
+      if(e > re) next.push([re+1, e]);
+    }
+    segments = next;
+  }
+  const totalPages = end - start + 1;
+  const newPages = segments.reduce((sum,[s,e])=>sum + (e-s+1), 0);
+  return { newPages, overlappedPages: totalPages - newPages, totalPages };
+}
+
 /* ---------------- Rendering ---------------- */
 
 function render(){
@@ -492,6 +566,24 @@ function render(){
   const rows = cumulativeFor(active.id).slice().reverse();
 
   app.innerHTML = `
+    <div class="overview">
+      <h2>進度總覽</h2>
+      <div class="overview-grid">
+        ${books.map((b,i)=>{
+          const t = totalFor(b.id); const tg = Number(b.target)||0;
+          const p = tg>0 ? Math.min(100, Math.round((t/tg)*100)) : 0;
+          const color = PALETTE[i % PALETTE.length];
+          return `<button class="overview-card ${b.id===active.id?'active':''}" style="--tab-color:${color}" data-id="${b.id}">
+            <span class="name">${escapeHtml(b.name)}</span>
+            ${tg>0 ? `
+              <span class="num">已寫 <b>${t}</b> / ${tg} 頁</span>
+              <div class="overview-bar"><div class="overview-bar-fill" style="width:${p}%"></div></div>
+              <span class="num">完成 <b>${p}%</b></span>
+            ` : `<span class="no-target">已寫 ${t} 頁・尚未設目標</span>`}
+          </button>`;
+        }).join('')}
+      </div>
+    </div>
     <div class="layout">
       <aside class="shelf">
         <h2>書目 / 科目</h2>
@@ -535,8 +627,13 @@ function render(){
             <input type="date" id="entryDate" value="${todayStr()}" required>
           </div>
           <div class="field">
-            <label>今天寫了幾頁</label>
-            <input type="number" id="entryPages" min="1" placeholder="頁數" required>
+            <label>今天寫了第幾頁</label>
+            <div class="page-range">
+              <input type="number" min="1" id="entryPageStart" placeholder="從">
+              <span class="tilde">~</span>
+              <input type="number" min="1" id="entryPageEnd" placeholder="到（選填）">
+            </div>
+            <div class="field-hint">只填「從」＝寫1頁；兩個都填會自動算頁數</div>
           </div>
           <div class="field">
             <label>備註（選填）</label>
@@ -567,6 +664,9 @@ function render(){
   document.querySelectorAll('.book-tab').forEach(el=>{
     el.addEventListener('click', ()=>{ activeBookId = el.dataset.id; render(); });
   });
+  document.querySelectorAll('.overview-card').forEach(el=>{
+    el.addEventListener('click', ()=>{ activeBookId = el.dataset.id; render(); });
+  });
   document.getElementById('targetInput').addEventListener('change', async (e)=>{
     const val = e.target.value === '' ? null : Number(e.target.value);
     const { error } = await supabase.from('books').update({ target: val }).eq('id', active.id);
@@ -583,14 +683,35 @@ function render(){
     activeBookId = books[0]?.id || null;
     render();
   });
-  document.getElementById('entryForm').addEventListener('submit', async (e)=>{
+document.getElementById('entryForm').addEventListener('submit', async (e)=>{
     e.preventDefault();
     const date = document.getElementById('entryDate').value;
-    const pages = Number(document.getElementById('entryPages').value);
-    const note = document.getElementById('entryNote').value.trim();
-    if(!date || !pages || pages<=0) return;
+    const pageStart = document.getElementById('entryPageStart').value;
+    const pageEnd = document.getElementById('entryPageEnd').value;
+    if(!date) return;
+    const parsed = parsePageRange(pageStart, pageEnd);
+    if(!parsed || parsed.pages <= 0){
+      alert('頁數欄位看不懂，請至少填「從」，例如從15到20');
+      return;
+    }
+
+    // 檢查這個範圍裡有沒有頁數是「之前已經寫過」的，已經寫過的不重複計算
+    const merged = mergedRangesFor(active.id);
+    const { newPages, overlappedPages } = subtractWrittenRanges(parsed.start, parsed.end, merged);
+    if(newPages <= 0){
+      alert(`${parsed.rangeLabel}都已經寫過了，這次不會重複計算頁數，所以沒有新增紀錄。`);
+      return;
+    }
+
+    let label = parsed.rangeLabel;
+    if(overlappedPages > 0){
+      label += `（其中${overlappedPages}頁已寫過，只算${newPages}頁新進度）`;
+    }
+    let note = document.getElementById('entryNote').value.trim();
+    note = note ? `${label}・${note}` : label;
+
     const { data, error } = await supabase.from('entries')
-      .insert({ book_id: active.id, user_id: currentUser.id, date, pages, note })
+      .insert({ book_id: active.id, user_id: currentUser.id, date, pages: newPages, page_start: parsed.start, page_end: parsed.end, note })
       .select().single();
     if(error){ alert('新增失敗：' + error.message); return; }
     if(!entriesByBook[active.id]) entriesByBook[active.id] = [];
