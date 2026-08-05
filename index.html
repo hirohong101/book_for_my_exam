@@ -159,23 +159,19 @@ header.top{
 .delete-book{ background:none; border:none; color:var(--danger); font-size:12px; cursor:pointer; text-decoration:underline; padding:0; }
 
 .ruler{ margin:22px 0 26px; }
-.ruler .stats{ display:flex; justify-content:space-between; font-family:'JetBrains Mono',monospace; font-size:13px; color:var(--ink-soft); margin-bottom:8px; }
+.ruler .stats{ display:flex; justify-content:space-between; font-family:'JetBrains Mono',monospace; font-size:13px; color:var(--ink-soft); margin-bottom:10px; }
 .ruler .stats b{ color:var(--ink); font-size:15px; }
-.ruler-track{ position:relative; height:22px; background:#fff; border:1px solid var(--card-border); border-radius:3px; overflow:visible; }
-.ruler-ticks{ position:absolute; inset:0; display:flex; }
-.ruler-ticks span{ flex:1; border-right:1px solid var(--paper-line); }
-.ruler-ticks span:last-child{ border-right:none; }
-.ruler-fill{ position:absolute; top:0; left:0; bottom:0; background:linear-gradient(90deg, var(--brass-soft), var(--brass)); border-radius:3px 0 0 3px; transition:width .35s ease; }
-.ruler-fill.over{ background:linear-gradient(90deg, #cfe3da, var(--ledger-green)); }
-.bookmark{
-  position:absolute; top:-10px; width:20px; height:32px; background:var(--ledger-green);
-  clip-path:polygon(0 0, 100% 0, 100% 100%, 50% 78%, 0 100%);
-  transform:translateX(-10px); transition:left .35s ease; box-shadow:0 2px 4px rgba(0,0,0,0.25);
+.page-grid{
+  display:flex; height:22px; border:1px solid var(--card-border); border-radius:3px;
+  overflow:hidden; background:#fff;
 }
-.bookmark::after{
-  content:attr(data-val); position:absolute; top:-20px; left:50%; transform:translateX(-50%);
-  font-family:'JetBrains Mono',monospace; font-size:10px; color:var(--ink-soft); white-space:nowrap;
-}
+.page-cell{ flex:1; border-right:1px solid var(--paper-line); transition:background .15s ease; }
+.page-cell:last-child{ border-right:none; }
+.page-cell.filled{ background:var(--cell-color, var(--brass)); border-right-color:var(--cell-color, var(--brass)); }
+.page-grid.compact{ height:8px; border-radius:4px; }
+.page-grid.compact .page-cell{ border-right:none; }
+.page-grid-empty{ font-family:'JetBrains Mono',monospace; font-size:12px; color:var(--ink-soft); }
+
 
 .entry-form{ display:flex; gap:10px; align-items:flex-end; flex-wrap:wrap; padding:16px; background:var(--ledger-green-soft); border-radius:var(--radius); margin-bottom:20px; }
 .entry-form .field{ display:flex; flex-direction:column; gap:4px; }
@@ -533,6 +529,22 @@ function subtractWrittenRanges(start, end, mergedRanges){
   return { newPages, overlappedPages: totalPages - newPages, totalPages };
 }
 
+// 產生「逐頁長條圖」：目標頁數是幾頁就畫幾格、排成一整條，只有寫過的頁碼格子會被填色（顏色跟該科目一致）
+function pageGridHTML(bookId, target, color, extraClass){
+  const merged = mergedRangesFor(bookId);
+  const isWritten = (p) => merged.some(([s,e]) => p>=s && p<=e);
+
+  const cellCount = target>0 ? target : (merged.length ? merged[merged.length-1][1] : 0);
+  if(cellCount <= 0){
+    return `<div class="page-grid-empty">還沒有可顯示的頁碼，記錄後會自動畫出進度條。</div>`;
+  }
+  const cells = Array.from({length:cellCount}).map((_,i)=>{
+    const p = i+1;
+    return `<span class="page-cell ${isWritten(p)?'filled':''}" title="第${p}頁"></span>`;
+  }).join('');
+  return `<div class="page-grid ${extraClass||''}" style="--cell-color:${color}">${cells}</div>`;
+}
+
 /* ---------------- Rendering ---------------- */
 
 function render(){
@@ -560,9 +572,11 @@ function render(){
     activeBookId = books[0].id;
   }
   const active = books.find(b=>b.id===activeBookId);
+  const activeColor = PALETTE[books.findIndex(b=>b.id===active.id) % PALETTE.length];
   const total = totalFor(active.id);
   const target = Number(active.target)||0;
-  const pct = target>0 ? Math.min(100, Math.round((total/target)*100)) : 0;
+  const pctExact = target>0 ? Math.min(100, (total/target)*100) : 0;
+  const pct = Math.round(pctExact);
   const rows = cumulativeFor(active.id).slice().reverse();
 
   app.innerHTML = `
@@ -571,13 +585,14 @@ function render(){
       <div class="overview-grid">
         ${books.map((b,i)=>{
           const t = totalFor(b.id); const tg = Number(b.target)||0;
-          const p = tg>0 ? Math.min(100, Math.round((t/tg)*100)) : 0;
+          const pExact = tg>0 ? Math.min(100, (t/tg)*100) : 0;
+          const p = Math.round(pExact);
           const color = PALETTE[i % PALETTE.length];
           return `<button class="overview-card ${b.id===active.id?'active':''}" style="--tab-color:${color}" data-id="${b.id}">
             <span class="name">${escapeHtml(b.name)}</span>
             ${tg>0 ? `
               <span class="num">已寫 <b>${t}</b> / ${tg} 頁</span>
-              <div class="overview-bar"><div class="overview-bar-fill" style="width:${p}%"></div></div>
+              ${pageGridHTML(b.id, tg, color, 'compact')}
               <span class="num">完成 <b>${p}%</b></span>
             ` : `<span class="no-target">已寫 ${t} 頁・尚未設目標</span>`}
           </button>`;
@@ -614,11 +629,7 @@ function render(){
             <span>已寫 <b>${total}</b> 頁</span>
             <span>${target>0 ? `目標 <b>${target}</b> 頁・完成 <b>${pct}%</b>` : '尚未設定目標頁數'}</span>
           </div>
-          <div class="ruler-track">
-            <div class="ruler-ticks">${Array.from({length:10}).map(()=>'<span></span>').join('')}</div>
-            <div class="ruler-fill ${pct>=100?'over':''}" style="width:${pct}%"></div>
-            ${target>0 ? `<div class="bookmark" data-val="${total}/${target}" style="left:${pct}%"></div>` : ''}
-          </div>
+          ${pageGridHTML(active.id, target, activeColor)}
         </div>
 
         <form class="entry-form" id="entryForm">
