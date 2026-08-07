@@ -54,7 +54,19 @@ header.top{
   letter-spacing:0.04em; text-transform:uppercase;
 }
 .header-actions{ display:flex; align-items:center; gap:10px; }
+.avatar-btn{
+  width:34px; height:34px; border-radius:50%; border:none; cursor:pointer; padding:0;
+  background:var(--ledger-green); color:#fff; font-family:'Fraunces',serif; font-weight:600;
+  font-size:15px; display:flex; align-items:center; justify-content:center;
+  box-shadow:var(--shadow); transition:transform .15s ease;
+}
+.avatar-btn:hover{ transform:scale(1.06); }
 .user-badge{ font-family:'JetBrains Mono',monospace; font-size:12px; color:var(--ink-soft); }
+.daily-progress{
+  padding:7px 10px; border:1px solid var(--brass); border-radius:999px;
+  background:var(--brass-soft); color:#72530f; white-space:nowrap;
+  font:700 12px 'JetBrains Mono',monospace;
+}
 .export-btn, .logout-btn{
   font-family:'Inter',sans-serif; font-weight:600; font-size:14px;
   border:none; border-radius:var(--radius);
@@ -92,7 +104,10 @@ header.top{
 
 /* ---------- 主應用程式 ---------- */
 .overview{ margin-bottom:22px; }
-.overview h2{ font-family:'Fraunces',serif; font-size:18px; font-weight:600; margin:0 0 10px; }
+.overview h2{ font-family:'Fraunces',serif; font-size:18px; font-weight:600; margin:0; }
+.overview-head{ display:flex; justify-content:space-between; align-items:baseline; flex-wrap:wrap; gap:8px; margin-bottom:10px; }
+.today-total{ font-family:'JetBrains Mono',monospace; font-size:13px; color:var(--ink-soft); background:var(--brass-soft); padding:4px 10px; border-radius:20px; }
+.today-total b{ color:var(--brass); font-size:15px; }
 .overview-grid{ display:grid; grid-template-columns:repeat(auto-fill,minmax(200px,1fr)); gap:12px; }
 .overview-card{
   background:var(--card); border:1px solid var(--card-border); border-radius:var(--radius);
@@ -222,9 +237,96 @@ table.ledger .del{ background:none; border:none; color:var(--danger); cursor:poi
 .modal-actions .confirm-btn:disabled{ opacity:0.6; cursor:default; }
 .change-pw-btn{ background:#fff; color:var(--ink); border:1px solid var(--card-border); }
 .change-pw-btn:hover{ background:var(--ledger-green-soft); }
+
+/* ---------- 個人檔案彈窗 ---------- */
+.profile-card{ max-width:440px; }
+.profile-head{ display:flex; align-items:center; gap:14px; margin-bottom:18px; }
+.profile-avatar{
+  width:56px; height:56px; border-radius:50%; flex-shrink:0;
+  background:var(--ledger-green); color:#fff; font-family:'Fraunces',serif; font-weight:600;
+  font-size:22px; display:flex; align-items:center; justify-content:center;
+}
+.profile-id h2{ font-family:'Fraunces',serif; font-size:16px; font-weight:600; margin:0 0 2px; word-break:break-all; }
+.profile-sub{ margin:0; font-size:12px; color:var(--ink-soft); }
+.profile-stats{ display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:20px; }
+.profile-stat{
+  background:var(--ledger-green-soft); border-radius:var(--radius); padding:12px 14px;
+  display:flex; flex-direction:column; gap:4px;
+}
+.profile-stat .label{ font-family:'JetBrains Mono',monospace; font-size:11px; color:var(--ink-soft); text-transform:uppercase; letter-spacing:0.04em; }
+.profile-stat .value{ font-family:'Fraunces',serif; font-size:20px; font-weight:600; color:var(--ledger-green); }
+.profile-badges h3{ font-family:'Fraunces',serif; font-size:15px; margin:0 0 10px; display:flex; align-items:center; gap:6px; }
+.badge-count{ font-family:'JetBrains Mono',monospace; font-size:12px; color:var(--ink-soft); font-weight:400; }
+.badge-grid{ display:grid; grid-template-columns:repeat(auto-fill,minmax(120px,1fr)); gap:8px; max-height:220px; overflow-y:auto; margin-bottom:18px; }
+.badge-chip{
+  background:var(--brass-soft); border:1px solid var(--card-border); border-radius:8px;
+  padding:8px 10px; display:flex; flex-direction:column; gap:2px; align-items:center; text-align:center;
+}
+.badge-chip .badge-emoji{ font-size:20px; line-height:1.2; }
+.badge-chip .badge-date{ font-family:'JetBrains Mono',monospace; font-size:10px; color:var(--ink-soft); }
+.badge-empty{ grid-column:1/-1; color:var(--ink-soft); font-size:13px; padding:14px 4px; text-align:center; }
+
+/* ---------- 每日任務彈窗 ---------- */
+.daily-overlay{ position:fixed; inset:0; z-index:1000; padding:20px; display:flex; align-items:center; justify-content:center; background:rgba(43,42,38,.58); }
+.daily-card{ width:min(100%,430px); padding:30px 28px; background:var(--card); border:1px solid var(--card-border); border-radius:10px; box-shadow:0 18px 48px rgba(0,0,0,.24); text-align:center; animation:daily-pop .25s ease-out; }
+@keyframes daily-pop{ from{ opacity:0; transform:translateY(12px) scale(.96); } to{ opacity:1; transform:translateY(0) scale(1); } }
+.daily-card h2{ margin:0 0 7px; font-family:'Fraunces',serif; font-size:27px; }
+.daily-date{ color:var(--ink-soft); font-family:'JetBrains Mono',monospace; font-size:12px; }
+.daily-deadline{ color:var(--brass); font-family:'JetBrains Mono',monospace; font-size:11.5px; margin-top:3px; }
+.daily-task-list{ margin:20px 0 16px; padding:14px 16px; border-radius:7px; background:var(--ledger-green-soft); text-align:left; }
+.daily-task-list p{ margin:0; line-height:1.8; font-size:15px; }
+.daily-task-list p + p{ margin-top:4px; }
+.daily-task-list .task-progress{ color:var(--ink-soft); font-size:12px; }
+.daily-badge-label{ color:var(--ink-soft); font-size:12px; letter-spacing:.06em; }
+.daily-badge{ margin:7px 0 5px; font-family:'Fraunces',serif; font-size:21px; }
+.daily-badge-note{ margin:0 0 20px; color:var(--ink-soft); font-size:13px; }
+.daily-btn{ width:100%; padding:12px; border:0; border-radius:4px; background:var(--ledger-green); color:#fff; cursor:pointer; font:600 15px 'Inter',sans-serif; }
+.daily-btn:hover{ background:#264c41; }
+
+.daily-open-btn{
+  font-family:'Inter',sans-serif; font-weight:600; font-size:13px;
+  border:1px solid var(--brass); border-radius:999px; background:var(--brass-soft);
+  color:#72530f; padding:7px 12px; cursor:pointer; display:inline-flex; align-items:center; gap:6px;
+  white-space:nowrap; transition:transform .12s ease, background .12s ease;
+}
+.daily-open-btn:hover{ background:#eddba9; transform:translateY(-1px); }
+.daily-open-btn .dot{
+  width:7px; height:7px; border-radius:50%; background:var(--danger); display:none;
+}
+.daily-open-btn.has-pending .dot{ display:inline-block; }
+
+.daily-toast-wrap{ position:fixed; top:18px; right:18px; z-index:1200; display:flex; flex-direction:column; gap:10px; align-items:flex-end; }
+.daily-toast{
+  background:var(--ledger-green); color:#fff; padding:14px 18px; border-radius:8px;
+  box-shadow:0 10px 28px rgba(0,0,0,.22); font-family:'Inter',sans-serif; font-size:14px;
+  max-width:320px; display:flex; align-items:flex-start; gap:10px; animation:toast-in .25s ease-out;
+}
+.daily-toast .icon{ font-size:20px; line-height:1; }
+.daily-toast .body b{ display:block; font-family:'Fraunces',serif; font-size:15px; margin-bottom:2px; }
+.daily-toast .body span{ opacity:.85; font-size:12.5px; }
+.daily-toast.leaving{ animation:toast-out .25s ease-in forwards; }
+@keyframes toast-in{ from{ opacity:0; transform:translateX(16px); } to{ opacity:1; transform:translateX(0); } }
+@keyframes toast-out{ from{ opacity:1; transform:translateX(0); } to{ opacity:0; transform:translateX(16px); } }
 </style>
 </head>
 <body>
+
+<!-- 每日任務：登入後每次進入主畫面都會顯示 -->
+<div id="dailyOverlay" class="daily-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="dailyTitle">
+  <div class="daily-card">
+    <h2 id="dailyTitle">📅 今日任務</h2>
+    <div class="daily-date" id="dailyDate"></div>
+    <div class="daily-deadline" id="dailyDeadline"></div>
+    <div class="daily-task-list" id="dailyTask"></div>
+    <div class="daily-badge-label">🏅 今日徽章</div>
+    <div class="daily-badge" id="dailyBadge"></div>
+    <p class="daily-badge-note">完成今天的任務即可獲得！</p>
+    <button type="button" class="daily-btn" id="dailyClose">開始挑戰 🚀</button>
+  </div>
+</div>
+
+<!-- 完成通知 Toast 容器 -->
+<div class="daily-toast-wrap" id="dailyToastWrap"></div>
 
 <!-- 登入 / 註冊畫面 -->
 <div id="authView" class="auth-wrap">
@@ -258,6 +360,13 @@ table.ledger .del{ background:none; border:none; color:var(--danger); cursor:poi
       <div class="stamp" id="todayStamp"></div>
     </div>
     <div class="header-actions">
+      <button type="button" class="daily-open-btn" id="openDailyBtn" title="隨時查看今日任務">
+        <span class="dot" id="openDailyDot"></span>📅 今日任務
+      </button>
+      <span class="daily-progress hidden" id="dailyProgress"></span>
+      <button type="button" class="avatar-btn" id="avatarBtn" title="查看我的進度與徽章">
+        <span id="avatarInitial">?</span>
+      </button>
       <span class="user-badge" id="userBadge"></span>
       <button class="logout-btn change-pw-btn" id="changePwBtn">修改密碼</button>
       <button class="export-btn" id="exportBtn">
@@ -269,6 +378,39 @@ table.ledger .del{ background:none; border:none; color:var(--danger); cursor:poi
   </header>
 
   <div id="appPanel"><div class="loading">讀取資料中…</div></div>
+</div>
+
+<!-- 個人檔案彈窗：頭像、已獲得徽章、總完成率、總頁數 -->
+<div id="profileOverlay" class="modal-overlay hidden">
+  <div class="modal-card profile-card">
+    <div class="profile-head">
+      <div class="profile-avatar" id="profileAvatar">?</div>
+      <div class="profile-id">
+        <h2 id="profileEmail">—</h2>
+        <p class="profile-sub">你的學習紀錄一覽</p>
+      </div>
+    </div>
+
+    <div class="profile-stats">
+      <div class="profile-stat">
+        <span class="label">總頁數</span>
+        <span class="value" id="profileTotalPages">0 頁</span>
+      </div>
+      <div class="profile-stat">
+        <span class="label">總完成率</span>
+        <span class="value" id="profileCompletion">—</span>
+      </div>
+    </div>
+
+    <div class="profile-badges">
+      <h3>🏅 已獲得徽章 <span class="badge-count" id="profileBadgeCount"></span></h3>
+      <div class="badge-grid" id="badgeGrid"></div>
+    </div>
+
+    <div class="modal-actions">
+      <button type="button" class="cancel-btn" id="closeProfileBtn">關閉</button>
+    </div>
+  </div>
 </div>
 
 <!-- 修改密碼彈窗 -->
@@ -331,12 +473,329 @@ function todayStr(){ return new Date().toISOString().slice(0,10); }
 function escapeHtml(s){
   return String(s).replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 }
+/* ---------------- Daily task ---------------- */
+
+/* Original display strings (kept only as a historical reference):
+const dailyTasks = [
+  ['📘 數學：完成 5 頁', '✏️ 整理 1 題錯題'],
+  ['📗 英文：背 10 個單字', '📖 閱讀 1 篇短文'],
+  ['📙 國文：閱讀 1 篇文章', '✍️ 摘錄 3 個重點'],
+  ['🔬 自然：複習 1 個章節', '📝 完成 3 題練習題'],
+  ['🌏 社會：整理 1 頁筆記', '📚 複習今天的學習內容'],
+  ['✏️ 完成 5 頁講義', '🧠 複習 10 分鐘'],
+  ['📖 選一本書完成 5 頁', '🎯 檢查今天的學習紀錄']
+];
+
+const dailyBadges = [
+  '🌱 勤學新芽', '📖 閱讀之星', '⭐ 專注學者', '🔥 火力全開',
+  '💎 學霸模式', '🏆 今日冠軍', '⚡ 超效率', '🌈 彩虹努力王',
+  '🎯 百發百中', '🦉 夜讀大師', '🌞 早起讀書王', '📚 知識收藏家',
+  '🥇 黃金學習者', '🚀 衝刺高手', '👑 王者學霸', '🍀 幸運的一天',
+  '🎖️ 永不放棄', '🌟 閃耀之星', '🧠 超級大腦', '❤️ 堅持到底'
+];
+*/
+
+const dailyTasks = [
+  ['\u{1F4D8} \u6578\u5B78\uFF1A\u5B8C\u6210 5 \u9801', '\u270F\uFE0F \u6574\u7406 1 \u984C\u932F\u984C'],
+  ['\u{1F4D7} \u82F1\u6587\uFF1A\u80CC 10 \u500B\u55AE\u5B57', '\u{1F4D6} \u95B1\u8B80 1 \u7BC7\u77ED\u6587'],
+  ['\u{1F4D9} \u570B\u6587\uFF1A\u95B1\u8B80 1 \u7BC7\u6587\u7AE0', '\u270D\uFE0F \u6458\u9304 3 \u500B\u91CD\u9EDE'],
+  ['\u{1F52C} \u81EA\u7136\uFF1A\u8907\u7FD2 1 \u500B\u7AE0\u7BC0', '\u{1F4DD} \u5B8C\u6210 3 \u984C\u7DF4\u7FD2\u984C'],
+  ['\u{1F30F} \u793E\u6703\uFF1A\u6574\u7406 1 \u9801\u7B46\u8A18', '\u{1F4DA} \u8907\u7FD2\u4ECA\u5929\u7684\u5B78\u7FD2\u5167\u5BB9'],
+  ['\u270F\uFE0F \u5B8C\u6210 5 \u9801\u8B1B\u7FA9', '\u{1F9E0} \u8907\u7FD2 10 \u5206\u9418'],
+  ['\u{1F4D6} \u9078\u4E00\u672C\u66F8\u5B8C\u6210 5 \u9801', '\u{1F3AF} \u6AA2\u67E5\u4ECA\u5929\u7684\u5B78\u7FD2\u7D00\u9304']
+];
+
+const dailyBadges = [
+  '\u{1F331} \u52E4\u5B78\u65B0\u82BD', '\u{1F4D6} \u95B1\u8B80\u4E4B\u661F', '\u2B50 \u5C08\u6CE8\u5B78\u8005', '\u{1F525} \u706B\u529B\u5168\u958B',
+  '\u{1F48E} \u5B78\u9738\u6A21\u5F0F', '\u{1F3C6} \u4ECA\u65E5\u51A0\u8ECD', '\u26A1 \u8D85\u6548\u7387', '\u{1F308} \u5F69\u8679\u52AA\u529B\u738B',
+  '\u{1F3AF} \u767E\u767C\u767E\u4E2D', '\u{1F989} \u591C\u8B80\u5927\u5E2B', '\u{1F31E} \u65E9\u8D77\u8B80\u66F8\u738B', '\u{1F4DA} \u77E5\u8B58\u6536\u85CF\u5BB6',
+  '\u{1F947} \u9EC3\u91D1\u5B78\u7FD2\u8005', '\u{1F680} \u885D\u523A\u9AD8\u624B', '\u{1F451} \u738B\u8005\u5B78\u9738', '\u{1F340} \u5E78\u904B\u7684\u4E00\u5929',
+  '\u{1F396}\uFE0F \u6C38\u4E0D\u653E\u68C4', '\u{1F31F} \u9583\u8000\u4E4B\u661F', '\u{1F9E0} \u8D85\u7D1A\u5927\u8166', '\u2764\uFE0F \u5805\u6301\u5230\u5E95'
+];
+
+function dailyIndex(){
+  const now = new Date();
+  const localMidnight = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  return Math.floor(localMidnight.getTime() / 86400000);
+}
+
+const DAILY_PICK_COUNT = 4; // 每天挑幾本書
+
+// 今天（含）到今年 12/31 還剩幾天，用來估算每本書的每日進度
+function daysUntilYearEnd(){
+  const now = new Date();
+  const todayMidnight = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const yearEnd = new Date(now.getFullYear(), 10, 1);
+  const diff = Math.round((yearEnd - todayMidnight) / 86400000) + 1;
+  return Math.max(diff, 1);
+}
+
+let activeDailyTasks = [];
+
+function dailyTaskStorageKey(){
+  const now = new Date();
+  const localDate = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}`;
+  return `daily-task-plan:${currentUser?.id || 'guest'}:${localDate}`;
+}
+
+// 把所有書目「今天」新增的頁數加總起來（用來顯示在總覽最上方）
+function todayTotalPages(){
+  const t = todayStr();
+  return Object.values(entriesByBook).reduce((sum, list)=>{
+    return sum + list.filter(e=>e.date===t).reduce((s,e)=>s+(Number(e.pages)||0), 0);
+  }, 0);
+}
+
+/* ---------------- Avatar / Earned badges / Overall stats ---------------- */
+
+function avatarInitial(email){
+  return (email || '?').trim().charAt(0).toUpperCase() || '?';
+}
+
+function earnedBadgesKey(){
+  return `earned-badges:${currentUser?.id || 'guest'}`;
+}
+
+function getEarnedBadges(){
+  try{
+    const arr = JSON.parse(localStorage.getItem(earnedBadgesKey()));
+    return Array.isArray(arr) ? arr : [];
+  }catch(_){ return []; }
+}
+
+// 完成當天任務時記錄一次今天獲得的徽章（同一天只記一次）
+function recordEarnedBadge(){
+  const date = todayStr();
+  const list = getEarnedBadges();
+  if(list.some(b=>b.date===date)) return;
+  const text = dailyBadges[dailyIndex() % dailyBadges.length];
+  list.push({ date, text });
+  localStorage.setItem(earnedBadgesKey(), JSON.stringify(list));
+}
+
+// 總頁數（所有書目已寫頁數加總）與總完成率（只用有設定目標的書目計算）
+function overallStats(){
+  let totalPagesAll = 0;
+  let targetedPages = 0, targetedTarget = 0, hasTarget = false;
+  books.forEach(b=>{
+    const t = totalFor(b.id);
+    totalPagesAll += t;
+    const target = Number(b.target) || 0;
+    if(target > 0){
+      hasTarget = true;
+      targetedPages += t;
+      targetedTarget += target;
+    }
+  });
+  const rate = hasTarget ? Math.round(Math.min(100, (targetedPages / targetedTarget) * 100)) : null;
+  return { totalPagesAll, rate };
+}
+
+function renderBadgeGrid(){
+  const grid = document.getElementById('badgeGrid');
+  const countEl = document.getElementById('profileBadgeCount');
+  const earned = getEarnedBadges().slice().sort((a,b)=>b.date.localeCompare(a.date));
+  countEl.textContent = earned.length ? `（共 ${earned.length} 個）` : '';
+  grid.innerHTML = earned.length
+    ? earned.map(b=>`<div class="badge-chip"><span class="badge-emoji">${b.text}</span><span class="badge-date">${b.date}</span></div>`).join('')
+    : `<div class="badge-empty">還沒有獲得任何徽章，完成今日任務即可獲得！</div>`;
+}
+
+function openProfileModal(){
+  document.getElementById('profileAvatar').textContent = avatarInitial(currentUser?.email);
+  document.getElementById('profileEmail').textContent = currentUser?.email || '';
+  const stats = overallStats();
+  document.getElementById('profileTotalPages').textContent = `${stats.totalPagesAll} 頁`;
+  document.getElementById('profileCompletion').textContent = stats.rate === null ? '尚未設定目標' : `${stats.rate}%`;
+  renderBadgeGrid();
+  document.getElementById('profileOverlay').classList.remove('hidden');
+}
+
+function closeProfileModal(){
+  document.getElementById('profileOverlay').classList.add('hidden');
+}
+
+function lastWrittenPage(bookId){
+  return (entriesByBook[bookId] || []).reduce((last, entry)=>{
+    return Math.max(last, Number(entry.page_end) || 0);
+  }, 0);
+}
+
+function createDailyTaskPlan(){
+  const available = books.filter(book=>{
+    const target = Number(book.target) || 0;
+    return !target || lastWrittenPage(book.id) < target;
+  });
+  if(!available.length) return [];
+
+  const N = available.length;
+  const picksPerDay = Math.min(DAILY_PICK_COUNT, N);
+  const daysLeft = daysUntilYearEnd();
+
+  const plan = [];
+  const nextOffsetByBook = {};
+  for(let i=0; i<picksPerDay; i++){
+    const book = available[(dailyIndex() + i) % N];
+    const target = Number(book.target) || 0;
+    const written = lastWrittenPage(book.id);
+    const remainingPages = target ? Math.max(target - written, 0) : null;
+
+    // 依目前的輪替規則，估計這本書在期限前大概還會被排到幾次，
+    // 再用剩餘頁數 / 剩餘次數，算出這次應該要讀幾頁，才趕得上 12/31。
+    const turnsRemaining = Math.max(1, Math.round(daysLeft * picksPerDay / N));
+    const dailyQuota = remainingPages != null
+      ? Math.max(1, Math.ceil(remainingPages / turnsRemaining))
+      : 2; // 沒設定目標頁數的書，維持每次 2 頁的預設份量
+
+    const offset = nextOffsetByBook[book.id] || 0;
+    nextOffsetByBook[book.id] = offset + dailyQuota;
+    const start = written + offset + 1;
+    const end = target ? Math.min(start + dailyQuota - 1, target) : start + dailyQuota - 1;
+    if(start <= end){
+      plan.push({ bookId:book.id, bookName:book.name, start, end });
+    }
+  }
+  return plan;
+}
+
+function getDailyTaskPlan(){
+  const key = dailyTaskStorageKey();
+  try{
+    const saved = JSON.parse(localStorage.getItem(key));
+    if(Array.isArray(saved) && saved.length) return saved;
+  }catch(_){ /* Ignore malformed saved data. */ }
+
+  const plan = createDailyTaskPlan();
+  localStorage.setItem(key, JSON.stringify(plan));
+  return plan;
+}
+
+function completedDailyPages(plan){
+  return plan.reduce((count, task)=>{
+    const written = entriesByBook[task.bookId] || [];
+    for(let page=task.start; page<=task.end; page++){
+      if(written.some(entry=>Number(entry.page_start) <= page && Number(entry.page_end) >= page)) count++;
+    }
+    return count;
+  }, 0);
+}
+
+function dailyNotifiedKey(){
+  const now = new Date();
+  const localDate = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}`;
+  return `daily-task-notified:${currentUser?.id || 'guest'}:${localDate}`;
+}
+
+const NOTIFY_ASK_ONCE_KEY = 'daily-notify-permission-asked';
+function requestNotifyPermission(){
+  if(typeof Notification === 'undefined') return;
+  if(Notification.permission !== 'default') return; // 已經允許或封鎖過，不用再問
+  if(localStorage.getItem(NOTIFY_ASK_ONCE_KEY)) return; // 已經主動問過一次了，不再自動彈出
+  localStorage.setItem(NOTIFY_ASK_ONCE_KEY, '1');
+  Notification.requestPermission();
+}
+
+function showDailyToast({icon='🎉', title, body}){
+  const wrap = document.getElementById('dailyToastWrap');
+  if(!wrap) return;
+  const el = document.createElement('div');
+  el.className = 'daily-toast';
+  el.innerHTML = `<span class="icon">${icon}</span><div class="body"><b>${escapeHtml(title)}</b><span>${escapeHtml(body)}</span></div>`;
+  wrap.appendChild(el);
+  setTimeout(()=>{
+    el.classList.add('leaving');
+    setTimeout(()=>el.remove(), 260);
+  }, 4200);
+}
+
+function sendBrowserNotification(title, body){
+  if(typeof Notification === 'undefined') return;
+  if(Notification.permission === 'granted'){
+    try{ new Notification(title, { body, icon:'', tag:'daily-task-complete' }); }
+    catch(_){ /* Some environments (e.g. iOS Safari PWA-less) don't support this. */ }
+  }
+}
+
+function notifyDailyComplete(){
+  const key = dailyNotifiedKey();
+  if(localStorage.getItem(key)) return; // 今天已經通知過了，避免重複跳出
+  localStorage.setItem(key, '1');
+  recordEarnedBadge();
+  const title = '今日任務已完成！🎉';
+  const body = '恭喜你完成今天的所有任務，記得看看獲得的徽章～';
+  showDailyToast({ icon:'🏅', title, body });
+  sendBrowserNotification(title, body);
+}
+
+function updateDailyProgress(){
+  const progressEl = document.getElementById('dailyProgress');
+  const openBtn = document.getElementById('openDailyBtn');
+  const total = activeDailyTasks.reduce((count, task)=>count + task.end - task.start + 1, 0);
+  if(!total){
+    if(progressEl) progressEl.classList.add('hidden');
+    if(openBtn) openBtn.classList.remove('has-pending');
+    return;
+  }
+  const done = completedDailyPages(activeDailyTasks);
+  if(progressEl){
+    progressEl.textContent = `當前進度 ${done} / ${total} 頁`;
+    progressEl.classList.remove('hidden');
+  }
+  if(openBtn) openBtn.classList.toggle('has-pending', done < total);
+  if(done >= total) notifyDailyComplete();
+}
+
+function showDailyTask(){
+  const index = dailyIndex();
+  const now = new Date();
+  const titleEl = document.getElementById('dailyTitle');
+  const dateEl = document.getElementById('dailyDate');
+  const taskEl = document.getElementById('dailyTask');
+  const badgeEl = document.getElementById('dailyBadge');
+  if(!dateEl || !taskEl || !badgeEl) return;
+
+  if(titleEl) titleEl.textContent = '\u{1F4C5} \u4ECA\u65E5\u4EFB\u52D9';
+  document.querySelector('.daily-badge-label').textContent = '\u{1F3C5} \u4ECA\u65E5\u5FBD\u7AE0';
+  document.querySelector('.daily-badge-note').textContent = '\u5B8C\u6210\u4ECA\u5929\u7684\u4EFB\u52D9\u5373\u53EF\u7372\u5F97\uFF01';
+  document.getElementById('dailyClose').textContent = '\u958B\u59CB\u6311\u6230 \u{1F680}';
+  dateEl.textContent = now.toLocaleDateString('zh-TW', { year:'numeric', month:'long', day:'numeric', weekday:'long' });
+  const deadlineEl = document.getElementById('dailyDeadline');
+  if(deadlineEl) deadlineEl.textContent = `\u{1F3AF} \u76EE\u6A19\uFF1A11/1 \u524D\u8B80\u5B8C\u6240\u6709\u66F8\uFF08\u9084\u5269 ${daysUntilYearEnd()} \u5929\uFF09`;
+  activeDailyTasks = getDailyTaskPlan();
+  taskEl.innerHTML = activeDailyTasks.length
+    ? activeDailyTasks.map((task, i)=>{
+        const pages = task.start === task.end ? `${task.start}` : `${task.start}～${task.end}`;
+        return `<p><b>${i + 1}. ${escapeHtml(task.bookName)}</b>：第 ${pages} 頁</p>`;
+      }).join('')
+    : '<p>先新增講義與目標頁數，明天就會自動安排任務。</p>';
+  badgeEl.textContent = dailyBadges[index % dailyBadges.length];
+  updateDailyProgress();
+  document.getElementById('dailyOverlay').classList.remove('hidden');
+}
+
+function closeDailyTask(){
+  document.getElementById('dailyOverlay').classList.add('hidden');
+}
+
+function formatStamp(){
+  const d = new Date();
+  const weekdays = ['\u65E5', '\u4E00', '\u4E8C', '\u4E09', '\u56DB', '\u4E94', '\u516D'];
+  const el = document.getElementById('todayStamp');
+  if(el){
+    const date = `${d.getFullYear()}.${String(d.getMonth()+1).padStart(2,'0')}.${String(d.getDate()).padStart(2,'0')}`;
+    el.textContent = `\u4ECA\u5929 ${date} (${weekdays[d.getDay()]})`;
+  }
+}
+
+/* Legacy corrupted version retained for reference only:
 function formatStamp(){
   const d = new Date();
   const w = ['日','一','二','三','四','五','六'][d.getDay()];
   const el = document.getElementById('todayStamp');
   if(el) el.textContent = `今天 ${d.getFullYear()}.${String(d.getMonth()+1).padStart(2,'0')}.${String(d.getDate()).padStart(2,'0')}（週${w}）`;
 }
+
+*/
 
 /* ---------------- Auth ---------------- */
 
@@ -581,7 +1040,10 @@ function render(){
 
   app.innerHTML = `
     <div class="overview">
-      <h2>進度總覽</h2>
+      <div class="overview-head">
+        <h2>進度總覽</h2>
+        <span class="today-total">今天總共寫了 <b>${todayTotalPages()}</b> 頁</span>
+      </div>
       <div class="overview-grid">
         ${books.map((b,i)=>{
           const t = totalFor(b.id); const tg = Number(b.target)||0;
@@ -728,6 +1190,7 @@ document.getElementById('entryForm').addEventListener('submit', async (e)=>{
     if(!entriesByBook[active.id]) entriesByBook[active.id] = [];
     entriesByBook[active.id].push(data);
     render();
+    updateDailyProgress();
   });
   document.querySelectorAll('.del').forEach(el=>{
     el.addEventListener('click', async ()=>{
@@ -736,6 +1199,7 @@ document.getElementById('entryForm').addEventListener('submit', async (e)=>{
       if(error){ alert('刪除失敗：' + error.message); return; }
       entriesByBook[active.id] = entriesByBook[active.id].filter(e=>e.id!==entryId);
       render();
+      updateDailyProgress();
     });
   });
 }
@@ -807,9 +1271,11 @@ async function showMainView(){
   document.getElementById('authView').classList.add('hidden');
   document.getElementById('mainView').classList.remove('hidden');
   document.getElementById('userBadge').textContent = currentUser.email;
+  document.getElementById('avatarInitial').textContent = avatarInitial(currentUser.email);
   document.getElementById('appPanel').innerHTML = '<div class="loading">讀取資料中…</div>';
   await loadAllData();
   render();
+  showDailyTask();
 }
 
 /* ---------------- Init ---------------- */
@@ -825,8 +1291,21 @@ async function init(){
   document.getElementById('changePwBtn').addEventListener('click', openChangePwModal);
   document.getElementById('cancelPwBtn').addEventListener('click', closeChangePwModal);
   document.getElementById('changePwForm').addEventListener('submit', handleChangePwSubmit);
+  document.getElementById('dailyClose').addEventListener('click', ()=>{
+    requestNotifyPermission();
+    closeDailyTask();
+  });
+  document.getElementById('openDailyBtn').addEventListener('click', ()=>{
+    requestNotifyPermission();
+    showDailyTask();
+  });
   document.getElementById('changePwOverlay').addEventListener('click', (e)=>{
     if(e.target.id === 'changePwOverlay') closeChangePwModal();
+  });
+  document.getElementById('avatarBtn').addEventListener('click', openProfileModal);
+  document.getElementById('closeProfileBtn').addEventListener('click', closeProfileModal);
+  document.getElementById('profileOverlay').addEventListener('click', (e)=>{
+    if(e.target.id === 'profileOverlay') closeProfileModal();
   });
 
   const { data: { session } } = await supabase.auth.getSession();
@@ -835,8 +1314,17 @@ async function init(){
 
   supabase.auth.onAuthStateChange(async (event, session) => {
     if(session){
+      const isNewLogin = !currentUser || currentUser.id !== session.user.id;
       currentUser = session.user;
-      await showMainView();
+      // 只有真正的登入（或切換帳號）才重新載入資料並跳出每日任務彈窗。
+      // TOKEN_REFRESHED / USER_UPDATED 等事件只更新使用者資訊，避免每次 token 刷新
+      // 或切回分頁時彈窗又跳出來。
+      if(event === 'SIGNED_IN' && isNewLogin){
+        await showMainView();
+      }else if(document.getElementById('mainView').classList.contains('hidden')){
+        // 例如頁面重新載入時先收到 INITIAL_SESSION，仍需要正常顯示主畫面
+        await showMainView();
+      }
     }else{
       currentUser = null;
       books = []; entriesByBook = {}; activeBookId = null;
