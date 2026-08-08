@@ -106,8 +106,11 @@ header.top{
 .overview{ margin-bottom:22px; }
 .overview h2{ font-family:'Fraunces',serif; font-size:18px; font-weight:600; margin:0; }
 .overview-head{ display:flex; justify-content:space-between; align-items:baseline; flex-wrap:wrap; gap:8px; margin-bottom:10px; }
+.overview-badges{ display:flex; gap:8px; flex-wrap:wrap; }
 .today-total{ font-family:'JetBrains Mono',monospace; font-size:13px; color:var(--ink-soft); background:var(--brass-soft); padding:4px 10px; border-radius:20px; }
 .today-total b{ color:var(--brass); font-size:15px; }
+.today-total.grand-total{ background:var(--ledger-green-soft); font-size:11px; padding:3px 8px; }
+.today-total.grand-total b{ color:var(--ledger-green); font-size:12.5px; }
 .overview-grid{ display:grid; grid-template-columns:repeat(auto-fill,minmax(200px,1fr)); gap:12px; }
 .overview-card{
   background:var(--card); border:1px solid var(--card-border); border-radius:var(--radius);
@@ -262,8 +265,9 @@ table.ledger .del{ background:none; border:none; color:var(--danger); cursor:poi
   background:var(--brass-soft); border:1px solid var(--card-border); border-radius:8px;
   padding:8px 10px; display:flex; flex-direction:column; gap:2px; align-items:center; text-align:center;
 }
-.badge-chip .badge-emoji{ font-size:20px; line-height:1.2; }
-.badge-chip .badge-date{ font-family:'JetBrains Mono',monospace; font-size:10px; color:var(--ink-soft); }
+.badge-chip .badge-icon{ font-size:20px; line-height:1.2; }
+.badge-chip .badge-label{ font-size:11px; color:var(--ink); line-height:1.3; }
+.badge-chip .badge-date{ font-family:'JetBrains Mono',monospace; font-size:9.5px; color:var(--ink-soft); }
 .badge-empty{ grid-column:1/-1; color:var(--ink-soft); font-size:13px; padding:14px 4px; text-align:center; }
 
 /* ---------- 每日任務彈窗 ---------- */
@@ -273,10 +277,22 @@ table.ledger .del{ background:none; border:none; color:var(--danger); cursor:poi
 .daily-card h2{ margin:0 0 7px; font-family:'Fraunces',serif; font-size:27px; }
 .daily-date{ color:var(--ink-soft); font-family:'JetBrains Mono',monospace; font-size:12px; }
 .daily-deadline{ color:var(--brass); font-family:'JetBrains Mono',monospace; font-size:11.5px; margin-top:3px; }
+.daily-deadline-row{ display:flex; align-items:center; justify-content:center; gap:8px; flex-wrap:wrap; }
+.daily-reshuffle-btn{
+  font-family:'JetBrains Mono',monospace; font-size:11px; color:var(--ink-soft);
+  background:none; border:1px solid var(--card-border); border-radius:999px;
+  padding:2px 9px; cursor:pointer; transition:background .15s ease, color .15s ease;
+}
+.daily-reshuffle-btn:hover{ background:var(--ledger-green-soft); color:var(--ledger-green); }
 .daily-task-list{ margin:20px 0 16px; padding:14px 16px; border-radius:7px; background:var(--ledger-green-soft); text-align:left; }
 .daily-task-list p{ margin:0; line-height:1.8; font-size:15px; }
 .daily-task-list p + p{ margin-top:4px; }
 .daily-task-list .task-progress{ color:var(--ink-soft); font-size:12px; }
+.daily-task-list .task-progress-total{
+  font-family:'JetBrains Mono',monospace; font-size:13px; color:var(--ink-soft);
+  padding-bottom:10px; margin-bottom:8px !important; border-bottom:1px dashed var(--card-border);
+}
+.daily-task-list .task-progress-total b{ color:var(--brass); font-size:16px; font-family:'Fraunces',serif; }
 .daily-badge-label{ color:var(--ink-soft); font-size:12px; letter-spacing:.06em; }
 .daily-badge{ margin:7px 0 5px; font-family:'Fraunces',serif; font-size:21px; }
 .daily-badge-note{ margin:0 0 20px; color:var(--ink-soft); font-size:13px; }
@@ -305,6 +321,16 @@ table.ledger .del{ background:none; border:none; color:var(--danger); cursor:poi
 .daily-toast .body b{ display:block; font-family:'Fraunces',serif; font-size:15px; margin-bottom:2px; }
 .daily-toast .body span{ opacity:.85; font-size:12.5px; }
 .daily-toast.leaving{ animation:toast-out .25s ease-in forwards; }
+
+/* 單本書今日任務進度：改用進度條卡片，不用整段文字說明 */
+.progress-toast{ flex-direction:column; gap:8px; min-width:200px; align-items:stretch; }
+.progress-toast-head{ display:flex; align-items:center; gap:8px; }
+.progress-toast-head .icon{ font-size:16px; }
+.progress-toast-head b{ font-family:'Fraunces',serif; font-size:14px; flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.progress-toast-head .frac{ font-family:'JetBrains Mono',monospace; font-size:12px; opacity:.9; }
+.progress-toast-bar{ height:8px; border-radius:999px; background:rgba(255,255,255,.28); overflow:hidden; }
+.progress-toast-bar .fill{ height:100%; border-radius:999px; background:var(--brass); transition:width .35s ease; }
+
 @keyframes toast-in{ from{ opacity:0; transform:translateX(16px); } to{ opacity:1; transform:translateX(0); } }
 @keyframes toast-out{ from{ opacity:1; transform:translateX(0); } to{ opacity:0; transform:translateX(16px); } }
 </style>
@@ -316,7 +342,10 @@ table.ledger .del{ background:none; border:none; color:var(--danger); cursor:poi
   <div class="daily-card">
     <h2 id="dailyTitle">📅 今日任務</h2>
     <div class="daily-date" id="dailyDate"></div>
-    <div class="daily-deadline" id="dailyDeadline"></div>
+    <div class="daily-deadline-row">
+      <div class="daily-deadline" id="dailyDeadline"></div>
+      <button type="button" class="daily-reshuffle-btn" id="dailyReshuffleBtn" title="用最新的資料重新安排今天的任務">🔀 重排</button>
+    </div>
     <div class="daily-task-list" id="dailyTask"></div>
     <div class="daily-badge-label">🏅 今日徽章</div>
     <div class="daily-badge" id="dailyBadge"></div>
@@ -525,7 +554,7 @@ const DAILY_PICK_COUNT = 4; // 每天挑幾本書
 function daysUntilYearEnd(){
   const now = new Date();
   const todayMidnight = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-  const yearEnd = new Date(now.getFullYear(), 10, 1);
+  const yearEnd = new Date(now.getFullYear(), 10, 15);
   const diff = Math.round((yearEnd - todayMidnight) / 86400000) + 1;
   return Math.max(diff, 1);
 }
@@ -597,7 +626,12 @@ function renderBadgeGrid(){
   const earned = getEarnedBadges().slice().sort((a,b)=>b.date.localeCompare(a.date));
   countEl.textContent = earned.length ? `（共 ${earned.length} 個）` : '';
   grid.innerHTML = earned.length
-    ? earned.map(b=>`<div class="badge-chip"><span class="badge-emoji">${b.text}</span><span class="badge-date">${b.date}</span></div>`).join('')
+    ? earned.map(b=>{
+        const m = b.text.match(/^(\p{Extended_Pictographic}+)\s*(.*)$/u);
+        const icon = m ? m[1] : '🏅';
+        const label = m ? m[2] : b.text;
+        return `<div class="badge-chip"><span class="badge-icon">${icon}</span><span class="badge-label">${label}</span><span class="badge-date">${b.date}</span></div>`;
+      }).join('')
     : `<div class="badge-empty">還沒有獲得任何徽章，完成今日任務即可獲得！</div>`;
 }
 
@@ -624,7 +658,7 @@ function lastWrittenPage(bookId){
 function createDailyTaskPlan(){
   const available = books.filter(book=>{
     const target = Number(book.target) || 0;
-    return !target || lastWrittenPage(book.id) < target;
+    return !target || totalFor(book.id) < target;
   });
   if(!available.length) return [];
 
@@ -633,26 +667,33 @@ function createDailyTaskPlan(){
   const daysLeft = daysUntilYearEnd();
 
   const plan = [];
-  const nextOffsetByBook = {};
+  const pendingRangesByBook = {}; // 同一天同一本書被排到第二次時，避免跟這次剛排好的範圍重疊
   for(let i=0; i<picksPerDay; i++){
     const book = available[(dailyIndex() + i) % N];
     const target = Number(book.target) || 0;
-    const written = lastWrittenPage(book.id);
-    const remainingPages = target ? Math.max(target - written, 0) : null;
+    const writtenPages = totalFor(book.id); // 用實際寫過的頁數（而非最後一頁）估算剩餘量，跳著寫也準確
+    const remainingPages = target ? Math.max(target - writtenPages, 0) : null;
 
     // 依目前的輪替規則，估計這本書在期限前大概還會被排到幾次，
-    // 再用剩餘頁數 / 剩餘次數，算出這次應該要讀幾頁，才趕得上 12/31。
+    // 再用剩餘頁數 / 剩餘次數，算出這次應該要讀幾頁，才趕得上目標日期。
     const turnsRemaining = Math.max(1, Math.round(daysLeft * picksPerDay / N));
     const dailyQuota = remainingPages != null
       ? Math.max(1, Math.ceil(remainingPages / turnsRemaining))
       : 2; // 沒設定目標頁數的書，維持每次 2 頁的預設份量
 
-    const offset = nextOffsetByBook[book.id] || 0;
-    nextOffsetByBook[book.id] = offset + dailyQuota;
-    const start = written + offset + 1;
+    // 優先安排「最前面還沒寫過的缺口」，而不是永遠往書本最後面推進，
+    // 這樣如果之前跳著寫，會先補齊中間漏掉的部分，補完才會繼續往後排。
+    const written = mergedRangesFor(book.id);
+    const pending = pendingRangesByBook[book.id] || [];
+    const occupied = [...written, ...pending].sort((a,b)=>a[0]-b[0]);
+    let start = 1;
+    for(const [s,e] of occupied){
+      if(start >= s && start <= e) start = e + 1;
+    }
     const end = target ? Math.min(start + dailyQuota - 1, target) : start + dailyQuota - 1;
     if(start <= end){
       plan.push({ bookId:book.id, bookName:book.name, start, end });
+      pendingRangesByBook[book.id] = [...pending, [start, end]];
     }
   }
   return plan;
@@ -680,6 +721,26 @@ function completedDailyPages(plan){
   }, 0);
 }
 
+// 算出某本書在今天的任務範圍裡，已經寫了幾頁（用來跳出可愛的小進度提示）
+function taskProgressForBook(bookId){
+  const task = activeDailyTasks.find(t=>t.bookId===bookId);
+  if(!task) return null;
+  const written = entriesByBook[bookId] || [];
+  let done = 0;
+  for(let page=task.start; page<=task.end; page++){
+    if(written.some(entry=>Number(entry.page_start) <= page && Number(entry.page_end) >= page)) done++;
+  }
+  const total = task.end - task.start + 1;
+  return { done, total, bookName: task.bookName };
+}
+
+// 清掉今天已經產生的任務快取，重新算一次（例如改了缺口補齊邏輯後想重排）
+function reshuffleDailyTasks(){
+  localStorage.removeItem(dailyTaskStorageKey());
+  localStorage.removeItem(dailyNotifiedKey());
+  showDailyTask();
+}
+
 function dailyNotifiedKey(){
   const now = new Date();
   const localDate = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}`;
@@ -701,6 +762,29 @@ function showDailyToast({icon='🎉', title, body}){
   const el = document.createElement('div');
   el.className = 'daily-toast';
   el.innerHTML = `<span class="icon">${icon}</span><div class="body"><b>${escapeHtml(title)}</b><span>${escapeHtml(body)}</span></div>`;
+  wrap.appendChild(el);
+  setTimeout(()=>{
+    el.classList.add('leaving');
+    setTimeout(()=>el.remove(), 260);
+  }, 4200);
+}
+
+// 用進度條卡片顯示某本書今日任務的完成進度（跳出、停留幾秒後自動收起）
+function showTaskProgressToast({ bookName, done, total }){
+  const wrap = document.getElementById('dailyToastWrap');
+  if(!wrap) return;
+  const pct = total > 0 ? Math.round(Math.min(100, (done / total) * 100)) : 0;
+  const complete = done >= total;
+  const el = document.createElement('div');
+  el.className = 'daily-toast progress-toast';
+  el.innerHTML = `
+    <div class="progress-toast-head">
+      <span class="icon">${complete ? '✅' : '🎯'}</span>
+      <b>${escapeHtml(bookName)}</b>
+      <span class="frac">${done} / ${total}</span>
+    </div>
+    <div class="progress-toast-bar"><div class="fill" style="width:${pct}%"></div></div>
+  `;
   wrap.appendChild(el);
   setTimeout(()=>{
     el.classList.add('leaving');
@@ -760,14 +844,25 @@ function showDailyTask(){
   document.getElementById('dailyClose').textContent = '\u958B\u59CB\u6311\u6230 \u{1F680}';
   dateEl.textContent = now.toLocaleDateString('zh-TW', { year:'numeric', month:'long', day:'numeric', weekday:'long' });
   const deadlineEl = document.getElementById('dailyDeadline');
-  if(deadlineEl) deadlineEl.textContent = `\u{1F3AF} \u76EE\u6A19\uFF1A11/1 \u524D\u8B80\u5B8C\u6240\u6709\u66F8\uFF08\u9084\u5269 ${daysUntilYearEnd()} \u5929\uFF09`;
+  if(deadlineEl) deadlineEl.textContent = `\u{1F3AF} \u76EE\u6A19\uFF1A11/15 \u524D\u8B80\u5B8C\u6240\u6709\u66F8\uFF08\u9084\u5269 ${daysUntilYearEnd()} \u5929\uFF09`;
   activeDailyTasks = getDailyTaskPlan();
-  taskEl.innerHTML = activeDailyTasks.length
-    ? activeDailyTasks.map((task, i)=>{
-        const pages = task.start === task.end ? `${task.start}` : `${task.start}～${task.end}`;
-        return `<p><b>${i + 1}. ${escapeHtml(task.bookName)}</b>：第 ${pages} 頁</p>`;
-      }).join('')
-    : '<p>先新增講義與目標頁數，明天就會自動安排任務。</p>';
+  if(activeDailyTasks.length){
+    const totalPages = activeDailyTasks.reduce((sum,t)=>sum + t.end - t.start + 1, 0);
+    const donePages = completedDailyPages(activeDailyTasks);
+    const overallPct = totalPages > 0 ? Math.round(Math.min(100, (donePages / totalPages) * 100)) : 0;
+    const rows = activeDailyTasks.map((task, i)=>{
+      const pages = task.start === task.end ? `${task.start}` : `${task.start}～${task.end}`;
+      const taskTotal = task.end - task.start + 1;
+      const book = books.find(b=>b.id === task.bookId);
+      const bookTarget = book ? Number(book.target) || 0 : 0;
+      const sharePct = bookTarget > 0 ? Math.round((taskTotal / bookTarget) * 100) : null;
+      const shareLabel = sharePct === null ? '未設定目標' : `佔本書 ${sharePct}%`;
+      return `<p><b>${i + 1}. ${escapeHtml(task.bookName)}</b>：第 ${pages} 頁 <span class="task-progress">${shareLabel}</span></p>`;
+    }).join('');
+    taskEl.innerHTML = `<p class="task-progress-total">今日總進度：<b>${overallPct}%</b>（${donePages} / ${totalPages} 頁）</p>${rows}`;
+  }else{
+    taskEl.innerHTML = '<p>先新增講義與目標頁數，明天就會自動安排任務。</p>';
+  }
   badgeEl.textContent = dailyBadges[index % dailyBadges.length];
   updateDailyProgress();
   document.getElementById('dailyOverlay').classList.remove('hidden');
@@ -1042,7 +1137,10 @@ function render(){
     <div class="overview">
       <div class="overview-head">
         <h2>進度總覽</h2>
-        <span class="today-total">今天總共寫了 <b>${todayTotalPages()}</b> 頁</span>
+        <div class="overview-badges">
+          <span class="today-total">今天總共寫了 <b>${todayTotalPages()}</b> 頁</span>
+          <span class="today-total grand-total">累計總頁數 <b>${overallStats().totalPagesAll}</b> 頁</span>
+        </div>
       </div>
       <div class="overview-grid">
         ${books.map((b,i)=>{
@@ -1191,6 +1289,10 @@ document.getElementById('entryForm').addEventListener('submit', async (e)=>{
     entriesByBook[active.id].push(data);
     render();
     updateDailyProgress();
+    const taskProgress = taskProgressForBook(active.id);
+    if(taskProgress){
+      showTaskProgressToast(taskProgress);
+    }
   });
   document.querySelectorAll('.del').forEach(el=>{
     el.addEventListener('click', async ()=>{
@@ -1299,6 +1401,7 @@ async function init(){
     requestNotifyPermission();
     showDailyTask();
   });
+  document.getElementById('dailyReshuffleBtn').addEventListener('click', reshuffleDailyTasks);
   document.getElementById('changePwOverlay').addEventListener('click', (e)=>{
     if(e.target.id === 'changePwOverlay') closeChangePwModal();
   });
