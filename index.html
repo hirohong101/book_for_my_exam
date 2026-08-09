@@ -517,6 +517,7 @@ let earnedBadges = [];       // 每日徽章 [{date,text}]，登入時從 Supaba
 let earnedBonusBadges = [];  // 加碼徽章 [{date,text}]，登入時從 Supabase 載入
 let earnedAchievements = []; // 里程碑成就 [{id,date,icon,title,desc}]，登入時從 Supabase 載入
 let currentStreak = { count: 0, lastDate: null }; // 連續完成天數，登入時從 Supabase 載入
+let currentDailyPlan = null; // 今天的任務排程 { date, tasks, bonus, notified, bonusNotified }，存在 Supabase
 
 function todayStr(){ return new Date().toISOString().slice(0,10); }
 function escapeHtml(s){
@@ -641,12 +642,6 @@ function isBonusTaskDone(){
     if(!written.some(e=>Number(e.page_start) <= page && Number(e.page_end) >= page)) return false;
   }
   return true;
-}
-
-function dailyTaskStorageKey(){
-  const now = new Date();
-  const localDate = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}`;
-  return `daily-task-plan:${currentUser?.id || 'guest'}:${localDate}`;
 }
 
 // 把所有書目「今天」新增的頁數加總起來（用來顯示在總覽最上方）
@@ -929,19 +924,33 @@ function createDailyTaskPlan(){
   return plan;
 }
 
-function getDailyTaskPlan(){
-  const key = dailyTaskStorageKey();
-  try{
-    const saved = JSON.parse(localStorage.getItem(key));
-    if(saved && Array.isArray(saved.tasks)) return saved;
-  }catch(_){ /* Ignore malformed saved data. */ }
+// 拿今天的任務排程：先看記憶體快取，沒有就去 Supabase 查，還是沒有才現算一份並存回去。
+// 這樣同一天在不同裝置打開，看到的任務範圍、完成通知狀態都會一致。
+async function getDailyTaskPlan(){
+  const date = todayStr();
+  if(currentDailyPlan && currentDailyPlan.date === date) return currentDailyPlan;
+
+  if(currentUser){
+    const { data, error } = await supabase
+      .from('daily_plans').select('*').eq('user_id', currentUser.id).eq('plan_date', date).maybeSingle();
+    if(error) console.error('讀取今日任務排程失敗', error);
+    if(data){
+      currentDailyPlan = { date, tasks: data.tasks || [], bonus: data.bonus || null, notified: !!data.notified, bonusNotified: !!data.bonus_notified };
+      return currentDailyPlan;
+    }
+  }
 
   const tasks = createDailyTaskPlan();
   const usedBooks = tasks.map(t=>books.find(b=>b.id===t.bookId)).filter(Boolean);
   const bonus = createBonusTask(usedBooks, tasks);
-  const plan = { tasks, bonus };
-  localStorage.setItem(key, JSON.stringify(plan));
-  return plan;
+  currentDailyPlan = { date, tasks, bonus, notified:false, bonusNotified:false };
+  if(currentUser){
+    const { error } = await supabase.from('daily_plans').upsert({
+      user_id: currentUser.id, plan_date: date, tasks, bonus, notified:false, bonus_notified:false
+    }, { onConflict: 'user_id,plan_date' });
+    if(error) console.error('儲存今日任務排程失敗', error);
+  }
+  return currentDailyPlan;
 }
 
 function completedDailyPages(plan){
@@ -967,18 +976,16 @@ function taskProgressForBook(bookId){
   return { done, total, bookName: task.bookName };
 }
 
-// 清掉今天已經產生的任務快取，重新算一次（例如改了缺口補齊邏輯後想重排）
-function reshuffleDailyTasks(){
-  localStorage.removeItem(dailyTaskStorageKey());
-  localStorage.removeItem(dailyNotifiedKey());
-  localStorage.removeItem(dailyBonusNotifiedKey());
-  showDailyTask();
-}
-
-function dailyNotifiedKey(){
-  const now = new Date();
-  const localDate = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}`;
-  return `daily-task-notified:${currentUser?.id || 'guest'}:${localDate}`;
+// 清掉今天已經產生的任務排程，重新算一次（例如改了缺口補齊邏輯後想重排）
+async function reshuffleDailyTasks(){
+  const date = todayStr();
+  currentDailyPlan = null;
+  if(currentUser){
+    const { error } = await supabase.from('daily_plans')
+      .delete().eq('user_id', currentUser.id).eq('plan_date', date);
+    if(error) console.error('清除今日任務排程失敗', error);
+  }
+  await showDailyTask();
 }
 
 const NOTIFY_ASK_ONCE_KEY = 'daily-notify-permission-asked';
@@ -1034,42 +1041,45 @@ function sendBrowserNotification(title, body){
   }
 }
 
-function dailyBonusNotifiedKey(){
-  const now = new Date();
-  const localDate = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}`;
-  return `daily-bonus-notified:${currentUser?.id || 'guest'}:${localDate}`;
-}
-
-function notifyDailyComplete(){
-  const key = dailyNotifiedKey();
-  if(localStorage.getItem(key)) return; // 今天已經通知過了，避免重複跳出
-  localStorage.setItem(key, '1');
-  recordEarnedBadge();
-  bumpStreak();
-  checkAchievements();
+// 每日任務全部完成時呼叫一次：記徽章、記連續天數、檢查成就，並把「已通知」狀態存進 Supabase
+async function notifyDailyComplete(){
+  if(!currentDailyPlan || currentDailyPlan.notified) return; // 今天已經通知過了，避免重複跳出
+  currentDailyPlan.notified = true;
+  await recordEarnedBadge();
+  await bumpStreak();
+  await checkAchievements();
   const title = '今日任務已完成！🎉';
   const body = '恭喜你完成今天的所有任務，記得看看獲得的徽章～';
   showDailyToast({ icon:'🏅', title, body });
   sendBrowserNotification(title, body);
+  if(currentUser){
+    const { error } = await supabase.from('daily_plans')
+      .update({ notified: true }).eq('user_id', currentUser.id).eq('plan_date', currentDailyPlan.date);
+    if(error) console.error('更新今日完成通知狀態失敗', error);
+  }
 }
 
-// 加碼任務份量很小，寫完就給一個特別徽章當小獎勵（同一天只通知一次）
-function notifyBonusComplete(){
-  const key = dailyBonusNotifiedKey();
-  if(localStorage.getItem(key)) return;
-  localStorage.setItem(key, '1');
-  recordBonusBadge();
+// 加碼任務份量很小，寫完就給一個特別徽章當小獎勵（同一天只通知一次），狀態存進 Supabase
+async function notifyBonusComplete(){
+  if(!currentDailyPlan || currentDailyPlan.bonusNotified) return;
+  currentDailyPlan.bonusNotified = true;
+  await recordBonusBadge();
   const title = '加碼任務完成！🎁';
   const body = '寫少少也能拿到特別徽章，太划算了～';
   showDailyToast({ icon:'🎁', title, body });
   sendBrowserNotification(title, body);
+  if(currentUser){
+    const { error } = await supabase.from('daily_plans')
+      .update({ bonus_notified: true }).eq('user_id', currentUser.id).eq('plan_date', currentDailyPlan.date);
+    if(error) console.error('更新加碼完成通知狀態失敗', error);
+  }
 }
 
-function updateDailyProgress(){
+async function updateDailyProgress(){
   const progressEl = document.getElementById('dailyProgress');
   const openBtn = document.getElementById('openDailyBtn');
   const total = activeDailyTasks.reduce((count, task)=>count + task.end - task.start + 1, 0);
-  if(activeBonusTask && isBonusTaskDone()) notifyBonusComplete();
+  if(activeBonusTask && isBonusTaskDone()) await notifyBonusComplete();
   if(!total){
     if(progressEl) progressEl.classList.add('hidden');
     if(openBtn) openBtn.classList.remove('has-pending');
@@ -1081,10 +1091,10 @@ function updateDailyProgress(){
     progressEl.classList.remove('hidden');
   }
   if(openBtn) openBtn.classList.toggle('has-pending', done < total);
-  if(done >= total) notifyDailyComplete();
+  if(done >= total) await notifyDailyComplete();
 }
 
-function showDailyTask(){
+async function showDailyTask(){
   const index = dailyIndex();
   const now = new Date();
   const titleEl = document.getElementById('dailyTitle');
@@ -1100,7 +1110,7 @@ function showDailyTask(){
   dateEl.textContent = now.toLocaleDateString('zh-TW', { year:'numeric', month:'long', day:'numeric', weekday:'long' });
   const deadlineEl = document.getElementById('dailyDeadline');
   if(deadlineEl) deadlineEl.textContent = `\u{1F3AF} \u76EE\u6A19\uFF1A11/15 \u524D\u8B80\u5B8C\u6240\u6709\u66F8\uFF08\u9084\u5269 ${daysUntilYearEnd()} \u5929\uFF09`;
-  const plan = getDailyTaskPlan();
+  const plan = await getDailyTaskPlan();
   activeDailyTasks = plan.tasks;
   activeBonusTask = plan.bonus;
 
@@ -1130,8 +1140,8 @@ function showDailyTask(){
     taskEl.innerHTML = `<p>先新增講義與目標頁數，明天就會自動安排任務。</p>${bonusHtml}`;
   }
   badgeEl.textContent = dailyBadges[index % dailyBadges.length];
-  updateDailyProgress();
-  checkAchievements();
+  await updateDailyProgress();
+  await checkAchievements();
   document.getElementById('dailyOverlay').classList.remove('hidden');
 }
 
@@ -1647,7 +1657,7 @@ async function showMainView(){
   document.getElementById('appPanel').innerHTML = '<div class="loading">讀取資料中…</div>';
   await loadAllData();
   render();
-  showDailyTask();
+  await showDailyTask();
 }
 
 /* ---------------- Init ---------------- */
@@ -1667,9 +1677,9 @@ async function init(){
     requestNotifyPermission();
     closeDailyTask();
   });
-  document.getElementById('openDailyBtn').addEventListener('click', ()=>{
+  document.getElementById('openDailyBtn').addEventListener('click', async ()=>{
     requestNotifyPermission();
-    showDailyTask();
+    await showDailyTask();
   });
   document.getElementById('dailyReshuffleBtn').addEventListener('click', reshuffleDailyTasks);
   document.getElementById('changePwOverlay').addEventListener('click', (e)=>{
@@ -1703,6 +1713,7 @@ async function init(){
       books = []; entriesByBook = {}; activeBookId = null;
       earnedBadges = []; earnedBonusBadges = []; earnedAchievements = [];
       currentStreak = { count: 0, lastDate: null };
+      currentDailyPlan = null;
       showAuthView();
     }
   });
