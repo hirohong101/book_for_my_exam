@@ -513,6 +513,10 @@ let books = [];              // [{id,name,target}]
 let entriesByBook = {};      // { bookId: [{id,date,pages,note}] }
 let activeBookId = null;
 let isSignUpMode = false;
+let earnedBadges = [];       // 每日徽章 [{date,text}]，登入時從 Supabase 載入
+let earnedBonusBadges = [];  // 加碼徽章 [{date,text}]，登入時從 Supabase 載入
+let earnedAchievements = []; // 里程碑成就 [{id,date,icon,title,desc}]，登入時從 Supabase 載入
+let currentStreak = { count: 0, lastDate: null }; // 連續完成天數，登入時從 Supabase 載入
 
 function todayStr(){ return new Date().toISOString().slice(0,10); }
 function escapeHtml(s){
@@ -659,93 +663,95 @@ function avatarInitial(email){
   return (email || '?').trim().charAt(0).toUpperCase() || '?';
 }
 
-function earnedBadgesKey(){
-  return `earned-badges:${currentUser?.id || 'guest'}`;
+// 登入 / 換帳號時呼叫一次：把這個使用者所有的徽章與成就紀錄從 Supabase 讀回來，
+// 分成「每日徽章」「加碼徽章」「里程碑成就」三組放進全域變數。
+async function loadBadges(){
+  earnedBadges = [];
+  earnedBonusBadges = [];
+  earnedAchievements = [];
+  if(!currentUser) return;
+  const { data, error } = await supabase
+    .from('badges').select('*').eq('user_id', currentUser.id).order('badge_date', { ascending: true });
+  if(error){ console.error('讀取徽章失敗', error); return; }
+  (data || []).forEach(row=>{
+    if(row.kind === 'daily') earnedBadges.push({ date: row.badge_date, text: row.text });
+    else if(row.kind === 'bonus') earnedBonusBadges.push({ date: row.badge_date, text: row.text });
+    else if(row.kind === 'achievement') earnedAchievements.push({ id: row.badge_key, date: row.badge_date, icon: row.icon, title: row.title, desc: row.description });
+  });
 }
 
 function getEarnedBadges(){
-  try{
-    const arr = JSON.parse(localStorage.getItem(earnedBadgesKey()));
-    return Array.isArray(arr) ? arr : [];
-  }catch(_){ return []; }
+  return earnedBadges;
 }
 
-// 完成當天任務時記錄一次今天獲得的徽章（同一天只記一次）
-function recordEarnedBadge(){
+// 完成當天任務時記錄一次今天獲得的徽章（同一天只記一次），同步寫入 Supabase
+async function recordEarnedBadge(){
   const date = todayStr();
-  const list = getEarnedBadges();
-  if(list.some(b=>b.date===date)) return;
+  if(earnedBadges.some(b=>b.date===date)) return;
   const text = dailyBadges[dailyIndex() % dailyBadges.length];
-  list.push({ date, text });
-  localStorage.setItem(earnedBadgesKey(), JSON.stringify(list));
-}
-
-function earnedBonusBadgesKey(){
-  return `earned-bonus-badges:${currentUser?.id || 'guest'}`;
+  earnedBadges.push({ date, text }); // 先更新畫面，不等雲端回應
+  const { error } = await supabase.from('badges').insert({
+    user_id: currentUser.id, kind: 'daily', badge_date: date, text
+  });
+  if(error) console.error('儲存每日徽章失敗', error);
 }
 
 function getEarnedBonusBadges(){
-  try{
-    const arr = JSON.parse(localStorage.getItem(earnedBonusBadgesKey()));
-    return Array.isArray(arr) ? arr : [];
-  }catch(_){ return []; }
+  return earnedBonusBadges;
 }
 
-// 完成「加碼任務」時記錄一次今天的特別徽章（同一天只記一次）
-function recordBonusBadge(){
+// 完成「加碼任務」時記錄一次今天的特別徽章（同一天只記一次），同步寫入 Supabase
+async function recordBonusBadge(){
   const date = todayStr();
-  const list = getEarnedBonusBadges();
-  if(list.some(b=>b.date===date)) return;
+  if(earnedBonusBadges.some(b=>b.date===date)) return;
   const text = bonusBadges[dailyIndex() % bonusBadges.length];
-  list.push({ date, text });
-  localStorage.setItem(earnedBonusBadgesKey(), JSON.stringify(list));
+  earnedBonusBadges.push({ date, text });
+  const { error } = await supabase.from('badges').insert({
+    user_id: currentUser.id, kind: 'bonus', badge_date: date, text
+  });
+  if(error) console.error('儲存加碼徽章失敗', error);
 }
 
 /* ---------------- 連續完成天數（streak） ---------------- */
 
-function streakKey(){
-  return `daily-streak:${currentUser?.id || 'guest'}`;
+// 登入 / 換帳號時呼叫一次：把這個使用者的連續天數紀錄從 Supabase 讀回來
+async function loadStreak(){
+  currentStreak = { count: 0, lastDate: null };
+  if(!currentUser) return;
+  const { data, error } = await supabase
+    .from('streaks').select('*').eq('user_id', currentUser.id).maybeSingle();
+  if(error){ console.error('讀取連續天數失敗', error); return; }
+  if(data) currentStreak = { count: data.count, lastDate: data.last_date };
 }
 
 function getStreak(){
-  try{
-    const obj = JSON.parse(localStorage.getItem(streakKey()));
-    if(obj && typeof obj.count === 'number' && obj.lastDate) return obj;
-  }catch(_){ /* Ignore malformed saved data. */ }
-  return { count: 0, lastDate: null };
+  return currentStreak;
 }
 
-// 每日任務全部完成時呼叫一次：如果昨天也完成過就 +1，中斷過就重新算 1
-function bumpStreak(){
+// 每日任務全部完成時呼叫一次：如果昨天也完成過就 +1，中斷過就重新算 1，同步寫入 Supabase
+async function bumpStreak(){
   const today = todayStr();
-  const prev = getStreak();
-  if(prev.lastDate === today) return prev; // 今天已經算過了，避免重複
+  if(currentStreak.lastDate === today) return currentStreak; // 今天已經算過了，避免重複
   const yesterday = new Date(Date.now() - 86400000).toISOString().slice(0,10);
-  const count = prev.lastDate === yesterday ? prev.count + 1 : 1;
-  const next = { count, lastDate: today };
-  localStorage.setItem(streakKey(), JSON.stringify(next));
-  return next;
+  const count = currentStreak.lastDate === yesterday ? currentStreak.count + 1 : 1;
+  currentStreak = { count, lastDate: today }; // 先更新畫面，不等雲端回應
+  const { error } = await supabase.from('streaks')
+    .upsert({ user_id: currentUser.id, count, last_date: today }, { onConflict: 'user_id' });
+  if(error) console.error('儲存連續天數失敗', error);
+  return currentStreak;
 }
 
 /* ---------------- 一次性里程碑成就 ---------------- */
 
-function achievementsEarnedKey(){
-  return `earned-achievements:${currentUser?.id || 'guest'}`;
-}
-
 function getEarnedAchievements(){
-  try{
-    const arr = JSON.parse(localStorage.getItem(achievementsEarnedKey()));
-    return Array.isArray(arr) ? arr : [];
-  }catch(_){ return []; }
+  return earnedAchievements;
 }
 
 // 檢查目前資料是否達成任何還沒拿過的成就，達成就永久記錄下來並跳出通知。
-// 可以隨時重複呼叫，已經拿過的成就不會被重複觸發。
-function checkAchievements(){
+// 可以隨時重複呼叫，已經拿過的成就不會被重複觸發。同步寫入 Supabase。
+async function checkAchievements(){
   if(!books.length) return;
-  const earned = getEarnedAchievements();
-  const earnedIds = new Set(earned.map(a=>a.id));
+  const earnedIds = new Set(earnedAchievements.map(a=>a.id));
   const stats = overallStats();
   const anyBookDone = books.some(b=>{
     const target = Number(b.target) || 0;
@@ -762,12 +768,17 @@ function checkAchievements(){
   ACHIEVEMENTS.forEach(a=>{
     if(earnedIds.has(a.id)) return;
     if(a.check(ctx)){
-      earned.push({ id:a.id, date: todayStr(), icon:a.icon, title:a.title, desc:a.desc });
+      earnedAchievements.push({ id:a.id, date: todayStr(), icon:a.icon, title:a.title, desc:a.desc }); // 先更新畫面
       newlyEarned.push(a);
     }
   });
   if(newlyEarned.length){
-    localStorage.setItem(achievementsEarnedKey(), JSON.stringify(earned));
+    const rows = newlyEarned.map(a=>({
+      user_id: currentUser.id, kind: 'achievement', badge_date: todayStr(),
+      badge_key: a.id, icon: a.icon, title: a.title, description: a.desc
+    }));
+    const { error } = await supabase.from('badges').insert(rows);
+    if(error) console.error('儲存成就失敗', error);
     newlyEarned.forEach(a=>{
       showDailyToast({ icon:a.icon, title:`成就達成：${a.title}`, body:a.desc });
     });
@@ -1277,6 +1288,8 @@ async function loadAllData(){
       });
     }
   }
+  await loadBadges();
+  await loadStreak();
 }
 
 function cumulativeFor(bookId){
@@ -1688,6 +1701,8 @@ async function init(){
     }else{
       currentUser = null;
       books = []; entriesByBook = {}; activeBookId = null;
+      earnedBadges = []; earnedBonusBadges = []; earnedAchievements = [];
+      currentStreak = { count: 0, lastDate: null };
       showAuthView();
     }
   });
