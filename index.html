@@ -666,10 +666,35 @@ function createDailyTaskPlan(){
   const picksPerDay = Math.min(DAILY_PICK_COUNT, N);
   const daysLeft = daysUntilYearEnd();
 
+  // 每本書的「落後急迫度」：距離 11/15 前，平均每天要寫幾頁才趕得上目標。
+  // 沒設定目標頁數的書視為不急迫（急迫度 0），但仍會透過下面的輪替機制排到。
+  function urgencyOf(book){
+    const target = Number(book.target) || 0;
+    if(!target) return 0;
+    const remaining = Math.max(target - totalFor(book.id), 0);
+    return remaining / daysLeft;
+  }
+
+  // 保留一半名額（至少 1 個）優先給目前最落後的書，其餘名額維持原本的輪替，
+  // 確保進度嚴重落後的書一定會被排到，同時其他書也不會因此完全輪不到。
+  const URGENT_SLOTS = Math.min(Math.max(1, Math.ceil(picksPerDay / 2)), N);
+  const sortedByUrgency = available.slice().sort((a,b)=>urgencyOf(b) - urgencyOf(a));
+  const urgentBooks = sortedByUrgency.slice(0, URGENT_SLOTS).filter(b=>urgencyOf(b) > 0);
+
+  const rotationSlots = picksPerDay - urgentBooks.length;
+  const rotationPool = available.filter(b=>!urgentBooks.includes(b));
+  const rotationSource = rotationPool.length ? rotationPool : available; // 若全部都很急迫，退回用 available 輪替避免陣列空掉
+  const rotationBooks = [];
+  for(let i=0; i<rotationSlots; i++){
+    rotationBooks.push(rotationSource[(dailyIndex() + i) % rotationSource.length]);
+  }
+
+  const selectedBooks = [...urgentBooks, ...rotationBooks];
+
   const plan = [];
   const pendingRangesByBook = {}; // 同一天同一本書被排到第二次時，避免跟這次剛排好的範圍重疊
-  for(let i=0; i<picksPerDay; i++){
-    const book = available[(dailyIndex() + i) % N];
+  for(let i=0; i<selectedBooks.length; i++){
+    const book = selectedBooks[i];
     const target = Number(book.target) || 0;
     const writtenPages = totalFor(book.id); // 用實際寫過的頁數（而非最後一頁）估算剩餘量，跳著寫也準確
     const remainingPages = target ? Math.max(target - writtenPages, 0) : null;
