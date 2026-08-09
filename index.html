@@ -268,7 +268,17 @@ table.ledger .del{ background:none; border:none; color:var(--danger); cursor:poi
 .badge-chip .badge-icon{ font-size:20px; line-height:1.2; }
 .badge-chip .badge-label{ font-size:11px; color:var(--ink); line-height:1.3; }
 .badge-chip .badge-date{ font-family:'JetBrains Mono',monospace; font-size:9.5px; color:var(--ink-soft); }
+.badge-chip.bonus{ background:var(--ledger-green-soft); border-color:var(--ledger-green); position:relative; }
+.badge-chip.bonus::after{ content:'🎁'; position:absolute; top:-7px; right:-6px; font-size:13px; filter:drop-shadow(0 1px 1px rgba(0,0,0,.25)); }
 .badge-empty{ grid-column:1/-1; color:var(--ink-soft); font-size:13px; padding:14px 4px; text-align:center; }
+
+.achievement-grid{ display:flex; flex-direction:column; gap:8px; max-height:220px; overflow-y:auto; margin-bottom:4px; }
+.achievement-card{ display:flex; align-items:center; gap:10px; background:var(--brass-soft); border:1px solid var(--card-border); border-radius:8px; padding:8px 12px; }
+.achievement-card .a-icon{ font-size:22px; flex-shrink:0; }
+.achievement-card .a-body{ display:flex; flex-direction:column; gap:1px; min-width:0; }
+.achievement-card .a-title{ font-size:13px; font-weight:600; color:var(--ink); }
+.achievement-card .a-desc{ font-size:11px; color:var(--ink-soft); }
+.achievement-card .a-date{ margin-left:auto; font-family:'JetBrains Mono',monospace; font-size:9.5px; color:var(--ink-soft); white-space:nowrap; }
 
 /* ---------- 每日任務彈窗 ---------- */
 .daily-overlay{ position:fixed; inset:0; z-index:1000; padding:20px; display:flex; align-items:center; justify-content:center; background:rgba(43,42,38,.58); }
@@ -293,6 +303,7 @@ table.ledger .del{ background:none; border:none; color:var(--danger); cursor:poi
   padding-bottom:10px; margin-bottom:8px !important; border-bottom:1px dashed var(--card-border);
 }
 .daily-task-list .task-progress-total b{ color:var(--brass); font-size:16px; font-family:'Fraunces',serif; }
+.daily-task-list .bonus-row{ margin-top:10px !important; padding-top:10px; border-top:1px dashed var(--card-border); }
 .daily-badge-label{ color:var(--ink-soft); font-size:12px; letter-spacing:.06em; }
 .daily-badge{ margin:7px 0 5px; font-family:'Fraunces',serif; font-size:21px; }
 .daily-badge-note{ margin:0 0 20px; color:var(--ink-soft); font-size:13px; }
@@ -436,6 +447,11 @@ table.ledger .del{ background:none; border:none; color:var(--danger); cursor:poi
       <div class="badge-grid" id="badgeGrid"></div>
     </div>
 
+    <div class="profile-badges">
+      <h3>🏆 里程碑成就 <span class="badge-count" id="profileAchievementCount"></span></h3>
+      <div class="achievement-grid" id="achievementGrid"></div>
+    </div>
+
     <div class="modal-actions">
       <button type="button" class="cancel-btn" id="closeProfileBtn">關閉</button>
     </div>
@@ -542,6 +558,30 @@ const dailyBadges = [
   '\u{1F396}\uFE0F \u6C38\u4E0D\u653E\u68C4', '\u{1F31F} \u9583\u8000\u4E4B\u661F', '\u{1F9E0} \u8D85\u7D1A\u5927\u8166', '\u2764\uFE0F \u5805\u6301\u5230\u5E95'
 ];
 
+// 完成「加碼任務」時抽到的特別徽章，跟每日徽章分開一組，感覺比較稀有
+const bonusBadges = [
+  '🎁 加碼驚喜', '🍬 甜點時間', '🌟 小確幸', '🥂 額外一杯', '🎈 輕鬆加分',
+  '🍭 順手一頁', '🎨 小畫家', '🧁 小點心', '🎇 意外驚喜', '🎀 小禮物'
+];
+
+// 一次性里程碑成就：達成條件後就永久記錄，不會重複觸發
+const ACHIEVEMENTS = [
+  { id:'overall-25',  icon:'🌱', title:'起步了！',     desc:'總完成率達到 25%',      check:ctx=>ctx.rate >= 25 },
+  { id:'overall-50',  icon:'🔥', title:'過半了！',     desc:'總完成率達到 50%',      check:ctx=>ctx.rate >= 50 },
+  { id:'overall-60',  icon:'⭐', title:'六成達成！',   desc:'總完成率達到 60%',      check:ctx=>ctx.rate >= 60 },
+  { id:'overall-75',  icon:'💪', title:'即將達陣！',   desc:'總完成率達到 75%',      check:ctx=>ctx.rate >= 75 },
+  { id:'overall-90',  icon:'🚀', title:'最後衝刺！',   desc:'總完成率達到 90%',      check:ctx=>ctx.rate >= 90 },
+  { id:'overall-100', icon:'👑', title:'全數完成！',   desc:'總完成率達到 100%',     check:ctx=>ctx.rate >= 100 },
+  { id:'pages-100',   icon:'📖', title:'百頁達成',     desc:'累計寫滿 100 頁',       check:ctx=>ctx.totalPagesAll >= 100 },
+  { id:'pages-300',   icon:'📚', title:'三百頁里程碑', desc:'累計寫滿 300 頁',       check:ctx=>ctx.totalPagesAll >= 300 },
+  { id:'pages-500',   icon:'🏛️', title:'五百頁里程碑', desc:'累計寫滿 500 頁',       check:ctx=>ctx.totalPagesAll >= 500 },
+  { id:'pages-1000',  icon:'🗿', title:'千頁傳說',     desc:'累計寫滿 1000 頁',      check:ctx=>ctx.totalPagesAll >= 1000 },
+  { id:'book-done-1', icon:'🏁', title:'完成第一本書', desc:'有一本書達成 100% 目標', check:ctx=>ctx.anyBookDone },
+  { id:'streak-3',    icon:'🔥', title:'三日連續',     desc:'連續 3 天完成每日任務', check:ctx=>ctx.streak >= 3 },
+  { id:'streak-7',    icon:'🔥🔥', title:'一週不間斷',  desc:'連續 7 天完成每日任務', check:ctx=>ctx.streak >= 7 },
+  { id:'streak-14',   icon:'🔥🔥🔥', title:'兩週鋼鐵意志', desc:'連續 14 天完成每日任務', check:ctx=>ctx.streak >= 14 }
+];
+
 function dailyIndex(){
   const now = new Date();
   const localMidnight = new Date(now.getFullYear(), now.getMonth(), now.getDate());
@@ -560,6 +600,44 @@ function daysUntilYearEnd(){
 }
 
 let activeDailyTasks = [];
+let activeBonusTask = null; // 今天的「加碼任務」：份量很小，寫少少就能拿特別徽章
+
+// 從還沒排進主線任務的書裡面，挑一本出一個份量很小（1 頁）的加碼任務，
+// 讓人有「寫少少也有獎勵」的感覺；如果每本書都已經在主線任務裡了，就從全部未寫完的書裡選。
+function createBonusTask(excludeBooks, mainTasks){
+  const BONUS_QUOTA = 1;
+  const notFull = book=>{
+    const target = Number(book.target) || 0;
+    return !target || totalFor(book.id) < target;
+  };
+  const candidates = books.filter(book=>notFull(book) && !excludeBooks.includes(book));
+  const pool = candidates.length ? candidates : books.filter(notFull);
+  if(!pool.length) return null;
+
+  const book = pool[dailyIndex() % pool.length];
+  const target = Number(book.target) || 0;
+  const written = mergedRangesFor(book.id);
+  // 如果這本書剛好也在今天的主線任務裡（例如所有書都排滿了才退回選這本），
+  // 要把主線任務已經預定的範圍也算進去，避免加碼任務跟主線任務排到同一段頁數。
+  const pending = (mainTasks || []).filter(t=>t.bookId===book.id).map(t=>[t.start, t.end]);
+  const occupied = [...written, ...pending].sort((a,b)=>a[0]-b[0]);
+  let start = 1;
+  for(const [s,e] of occupied){
+    if(start >= s && start <= e) start = e + 1;
+  }
+  const end = target ? Math.min(start + BONUS_QUOTA - 1, target) : start + BONUS_QUOTA - 1;
+  if(start > end) return null;
+  return { bookId: book.id, bookName: book.name, start, end };
+}
+
+function isBonusTaskDone(){
+  if(!activeBonusTask) return false;
+  const written = entriesByBook[activeBonusTask.bookId] || [];
+  for(let page=activeBonusTask.start; page<=activeBonusTask.end; page++){
+    if(!written.some(e=>Number(e.page_start) <= page && Number(e.page_end) >= page)) return false;
+  }
+  return true;
+}
 
 function dailyTaskStorageKey(){
   const now = new Date();
@@ -602,6 +680,100 @@ function recordEarnedBadge(){
   localStorage.setItem(earnedBadgesKey(), JSON.stringify(list));
 }
 
+function earnedBonusBadgesKey(){
+  return `earned-bonus-badges:${currentUser?.id || 'guest'}`;
+}
+
+function getEarnedBonusBadges(){
+  try{
+    const arr = JSON.parse(localStorage.getItem(earnedBonusBadgesKey()));
+    return Array.isArray(arr) ? arr : [];
+  }catch(_){ return []; }
+}
+
+// 完成「加碼任務」時記錄一次今天的特別徽章（同一天只記一次）
+function recordBonusBadge(){
+  const date = todayStr();
+  const list = getEarnedBonusBadges();
+  if(list.some(b=>b.date===date)) return;
+  const text = bonusBadges[dailyIndex() % bonusBadges.length];
+  list.push({ date, text });
+  localStorage.setItem(earnedBonusBadgesKey(), JSON.stringify(list));
+}
+
+/* ---------------- 連續完成天數（streak） ---------------- */
+
+function streakKey(){
+  return `daily-streak:${currentUser?.id || 'guest'}`;
+}
+
+function getStreak(){
+  try{
+    const obj = JSON.parse(localStorage.getItem(streakKey()));
+    if(obj && typeof obj.count === 'number' && obj.lastDate) return obj;
+  }catch(_){ /* Ignore malformed saved data. */ }
+  return { count: 0, lastDate: null };
+}
+
+// 每日任務全部完成時呼叫一次：如果昨天也完成過就 +1，中斷過就重新算 1
+function bumpStreak(){
+  const today = todayStr();
+  const prev = getStreak();
+  if(prev.lastDate === today) return prev; // 今天已經算過了，避免重複
+  const yesterday = new Date(Date.now() - 86400000).toISOString().slice(0,10);
+  const count = prev.lastDate === yesterday ? prev.count + 1 : 1;
+  const next = { count, lastDate: today };
+  localStorage.setItem(streakKey(), JSON.stringify(next));
+  return next;
+}
+
+/* ---------------- 一次性里程碑成就 ---------------- */
+
+function achievementsEarnedKey(){
+  return `earned-achievements:${currentUser?.id || 'guest'}`;
+}
+
+function getEarnedAchievements(){
+  try{
+    const arr = JSON.parse(localStorage.getItem(achievementsEarnedKey()));
+    return Array.isArray(arr) ? arr : [];
+  }catch(_){ return []; }
+}
+
+// 檢查目前資料是否達成任何還沒拿過的成就，達成就永久記錄下來並跳出通知。
+// 可以隨時重複呼叫，已經拿過的成就不會被重複觸發。
+function checkAchievements(){
+  if(!books.length) return;
+  const earned = getEarnedAchievements();
+  const earnedIds = new Set(earned.map(a=>a.id));
+  const stats = overallStats();
+  const anyBookDone = books.some(b=>{
+    const target = Number(b.target) || 0;
+    return target > 0 && totalFor(b.id) >= target;
+  });
+  const ctx = {
+    rate: stats.rate || 0,
+    totalPagesAll: stats.totalPagesAll,
+    streak: getStreak().count,
+    anyBookDone
+  };
+
+  const newlyEarned = [];
+  ACHIEVEMENTS.forEach(a=>{
+    if(earnedIds.has(a.id)) return;
+    if(a.check(ctx)){
+      earned.push({ id:a.id, date: todayStr(), icon:a.icon, title:a.title, desc:a.desc });
+      newlyEarned.push(a);
+    }
+  });
+  if(newlyEarned.length){
+    localStorage.setItem(achievementsEarnedKey(), JSON.stringify(earned));
+    newlyEarned.forEach(a=>{
+      showDailyToast({ icon:a.icon, title:`成就達成：${a.title}`, body:a.desc });
+    });
+  }
+}
+
 // 總頁數（所有書目已寫頁數加總）與總完成率（只用有設定目標的書目計算）
 function overallStats(){
   let totalPagesAll = 0;
@@ -623,16 +795,37 @@ function overallStats(){
 function renderBadgeGrid(){
   const grid = document.getElementById('badgeGrid');
   const countEl = document.getElementById('profileBadgeCount');
-  const earned = getEarnedBadges().slice().sort((a,b)=>b.date.localeCompare(a.date));
+  const daily = getEarnedBadges().map(b=>({ ...b, kind:'daily' }));
+  const bonus = getEarnedBonusBadges().map(b=>({ ...b, kind:'bonus' }));
+  const earned = [...daily, ...bonus].sort((a,b)=>b.date.localeCompare(a.date));
   countEl.textContent = earned.length ? `（共 ${earned.length} 個）` : '';
   grid.innerHTML = earned.length
     ? earned.map(b=>{
         const m = b.text.match(/^(\p{Extended_Pictographic}+)\s*(.*)$/u);
         const icon = m ? m[1] : '🏅';
         const label = m ? m[2] : b.text;
-        return `<div class="badge-chip"><span class="badge-icon">${icon}</span><span class="badge-label">${label}</span><span class="badge-date">${b.date}</span></div>`;
+        const cls = b.kind === 'bonus' ? 'badge-chip bonus' : 'badge-chip';
+        return `<div class="${cls}"><span class="badge-icon">${icon}</span><span class="badge-label">${label}</span><span class="badge-date">${b.date}</span></div>`;
       }).join('')
     : `<div class="badge-empty">還沒有獲得任何徽章，完成今日任務即可獲得！</div>`;
+}
+
+function renderAchievementGrid(){
+  const grid = document.getElementById('achievementGrid');
+  const countEl = document.getElementById('profileAchievementCount');
+  const earned = getEarnedAchievements().slice().sort((a,b)=>b.date.localeCompare(a.date));
+  countEl.textContent = earned.length ? `（共 ${earned.length} 個）` : '';
+  grid.innerHTML = earned.length
+    ? earned.map(a=>`
+        <div class="achievement-card">
+          <span class="a-icon">${a.icon}</span>
+          <div class="a-body">
+            <span class="a-title">${escapeHtml(a.title)}</span>
+            <span class="a-desc">${escapeHtml(a.desc)}</span>
+          </div>
+          <span class="a-date">${a.date}</span>
+        </div>`).join('')
+    : `<div class="badge-empty">還沒有解鎖任何成就，繼續累積進度吧！</div>`;
 }
 
 function openProfileModal(){
@@ -642,6 +835,7 @@ function openProfileModal(){
   document.getElementById('profileTotalPages').textContent = `${stats.totalPagesAll} 頁`;
   document.getElementById('profileCompletion').textContent = stats.rate === null ? '尚未設定目標' : `${stats.rate}%`;
   renderBadgeGrid();
+  renderAchievementGrid();
   document.getElementById('profileOverlay').classList.remove('hidden');
 }
 
@@ -728,10 +922,13 @@ function getDailyTaskPlan(){
   const key = dailyTaskStorageKey();
   try{
     const saved = JSON.parse(localStorage.getItem(key));
-    if(Array.isArray(saved) && saved.length) return saved;
+    if(saved && Array.isArray(saved.tasks)) return saved;
   }catch(_){ /* Ignore malformed saved data. */ }
 
-  const plan = createDailyTaskPlan();
+  const tasks = createDailyTaskPlan();
+  const usedBooks = tasks.map(t=>books.find(b=>b.id===t.bookId)).filter(Boolean);
+  const bonus = createBonusTask(usedBooks, tasks);
+  const plan = { tasks, bonus };
   localStorage.setItem(key, JSON.stringify(plan));
   return plan;
 }
@@ -763,6 +960,7 @@ function taskProgressForBook(bookId){
 function reshuffleDailyTasks(){
   localStorage.removeItem(dailyTaskStorageKey());
   localStorage.removeItem(dailyNotifiedKey());
+  localStorage.removeItem(dailyBonusNotifiedKey());
   showDailyTask();
 }
 
@@ -825,14 +1023,34 @@ function sendBrowserNotification(title, body){
   }
 }
 
+function dailyBonusNotifiedKey(){
+  const now = new Date();
+  const localDate = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}`;
+  return `daily-bonus-notified:${currentUser?.id || 'guest'}:${localDate}`;
+}
+
 function notifyDailyComplete(){
   const key = dailyNotifiedKey();
   if(localStorage.getItem(key)) return; // 今天已經通知過了，避免重複跳出
   localStorage.setItem(key, '1');
   recordEarnedBadge();
+  bumpStreak();
+  checkAchievements();
   const title = '今日任務已完成！🎉';
   const body = '恭喜你完成今天的所有任務，記得看看獲得的徽章～';
   showDailyToast({ icon:'🏅', title, body });
+  sendBrowserNotification(title, body);
+}
+
+// 加碼任務份量很小，寫完就給一個特別徽章當小獎勵（同一天只通知一次）
+function notifyBonusComplete(){
+  const key = dailyBonusNotifiedKey();
+  if(localStorage.getItem(key)) return;
+  localStorage.setItem(key, '1');
+  recordBonusBadge();
+  const title = '加碼任務完成！🎁';
+  const body = '寫少少也能拿到特別徽章，太划算了～';
+  showDailyToast({ icon:'🎁', title, body });
   sendBrowserNotification(title, body);
 }
 
@@ -840,6 +1058,7 @@ function updateDailyProgress(){
   const progressEl = document.getElementById('dailyProgress');
   const openBtn = document.getElementById('openDailyBtn');
   const total = activeDailyTasks.reduce((count, task)=>count + task.end - task.start + 1, 0);
+  if(activeBonusTask && isBonusTaskDone()) notifyBonusComplete();
   if(!total){
     if(progressEl) progressEl.classList.add('hidden');
     if(openBtn) openBtn.classList.remove('has-pending');
@@ -870,7 +1089,18 @@ function showDailyTask(){
   dateEl.textContent = now.toLocaleDateString('zh-TW', { year:'numeric', month:'long', day:'numeric', weekday:'long' });
   const deadlineEl = document.getElementById('dailyDeadline');
   if(deadlineEl) deadlineEl.textContent = `\u{1F3AF} \u76EE\u6A19\uFF1A11/15 \u524D\u8B80\u5B8C\u6240\u6709\u66F8\uFF08\u9084\u5269 ${daysUntilYearEnd()} \u5929\uFF09`;
-  activeDailyTasks = getDailyTaskPlan();
+  const plan = getDailyTaskPlan();
+  activeDailyTasks = plan.tasks;
+  activeBonusTask = plan.bonus;
+
+  let bonusHtml = '';
+  if(activeBonusTask){
+    const bt = activeBonusTask;
+    const pages = bt.start === bt.end ? `${bt.start}` : `${bt.start}～${bt.end}`;
+    const done = isBonusTaskDone();
+    bonusHtml = `<p class="bonus-row">${done ? '✅' : '🎁'} <b>加碼任務：${escapeHtml(bt.bookName)}</b>：第 ${pages} 頁 <span class="task-progress">${done ? '已完成，賺到！' : '寫少少也給獎勵～'}</span></p>`;
+  }
+
   if(activeDailyTasks.length){
     const totalPages = activeDailyTasks.reduce((sum,t)=>sum + t.end - t.start + 1, 0);
     const donePages = completedDailyPages(activeDailyTasks);
@@ -884,12 +1114,13 @@ function showDailyTask(){
       const shareLabel = sharePct === null ? '未設定目標' : `佔本書 ${sharePct}%`;
       return `<p><b>${i + 1}. ${escapeHtml(task.bookName)}</b>：第 ${pages} 頁 <span class="task-progress">${shareLabel}</span></p>`;
     }).join('');
-    taskEl.innerHTML = `<p class="task-progress-total">今日總進度：<b>${overallPct}%</b>（${donePages} / ${totalPages} 頁）</p>${rows}`;
+    taskEl.innerHTML = `<p class="task-progress-total">今日總進度：<b>${overallPct}%</b>（${donePages} / ${totalPages} 頁）</p>${rows}${bonusHtml}`;
   }else{
-    taskEl.innerHTML = '<p>先新增講義與目標頁數，明天就會自動安排任務。</p>';
+    taskEl.innerHTML = `<p>先新增講義與目標頁數，明天就會自動安排任務。</p>${bonusHtml}`;
   }
   badgeEl.textContent = dailyBadges[index % dailyBadges.length];
   updateDailyProgress();
+  checkAchievements();
   document.getElementById('dailyOverlay').classList.remove('hidden');
 }
 
@@ -1128,6 +1359,7 @@ function pageGridHTML(bookId, target, color, extraClass){
 
 function render(){
   const app = document.getElementById('appPanel');
+  checkAchievements();
 
   if(books.length === 0){
     app.innerHTML = `
