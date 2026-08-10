@@ -291,6 +291,8 @@ table.ledger .del{ background:none; border:none; color:var(--danger); cursor:poi
 .badge-chip .badge-date{ font-family:'JetBrains Mono',monospace; font-size:9.5px; color:var(--ink-soft); }
 .badge-chip.bonus{ background:var(--ledger-green-soft); border-color:var(--ledger-green); position:relative; }
 .badge-chip.bonus::after{ content:'🎁'; position:absolute; top:-7px; right:-6px; font-size:13px; filter:drop-shadow(0 1px 1px rgba(0,0,0,.25)); }
+.badge-chip.reroll{ background:#fdeee0; border-color:var(--brass); position:relative; }
+.badge-chip.reroll::after{ content:'🔁'; position:absolute; top:-7px; right:-6px; font-size:13px; filter:drop-shadow(0 1px 1px rgba(0,0,0,.25)); }
 .badge-empty{ grid-column:1/-1; color:var(--ink-soft); font-size:13px; padding:14px 4px; text-align:center; }
 
 .achievement-grid{ display:flex; flex-direction:column; gap:8px; max-height:220px; overflow-y:auto; margin-bottom:4px; }
@@ -326,7 +328,17 @@ table.ledger .del{ background:none; border:none; color:var(--danger); cursor:poi
   padding-bottom:10px; margin-bottom:8px !important; border-bottom:1px dashed var(--card-border);
 }
 .daily-task-list .task-progress-total b{ color:var(--brass); font-size:16px; font-family:'Fraunces',serif; }
-.daily-task-list .bonus-row{ margin-top:10px !important; padding-top:10px; border-top:1px dashed var(--card-border); }
+.daily-task-list .bonus-row{
+  margin-top:10px !important; padding-top:10px; border-top:1px dashed var(--card-border);
+  display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap;
+}
+.daily-task-list .bonus-row p{ margin:0; flex:1; min-width:180px; }
+.bonus-reshuffle-btn{
+  font-family:'JetBrains Mono',monospace; font-size:10.5px; color:var(--ink-soft);
+  background:none; border:1px solid var(--card-border); border-radius:999px;
+  padding:2px 8px; cursor:pointer; transition:background .15s ease, color .15s ease; white-space:nowrap;
+}
+.bonus-reshuffle-btn:hover{ background:var(--ledger-green-soft); color:var(--ledger-green); }
 .daily-badge-label{ color:var(--ink-soft); font-size:12px; letter-spacing:.06em; }
 .daily-badge{ margin:7px 0 5px; font-family:'Fraunces',serif; font-size:21px; }
 .daily-badge-note{ margin:0 0 20px; color:var(--ink-soft); font-size:13px; }
@@ -538,9 +550,11 @@ let activeBookId = null;
 let isSignUpMode = false;
 let earnedBadges = [];       // 每日徽章 [{date,text}]，登入時從 Supabase 載入
 let earnedBonusBadges = [];  // 加碼徽章 [{date,text}]，登入時從 Supabase 載入
+let earnedRerollBadges = []; // 加場徽章 [{date,text}]：今天完成過一次任務後，主動重排又寫完新一輪才會拿到
 let earnedAchievements = []; // 里程碑成就 [{id,date,icon,title,desc}]，登入時從 Supabase 載入
 let currentStreak = { count: 0, lastDate: null }; // 連續完成天數，登入時從 Supabase 載入
 let currentDailyPlan = null; // 今天的任務排程 { date, tasks, bonus, notified, bonusNotified }，存在 Supabase
+let dailyRerollActive = false; // 目前這輪主線任務是不是「完成過一次後主動重排」的加場，換日期會自動歸零
 
 function todayStr(){ return new Date().toISOString().slice(0,10); }
 function escapeHtml(s){
@@ -592,6 +606,12 @@ const bonusBadges = [
   '🍭 順手一頁', '🎨 小畫家', '🧁 小點心', '🎇 意外驚喜', '🎀 小禮物'
 ];
 
+// 今天完成過一次任務後，主動重排又寫完新一輪任務時抽到的特別徽章，比每日徽章更稀有
+const rerollBadges = [
+  '🔁 加場王者', '🌙 夜間加場', '🔥 二輪火力', '🎖️ 額外戰功', '🚀 超額完成',
+  '💯 不只一輪', '🏹 再戰一場', '🎇 意猶未盡', '⚔️ 二刷勇者', '🌈 加開一局'
+];
+
 // 一次性里程碑成就：達成條件後就永久記錄，不會重複觸發
 const ACHIEVEMENTS = [
   { id:'overall-25',  icon:'🌱', title:'起步了！',     desc:'總完成率達到 25%',      check:ctx=>ctx.rate >= 25 },
@@ -632,7 +652,8 @@ let activeBonusTask = null; // 今天的「加碼任務」：份量很小，寫�
 
 // 從還沒排進主線任務的書裡面，挑一本出一個份量很小（1 頁）的加碼任務，
 // 讓人有「寫少少也有獎勵」的感覺；如果每本書都已經在主線任務裡了，就從全部未寫完的書裡選。
-function createBonusTask(excludeBooks, mainTasks){
+// seedOffset：預設 0（每天固定選同一本），手動按「換一個」時會帶入隨機值，確保換得到不同的書。
+function createBonusTask(excludeBooks, mainTasks, seedOffset = 0){
   const BONUS_QUOTA = 1;
   const notFull = book=>{
     const target = Number(book.target) || 0;
@@ -642,7 +663,7 @@ function createBonusTask(excludeBooks, mainTasks){
   const pool = candidates.length ? candidates : books.filter(notFull);
   if(!pool.length) return null;
 
-  const book = pool[dailyIndex() % pool.length];
+  const book = pool[(dailyIndex() + seedOffset) % pool.length];
   const target = Number(book.target) || 0;
   const written = mergedRangesFor(book.id);
   // 如果這本書剛好也在今天的主線任務裡（例如所有書都排滿了才退回選這本），
@@ -686,6 +707,7 @@ function avatarInitial(email){
 async function loadBadges(){
   earnedBadges = [];
   earnedBonusBadges = [];
+  earnedRerollBadges = [];
   earnedAchievements = [];
   if(!currentUser) return;
   const { data, error } = await supabase
@@ -694,6 +716,7 @@ async function loadBadges(){
   (data || []).forEach(row=>{
     if(row.kind === 'daily') earnedBadges.push({ date: row.badge_date, text: row.text });
     else if(row.kind === 'bonus') earnedBonusBadges.push({ date: row.badge_date, text: row.text });
+    else if(row.kind === 'reroll') earnedRerollBadges.push({ date: row.badge_date, text: row.text });
     else if(row.kind === 'achievement') earnedAchievements.push({ id: row.badge_key, date: row.badge_date, icon: row.icon, title: row.title, desc: row.description });
   });
 }
@@ -728,6 +751,22 @@ async function recordBonusBadge(){
     user_id: currentUser.id, kind: 'bonus', badge_date: date, text
   });
   if(error) console.error('儲存加碼徽章失敗', error);
+}
+
+function getEarnedRerollBadges(){
+  return earnedRerollBadges;
+}
+
+// 今天完成過一次任務後，主動重排又寫完新一輪任務時記錄一次特別徽章（同一天只記一次），同步寫入 Supabase
+async function recordRerollBadge(){
+  const date = todayStr();
+  if(earnedRerollBadges.some(b=>b.date===date)) return;
+  const text = rerollBadges[dailyIndex() % rerollBadges.length];
+  earnedRerollBadges.push({ date, text });
+  const { error } = await supabase.from('badges').insert({
+    user_id: currentUser.id, kind: 'reroll', badge_date: date, text
+  });
+  if(error) console.error('儲存加場徽章失敗', error);
 }
 
 /* ---------------- 連續完成天數（streak） ---------------- */
@@ -826,14 +865,15 @@ function renderBadgeGrid(){
   const countEl = document.getElementById('profileBadgeCount');
   const daily = getEarnedBadges().map(b=>({ ...b, kind:'daily' }));
   const bonus = getEarnedBonusBadges().map(b=>({ ...b, kind:'bonus' }));
-  const earned = [...daily, ...bonus].sort((a,b)=>b.date.localeCompare(a.date));
+  const reroll = getEarnedRerollBadges().map(b=>({ ...b, kind:'reroll' }));
+  const earned = [...daily, ...bonus, ...reroll].sort((a,b)=>b.date.localeCompare(a.date));
   countEl.textContent = earned.length ? `（共 ${earned.length} 個）` : '';
   grid.innerHTML = earned.length
     ? earned.map(b=>{
         const m = b.text.match(/^(\p{Extended_Pictographic}+)\s*(.*)$/u);
         const icon = m ? m[1] : '🏅';
         const label = m ? m[2] : b.text;
-        const cls = b.kind === 'bonus' ? 'badge-chip bonus' : 'badge-chip';
+        const cls = b.kind === 'bonus' ? 'badge-chip bonus' : b.kind === 'reroll' ? 'badge-chip reroll' : 'badge-chip';
         return `<div class="${cls}"><span class="badge-icon">${icon}</span><span class="badge-label">${label}</span><span class="badge-date">${b.date}</span></div>`;
       }).join('')
     : `<div class="badge-empty">還沒有獲得任何徽章，完成今日任務即可獲得！</div>`;
@@ -890,28 +930,18 @@ function createDailyTaskPlan(){
   const daysLeft = daysUntilYearEnd();
 
   // 每本書目前的「完成率」（已寫頁數 / 目標頁數）。
-  // 沒設定目標頁數的書無法算完成率，視為 Infinity（不會被優先挑選，只透過下面的輪替機制排到）。
+  // 沒設定目標頁數的書無法算完成率，視為 Infinity（排最後，只有名額多到排得到才會選進來）。
   function completionPctOf(book){
     const target = Number(book.target) || 0;
     if(!target) return Infinity;
     return totalFor(book.id) / target;
   }
 
-  // 保留一半名額（至少 1 個）優先給目前完成率最低的書，其餘名額維持原本的輪替，
-  // 確保進度嚴重落後的書一定會被排到，同時其他書也不會因此完全輪不到。
-  const URGENT_SLOTS = Math.min(Math.max(1, Math.ceil(picksPerDay / 2)), N);
-  const sortedByCompletion = available.slice().sort((a,b)=>completionPctOf(a) - completionPctOf(b));
-  const urgentBooks = sortedByCompletion.slice(0, URGENT_SLOTS).filter(b=>Number.isFinite(completionPctOf(b)));
-
-  const rotationSlots = picksPerDay - urgentBooks.length;
-  const rotationPool = available.filter(b=>!urgentBooks.includes(b));
-  const rotationSource = rotationPool.length ? rotationPool : available; // 若全部都很急迫，退回用 available 輪替避免陣列空掉
-  const rotationBooks = [];
-  for(let i=0; i<rotationSlots; i++){
-    rotationBooks.push(rotationSource[(dailyIndex() + i) % rotationSource.length]);
-  }
-
-  const selectedBooks = [...urgentBooks, ...rotationBooks];
+  // 完全依完成率由低到高排序，直接取完成率最低的 picksPerDay 本，
+  // 不再另外保留輪替名額——4 個名額都給目前進度最落後的講義。
+  const selectedBooks = available.slice()
+    .sort((a,b)=>completionPctOf(a) - completionPctOf(b))
+    .slice(0, picksPerDay);
 
   const plan = [];
   const pendingRangesByBook = {}; // 同一天同一本書被排到第二次時，避免跟這次剛排好的範圍重疊
@@ -951,6 +981,8 @@ function createDailyTaskPlan(){
 async function getDailyTaskPlan(){
   const date = todayStr();
   if(currentDailyPlan && currentDailyPlan.date === date) return currentDailyPlan;
+
+  dailyRerollActive = false; // 換了一天（或第一次載入），加場狀態歸零
 
   if(currentUser){
     const { data, error } = await supabase
@@ -1016,7 +1048,8 @@ function taskProgressForBook(bookId){
   return { done, total, bookName: task.bookName };
 }
 
-// 清掉今天已經產生的任務排程，重新算一次（要今天的任務全部完成 100% 才能重排）
+// 清掉今天已經產生的「主線任務」重新算一次（要今天的任務全部完成 100% 才能重排）。
+// 加碼任務不會被這裡影響，會維持原本的那個；想換加碼任務請按它旁邊的「換一個」按鈕。
 async function reshuffleDailyTasks(){
   const plan = await getDailyTaskPlan();
   const pct = dailyCompletionPct(plan.tasks || []);
@@ -1025,12 +1058,43 @@ async function reshuffleDailyTasks(){
     return;
   }
 
-  const date = todayStr();
-  currentDailyPlan = null;
+  const newTasks = createDailyTaskPlan();
+  dailyRerollActive = true; // 標記這是「完成過一輪後」主動重排的加場，寫完新一輪時會多給一枚特別徽章
+
+  currentDailyPlan = {
+    date: plan.date,
+    tasks: newTasks,
+    bonus: plan.bonus,           // 加碼任務保留原樣，不會被主線重排換掉
+    notified: false,             // 這一輪要重新全部寫完，才會再通知、再拿一次徽章
+    bonusNotified: plan.bonusNotified
+  };
+
   if(currentUser){
-    const { error } = await supabase.from('daily_plans')
-      .delete().eq('user_id', currentUser.id).eq('plan_date', date);
-    if(error) console.error('清除今日任務排程失敗', error);
+    const { error } = await supabase.from('daily_plans').upsert({
+      user_id: currentUser.id, plan_date: plan.date, tasks: newTasks, bonus: plan.bonus,
+      notified: false, bonus_notified: plan.bonusNotified
+    }, { onConflict: 'user_id,plan_date' });
+    if(error) console.error('重排主線任務失敗', error);
+  }
+  await showDailyTask();
+}
+
+// 只換「加碼任務」，不會動到主線任務，隨時都能按，沒有 100% 限制。
+async function reshuffleBonusTask(){
+  const plan = await getDailyTaskPlan();
+  const usedBooks = (plan.tasks || []).map(t=>books.find(b=>b.id===t.bookId)).filter(Boolean);
+  // 帶入隨機值，確保換到的跟原本不是同一本（不然同一天用同樣邏輯選出來的一定一樣）
+  const seedOffset = 1 + Math.floor(Math.random() * 97);
+  const newBonus = createBonusTask(usedBooks, plan.tasks, seedOffset);
+
+  currentDailyPlan = { ...plan, bonus: newBonus, bonusNotified: false };
+
+  if(currentUser){
+    const { error } = await supabase.from('daily_plans').upsert({
+      user_id: currentUser.id, plan_date: plan.date, tasks: plan.tasks, bonus: newBonus,
+      notified: plan.notified, bonus_notified: false
+    }, { onConflict: 'user_id,plan_date' });
+    if(error) console.error('換加碼任務失敗', error);
   }
   await showDailyTask();
 }
@@ -1089,15 +1153,18 @@ function sendBrowserNotification(title, body){
 }
 
 // 每日任務全部完成時呼叫一次：記徽章、記連續天數、檢查成就，並把「已通知」狀態存進 Supabase
+// 如果這一輪是「完成過一次後主動重排」的加場任務，完成時會多給一枚特別的加場徽章。
 async function notifyDailyComplete(){
   if(!currentDailyPlan || currentDailyPlan.notified) return; // 今天已經通知過了，避免重複跳出
   currentDailyPlan.notified = true;
+  const isReroll = dailyRerollActive;
   await recordEarnedBadge();
+  if(isReroll) await recordRerollBadge();
   await bumpStreak();
   await checkAchievements();
-  const title = '今日任務已完成！🎉';
-  const body = '恭喜你完成今天的所有任務，記得看看獲得的徽章～';
-  showDailyToast({ icon:'🏅', title, body });
+  const title = isReroll ? '加場任務也完成了！🔁' : '今日任務已完成！🎉';
+  const body = isReroll ? '重排後的新一輪任務也全部寫完，額外拿到一枚加場徽章！' : '恭喜你完成今天的所有任務，記得看看獲得的徽章～';
+  showDailyToast({ icon: isReroll ? '🔁' : '🏅', title, body });
   sendBrowserNotification(title, body);
   if(currentUser){
     const { error } = await supabase.from('daily_plans')
@@ -1168,7 +1235,10 @@ async function showDailyTask(){
     const bt = activeBonusTask;
     const pages = bt.start === bt.end ? `${bt.start}` : `${bt.start}～${bt.end}`;
     const done = isBonusTaskDone();
-    bonusHtml = `<p class="bonus-row">${done ? '✅' : '🎁'} <b>加碼任務：${escapeHtml(bt.bookName)}</b>：第 ${pages} 頁 <span class="task-progress">${done ? '已完成，賺到！' : '寫少少也給獎勵～'}</span></p>`;
+    bonusHtml = `<div class="bonus-row">
+      <p>${done ? '✅' : '🎁'} <b>加碼任務：${escapeHtml(bt.bookName)}</b>：第 ${pages} 頁 <span class="task-progress">${done ? '已完成，賺到！' : '寫少少也給獎勵～'}</span></p>
+      <button type="button" class="bonus-reshuffle-btn" id="bonusReshuffleBtn" title="不想寫這本？換一個加碼任務試試">🔀 換一個</button>
+    </div>`;
   }
 
   if(activeDailyTasks.length){
@@ -1190,6 +1260,8 @@ async function showDailyTask(){
   }
   badgeEl.textContent = dailyBadges[index % dailyBadges.length];
   updateReshuffleButtonState();
+  const bonusBtn = document.getElementById('bonusReshuffleBtn');
+  if(bonusBtn) bonusBtn.addEventListener('click', reshuffleBonusTask);
   await updateDailyProgress();
   await checkAchievements();
   document.getElementById('dailyOverlay').classList.remove('hidden');
@@ -1799,9 +1871,10 @@ async function init(){
     }else{
       currentUser = null;
       books = []; entriesByBook = {}; activeBookId = null;
-      earnedBadges = []; earnedBonusBadges = []; earnedAchievements = [];
+      earnedBadges = []; earnedBonusBadges = []; earnedRerollBadges = []; earnedAchievements = [];
       currentStreak = { count: 0, lastDate: null };
       currentDailyPlan = null;
+      dailyRerollActive = false;
       showAuthView();
     }
   });
