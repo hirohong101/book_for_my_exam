@@ -113,12 +113,33 @@ header.top{
 .today-total.grand-total b{ color:var(--ledger-green); font-size:12.5px; }
 .overview-grid{ display:grid; grid-template-columns:repeat(auto-fill,minmax(200px,1fr)); gap:12px; }
 .overview-card{
+  position:relative;
   background:var(--card); border:1px solid var(--card-border); border-radius:var(--radius);
   box-shadow:var(--shadow); padding:14px 16px; cursor:pointer; text-align:left;
   font-family:inherit; display:flex; flex-direction:column; gap:8px;
   border-left:4px solid var(--tab-color, var(--brass)); transition:transform .12s ease, box-shadow .12s ease;
 }
 .overview-card:hover{ transform:translateY(-1px); box-shadow:0 2px 4px rgba(43,42,38,0.08), 0 6px 14px rgba(43,42,38,0.08); }
+@keyframes flipReorder{
+  0%{
+    transform: translate(var(--dx,0px), var(--dy,0px)) scale(0.96);
+    box-shadow:0 2px 6px rgba(43,42,38,0.16), 0 10px 22px rgba(43,42,38,0.14), inset 0 0 0 2px var(--tab-color, var(--brass));
+    filter:brightness(1.04);
+  }
+  55%{
+    transform: translate(calc(var(--dx,0px) * 0.06), calc(var(--dy,0px) * 0.06)) scale(1.025);
+    box-shadow:0 3px 8px rgba(43,42,38,0.16), 0 12px 24px rgba(43,42,38,0.14), inset 0 0 0 2px var(--tab-color, var(--brass));
+  }
+  100%{
+    transform: translate(0,0) scale(1);
+    box-shadow:var(--shadow);
+    filter:brightness(1);
+  }
+}
+.overview-card.reorder-move{
+  animation: flipReorder 1400ms cubic-bezier(0.32, 0, 0.16, 1);
+  z-index:5;
+}
 .overview-card.active{ outline:2px solid var(--tab-color, var(--ledger-green)); outline-offset:1px; }
 .overview-card .name{ font-weight:600; font-size:14px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 .overview-card .num{ font-family:'JetBrains Mono',monospace; font-size:12px; color:var(--ink-soft); }
@@ -294,6 +315,8 @@ table.ledger .del{ background:none; border:none; color:var(--danger); cursor:poi
   padding:2px 9px; cursor:pointer; transition:background .15s ease, color .15s ease;
 }
 .daily-reshuffle-btn:hover{ background:var(--ledger-green-soft); color:var(--ledger-green); }
+.daily-reshuffle-btn.locked{ opacity:.45; cursor:not-allowed; }
+.daily-reshuffle-btn.locked:hover{ background:none; color:var(--ink-soft); }
 .daily-task-list{ margin:20px 0 16px; padding:14px 16px; border-radius:7px; background:var(--ledger-green-soft); text-align:left; }
 .daily-task-list p{ margin:0; line-height:1.8; font-size:15px; }
 .daily-task-list p + p{ margin-top:4px; }
@@ -866,20 +889,19 @@ function createDailyTaskPlan(){
   const picksPerDay = Math.min(DAILY_PICK_COUNT, N);
   const daysLeft = daysUntilYearEnd();
 
-  // 每本書的「落後急迫度」：距離 11/15 前，平均每天要寫幾頁才趕得上目標。
-  // 沒設定目標頁數的書視為不急迫（急迫度 0），但仍會透過下面的輪替機制排到。
-  function urgencyOf(book){
+  // 每本書目前的「完成率」（已寫頁數 / 目標頁數）。
+  // 沒設定目標頁數的書無法算完成率，視為 Infinity（不會被優先挑選，只透過下面的輪替機制排到）。
+  function completionPctOf(book){
     const target = Number(book.target) || 0;
-    if(!target) return 0;
-    const remaining = Math.max(target - totalFor(book.id), 0);
-    return remaining / daysLeft;
+    if(!target) return Infinity;
+    return totalFor(book.id) / target;
   }
 
-  // 保留一半名額（至少 1 個）優先給目前最落後的書，其餘名額維持原本的輪替，
+  // 保留一半名額（至少 1 個）優先給目前完成率最低的書，其餘名額維持原本的輪替，
   // 確保進度嚴重落後的書一定會被排到，同時其他書也不會因此完全輪不到。
   const URGENT_SLOTS = Math.min(Math.max(1, Math.ceil(picksPerDay / 2)), N);
-  const sortedByUrgency = available.slice().sort((a,b)=>urgencyOf(b) - urgencyOf(a));
-  const urgentBooks = sortedByUrgency.slice(0, URGENT_SLOTS).filter(b=>urgencyOf(b) > 0);
+  const sortedByCompletion = available.slice().sort((a,b)=>completionPctOf(a) - completionPctOf(b));
+  const urgentBooks = sortedByCompletion.slice(0, URGENT_SLOTS).filter(b=>Number.isFinite(completionPctOf(b)));
 
   const rotationSlots = picksPerDay - urgentBooks.length;
   const rotationPool = available.filter(b=>!urgentBooks.includes(b));
@@ -963,6 +985,24 @@ function completedDailyPages(plan){
   }, 0);
 }
 
+// 算出目前這份每日任務清單的完成率（0~100）。沒有任務可寫時視為 100%，不會擋住重排。
+function dailyCompletionPct(tasks){
+  const totalPages = (tasks || []).reduce((sum,t)=>sum + t.end - t.start + 1, 0);
+  if(!totalPages) return 100;
+  const donePages = completedDailyPages(tasks);
+  return Math.round(Math.min(100, (donePages / totalPages) * 100));
+}
+
+// 依目前完成率，更新「重排」按鈕是否可以按（要 100% 才能重排）
+function updateReshuffleButtonState(){
+  const btn = document.getElementById('dailyReshuffleBtn');
+  if(!btn) return;
+  const pct = dailyCompletionPct(activeDailyTasks);
+  const locked = pct < 100;
+  btn.classList.toggle('locked', locked);
+  btn.title = locked ? `完成今天的任務（目前 ${pct}%）才能重排唷` : '用最新的資料重新安排今天的任務';
+}
+
 // 算出某本書在今天的任務範圍裡，已經寫了幾頁（用來跳出可愛的小進度提示）
 function taskProgressForBook(bookId){
   const task = activeDailyTasks.find(t=>t.bookId===bookId);
@@ -976,8 +1016,15 @@ function taskProgressForBook(bookId){
   return { done, total, bookName: task.bookName };
 }
 
-// 清掉今天已經產生的任務排程，重新算一次（例如改了缺口補齊邏輯後想重排）
+// 清掉今天已經產生的任務排程，重新算一次（要今天的任務全部完成 100% 才能重排）
 async function reshuffleDailyTasks(){
+  const plan = await getDailyTaskPlan();
+  const pct = dailyCompletionPct(plan.tasks || []);
+  if(pct < 100){
+    showDailyToast({ icon:'🔒', title:'先寫完今天的任務唷', body:`目前完成 ${pct}%，全部寫完才能重排喔！` });
+    return;
+  }
+
   const date = todayStr();
   currentDailyPlan = null;
   if(currentUser){
@@ -1083,6 +1130,7 @@ async function updateDailyProgress(){
   if(!total){
     if(progressEl) progressEl.classList.add('hidden');
     if(openBtn) openBtn.classList.remove('has-pending');
+    updateReshuffleButtonState();
     return;
   }
   const done = completedDailyPages(activeDailyTasks);
@@ -1092,6 +1140,7 @@ async function updateDailyProgress(){
   }
   if(openBtn) openBtn.classList.toggle('has-pending', done < total);
   if(done >= total) await notifyDailyComplete();
+  updateReshuffleButtonState();
 }
 
 async function showDailyTask(){
@@ -1125,7 +1174,7 @@ async function showDailyTask(){
   if(activeDailyTasks.length){
     const totalPages = activeDailyTasks.reduce((sum,t)=>sum + t.end - t.start + 1, 0);
     const donePages = completedDailyPages(activeDailyTasks);
-    const overallPct = totalPages > 0 ? Math.round(Math.min(100, (donePages / totalPages) * 100)) : 0;
+    const overallPct = dailyCompletionPct(activeDailyTasks);
     const rows = activeDailyTasks.map((task, i)=>{
       const pages = task.start === task.end ? `${task.start}` : `${task.start}～${task.end}`;
       const taskTotal = task.end - task.start + 1;
@@ -1140,6 +1189,7 @@ async function showDailyTask(){
     taskEl.innerHTML = `<p>先新增講義與目標頁數，明天就會自動安排任務。</p>${bonusHtml}`;
   }
   badgeEl.textContent = dailyBadges[index % dailyBadges.length];
+  updateReshuffleButtonState();
   await updateDailyProgress();
   await checkAchievements();
   document.getElementById('dailyOverlay').classList.remove('hidden');
@@ -1380,9 +1430,43 @@ function pageGridHTML(bookId, target, color, extraClass){
 
 /* ---------------- Rendering ---------------- */
 
+function flipAnimateOverviewCards(prevRects){
+  const cards = Array.from(document.querySelectorAll('.overview-card'));
+  if(cards.length === 0) return;
+
+  cards.forEach(el=>{
+    const id = el.dataset.id;
+    const prev = prevRects[id];
+    if(!prev) return; // 新卡片，不做位移動畫
+    const next = el.getBoundingClientRect();
+    const dx = prev.left - next.left;
+    const dy = prev.top - next.top;
+    if(Math.abs(dx) < 1 && Math.abs(dy) < 1) return; // 位置沒變，不用動畫
+
+    // 先移除可能殘留的動畫 class，確保能重新觸發
+    el.classList.remove('reorder-move');
+    el.style.setProperty('--dx', dx + 'px');
+    el.style.setProperty('--dy', dy + 'px');
+    void el.offsetWidth; // 強制 reflow，確保上面的移除/變數設定先生效
+    el.classList.add('reorder-move');
+
+    el.addEventListener('animationend', function handler(){
+      el.classList.remove('reorder-move');
+      el.style.removeProperty('--dx');
+      el.style.removeProperty('--dy');
+      el.removeEventListener('animationend', handler);
+    });
+  });
+}
+
 function render(){
   const app = document.getElementById('appPanel');
   checkAchievements();
+
+  const prevCardRects = {};
+  app.querySelectorAll('.overview-card').forEach(el=>{
+    prevCardRects[el.dataset.id] = el.getBoundingClientRect();
+  });
 
   if(books.length === 0){
     app.innerHTML = `
@@ -1426,6 +1510,8 @@ function render(){
         ${books.map((b,i)=>{
           const t = totalFor(b.id); const tg = Number(b.target)||0;
           const pExact = tg>0 ? Math.min(100, (t/tg)*100) : 0;
+          return { b, i, t, tg, pExact };
+        }).sort((x,y)=> y.pExact - x.pExact).map(({b,i,t,tg,pExact})=>{
           const p = Math.round(pExact);
           const color = PALETTE[i % PALETTE.length];
           return `<button class="overview-card ${b.id===active.id?'active':''}" style="--tab-color:${color}" data-id="${b.id}">
@@ -1510,6 +1596,8 @@ function render(){
       </div>
     </div>
   `;
+
+  flipAnimateOverviewCards(prevCardRects);
 
   bindAddBook();
   document.querySelectorAll('.book-tab').forEach(el=>{
