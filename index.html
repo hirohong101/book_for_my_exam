@@ -279,6 +279,12 @@ table.ledger .del{ background:none; border:none; color:var(--danger); cursor:poi
 }
 .profile-stat .label{ font-family:'JetBrains Mono',monospace; font-size:11px; color:var(--ink-soft); text-transform:uppercase; letter-spacing:0.04em; }
 .profile-stat .value{ font-family:'Fraunces',serif; font-size:20px; font-weight:600; color:var(--ledger-green); }
+.profile-level{ grid-column:1 / -1; background:var(--brass-soft); }
+.profile-exp-line{ display:flex; justify-content:space-between; align-items:baseline; gap:10px; }
+.profile-exp-line .value{ color:#72530f; }
+.profile-exp-progress{ height:7px; border-radius:99px; background:rgba(176,129,44,.2); overflow:hidden; }
+.profile-exp-progress > span{ display:block; height:100%; width:0; border-radius:inherit; background:var(--brass); transition:width .25s ease; }
+.profile-exp-note{ font:11px 'JetBrains Mono',monospace; color:var(--ink-soft); }
 .profile-badges h3{ font-family:'Fraunces',serif; font-size:15px; margin:0 0 10px; display:flex; align-items:center; gap:6px; }
 .badge-count{ font-family:'JetBrains Mono',monospace; font-size:12px; color:var(--ink-soft); font-weight:400; }
 .badge-grid{ display:grid; grid-template-columns:repeat(auto-fill,minmax(120px,1fr)); gap:8px; max-height:220px; overflow-y:auto; margin-bottom:18px; }
@@ -467,6 +473,11 @@ table.ledger .del{ background:none; border:none; color:var(--danger); cursor:poi
     </div>
 
     <div class="profile-stats">
+      <div class="profile-stat profile-level">
+        <span class="label">LEVEL / EXP</span>
+        <div class="profile-exp-line"><span class="value" id="profileLevel">Lv. 1</span><span class="profile-exp-note" id="profileExp">0 / 100 EXP</span></div>
+        <div class="profile-exp-progress" aria-label="EXP progress"><span id="profileExpBar"></span></div>
+      </div>
       <div class="profile-stat">
         <span class="label">總頁數</span>
         <span class="value" id="profileTotalPages">0 頁</span>
@@ -714,7 +725,11 @@ async function loadBadges(){
     .from('badges').select('*').eq('user_id', currentUser.id).order('badge_date', { ascending: true });
   if(error){ console.error('讀取徽章失敗', error); return; }
   (data || []).forEach(row=>{
-    if(row.kind === 'daily') earnedBadges.push({ date: row.badge_date, text: row.text });
+    if(row.kind === 'daily'){
+      const key = row.badge_key || '';
+      const match = key.match(/:round:(\d+)$/);
+      earnedBadges.push({ date: row.badge_date, text: row.text, key, round: match ? Number(match[1]) : 1 });
+    }
     else if(row.kind === 'bonus') earnedBonusBadges.push({ date: row.badge_date, text: row.text });
     else if(row.kind === 'reroll') earnedRerollBadges.push({ date: row.badge_date, text: row.text });
     else if(row.kind === 'achievement') earnedAchievements.push({ id: row.badge_key, date: row.badge_date, icon: row.icon, title: row.title, desc: row.description });
@@ -725,16 +740,62 @@ function getEarnedBadges(){
   return earnedBadges;
 }
 
-// 完成當天任務時記錄一次今天獲得的徽章（同一天只記一次），同步寫入 Supabase
+const EXP_START = 902;
+const EXP_BASE = 100;
+
+function experienceForEntry(pages){
+  const count = Math.max(0, Number(pages) || 0);
+  if(count === 1) return count;
+  if(count <= 6) return count * 2;
+  if(count <= 18) return count * 3;
+  if(count <= 31) return count * 4;
+  return count * 5;
+}
+
+function dailyRoundNumber(plan = currentDailyPlan){
+  return Math.max(1, Number(plan?.round) || 1);
+}
+
+function dailyRoundKey(date = todayStr(), round = dailyRoundNumber()){
+  return `daily:${date}:round:${round}`;
+}
+
+// Persist one badge for every completed round. The unique badge_key deliberately
+// replaces the old calendar-date-only deduplication.
 async function recordEarnedBadge(){
   const date = todayStr();
-  if(earnedBadges.some(b=>b.date===date)) return;
-  const text = dailyBadges[dailyIndex() % dailyBadges.length];
-  earnedBadges.push({ date, text }); // 先更新畫面，不等雲端回應
+  const round = dailyRoundNumber();
+  const badgeKey = dailyRoundKey(date, round);
+  if(earnedBadges.some(b=>b.key === badgeKey)) return;
+  const text = dailyBadges[(dailyIndex() + round - 1) % dailyBadges.length];
+  const badge = { date, text, key: badgeKey, round };
+  earnedBadges.push(badge);
   const { error } = await supabase.from('badges').insert({
-    user_id: currentUser.id, kind: 'daily', badge_date: date, text
+    user_id: currentUser.id, kind: 'daily', badge_date: date, badge_key: badgeKey, text
   });
-  if(error) console.error('儲存每日徽章失敗', error);
+  if(error){
+    earnedBadges = earnedBadges.filter(b=>b !== badge);
+    console.error('儲存每日輪次徽章失敗', error);
+  }
+}
+
+function experienceStats(){
+  // EXP is rebuilt from persisted entries: larger single-session page ranges
+  // earn higher per-page EXP, while the initial account balance is 902 EXP.
+  const earnedExp = Object.values(entriesByBook).flat().reduce(
+    (sum, entry)=>sum + experienceForEntry(entry.pages), 0
+  );
+  const totalExp = EXP_START + earnedExp;
+  let level = 1;
+  let spent = 0;
+  let nextLevelExp = EXP_BASE;
+  while(totalExp >= spent + nextLevelExp){
+    spent += nextLevelExp;
+    level += 1;
+    nextLevelExp = EXP_BASE * level;
+  }
+  const currentLevelExp = totalExp - spent;
+  return { totalExp, level, currentLevelExp, nextLevelExp, percent: (currentLevelExp / nextLevelExp) * 100 };
 }
 
 function getEarnedBonusBadges(){
@@ -874,7 +935,8 @@ function renderBadgeGrid(){
         const icon = m ? m[1] : '🏅';
         const label = m ? m[2] : b.text;
         const cls = b.kind === 'bonus' ? 'badge-chip bonus' : b.kind === 'reroll' ? 'badge-chip reroll' : 'badge-chip';
-        return `<div class="${cls}"><span class="badge-icon">${icon}</span><span class="badge-label">${label}</span><span class="badge-date">${b.date}</span></div>`;
+        const round = b.kind === 'daily' && b.round ? ` · 第 ${b.round} 輪` : '';
+        return `<div class="${cls}"><span class="badge-icon">${icon}</span><span class="badge-label">${label}</span><span class="badge-date">${b.date}${round}</span></div>`;
       }).join('')
     : `<div class="badge-empty">還沒有獲得任何徽章，完成今日任務即可獲得！</div>`;
 }
@@ -901,11 +963,26 @@ function openProfileModal(){
   document.getElementById('profileAvatar').textContent = avatarInitial(currentUser?.email);
   document.getElementById('profileEmail').textContent = currentUser?.email || '';
   const stats = overallStats();
+  const exp = experienceStats();
+  document.getElementById('profileLevel').textContent = `Lv. ${exp.level}`;
+  document.getElementById('profileExp').textContent = `${exp.currentLevelExp} / ${exp.nextLevelExp} EXP · 共 ${exp.totalExp} EXP`;
+  document.getElementById('profileExpBar').style.width = `${exp.percent}%`;
   document.getElementById('profileTotalPages').textContent = `${stats.totalPagesAll} 頁`;
   document.getElementById('profileCompletion').textContent = stats.rate === null ? '尚未設定目標' : `${stats.rate}%`;
   renderBadgeGrid();
   renderAchievementGrid();
   document.getElementById('profileOverlay').classList.remove('hidden');
+}
+
+function showExperienceToast(pages){
+  if(!pages) return;
+  const earned = experienceForEntry(pages);
+  const exp = experienceStats();
+  showDailyToast({
+    icon:'⭐',
+    title:`獲得 ${earned} EXP`,
+    body:`本次寫 ${pages} 頁，目前 Lv. ${exp.level}（共 ${exp.totalExp} EXP）`
+  });
 }
 
 function closeProfileModal(){
@@ -989,7 +1066,8 @@ async function getDailyTaskPlan(){
       .from('daily_plans').select('*').eq('user_id', currentUser.id).eq('plan_date', date).maybeSingle();
     if(error) console.error('讀取今日任務排程失敗', error);
     if(data){
-      currentDailyPlan = { date, tasks: data.tasks || [], bonus: data.bonus || null, notified: !!data.notified, bonusNotified: !!data.bonus_notified };
+      currentDailyPlan = { date, round: Math.max(1, Number(data.tasks?.round) || 1), tasks: data.tasks?.items || data.tasks || [], bonus: data.bonus || null, notified: !!data.notified, bonusNotified: !!data.bonus_notified };
+      dailyRerollActive = currentDailyPlan.round > 1;
       return currentDailyPlan;
     }
   }
@@ -997,10 +1075,10 @@ async function getDailyTaskPlan(){
   const tasks = createDailyTaskPlan();
   const usedBooks = tasks.map(t=>books.find(b=>b.id===t.bookId)).filter(Boolean);
   const bonus = createBonusTask(usedBooks, tasks);
-  currentDailyPlan = { date, tasks, bonus, notified:false, bonusNotified:false };
+  currentDailyPlan = { date, round:1, tasks, bonus, notified:false, bonusNotified:false };
   if(currentUser){
     const { error } = await supabase.from('daily_plans').upsert({
-      user_id: currentUser.id, plan_date: date, tasks, bonus, notified:false, bonus_notified:false
+      user_id: currentUser.id, plan_date: date, tasks: { round:1, items:tasks }, bonus, notified:false, bonus_notified:false
     }, { onConflict: 'user_id,plan_date' });
     if(error) console.error('儲存今日任務排程失敗', error);
   }
@@ -1063,6 +1141,7 @@ async function reshuffleDailyTasks(){
 
   currentDailyPlan = {
     date: plan.date,
+    round: dailyRoundNumber(plan) + 1,
     tasks: newTasks,
     bonus: plan.bonus,           // 加碼任務保留原樣，不會被主線重排換掉
     notified: false,             // 這一輪要重新全部寫完，才會再通知、再拿一次徽章
@@ -1071,7 +1150,7 @@ async function reshuffleDailyTasks(){
 
   if(currentUser){
     const { error } = await supabase.from('daily_plans').upsert({
-      user_id: currentUser.id, plan_date: plan.date, tasks: newTasks, bonus: plan.bonus,
+      user_id: currentUser.id, plan_date: plan.date, tasks: { round: currentDailyPlan.round, items:newTasks }, bonus: plan.bonus,
       notified: false, bonus_notified: plan.bonusNotified
     }, { onConflict: 'user_id,plan_date' });
     if(error) console.error('重排主線任務失敗', error);
@@ -1091,7 +1170,7 @@ async function reshuffleBonusTask(){
 
   if(currentUser){
     const { error } = await supabase.from('daily_plans').upsert({
-      user_id: currentUser.id, plan_date: plan.date, tasks: plan.tasks, bonus: newBonus,
+      user_id: currentUser.id, plan_date: plan.date, tasks: { round: dailyRoundNumber(plan), items:plan.tasks }, bonus: newBonus,
       notified: plan.notified, bonus_notified: false
     }, { onConflict: 'user_id,plan_date' });
     if(error) console.error('換加碼任務失敗', error);
@@ -1157,9 +1236,8 @@ function sendBrowserNotification(title, body){
 async function notifyDailyComplete(){
   if(!currentDailyPlan || currentDailyPlan.notified) return; // 今天已經通知過了，避免重複跳出
   currentDailyPlan.notified = true;
-  const isReroll = dailyRerollActive;
+  const isReroll = dailyRoundNumber() > 1;
   await recordEarnedBadge();
-  if(isReroll) await recordRerollBadge();
   await bumpStreak();
   await checkAchievements();
   const title = isReroll ? '加場任務也完成了！🔁' : '今日任務已完成！🎉';
@@ -1229,6 +1307,10 @@ async function showDailyTask(){
   const plan = await getDailyTaskPlan();
   activeDailyTasks = plan.tasks;
   activeBonusTask = plan.bonus;
+  const round = dailyRoundNumber(plan);
+  if(titleEl) titleEl.textContent = `📅 今日任務 · 第 ${round} 輪`;
+  document.querySelector('.daily-badge-label').textContent = `🏅 第 ${round} 輪徽章`;
+  document.querySelector('.daily-badge-note').textContent = `完成第 ${round} 輪可獲得徽章；單次寫越多頁，獲得的 EXP 越多！`;
 
   let bonusHtml = '';
   if(activeBonusTask){
@@ -1258,7 +1340,7 @@ async function showDailyTask(){
   }else{
     taskEl.innerHTML = `<p>先新增講義與目標頁數，明天就會自動安排任務。</p>${bonusHtml}`;
   }
-  badgeEl.textContent = dailyBadges[index % dailyBadges.length];
+  badgeEl.textContent = dailyBadges[(index + round - 1) % dailyBadges.length];
   updateReshuffleButtonState();
   const bonusBtn = document.getElementById('bonusReshuffleBtn');
   if(bonusBtn) bonusBtn.addEventListener('click', reshuffleBonusTask);
@@ -1728,6 +1810,7 @@ document.getElementById('entryForm').addEventListener('submit', async (e)=>{
     if(!entriesByBook[active.id]) entriesByBook[active.id] = [];
     entriesByBook[active.id].push(data);
     render();
+    showExperienceToast(newPages);
     updateDailyProgress();
     const taskProgress = taskProgressForBook(active.id);
     if(taskProgress){
