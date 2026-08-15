@@ -7,7 +7,6 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
-<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <style>
 :root{
   --paper: #E9E4D8;
@@ -450,9 +449,9 @@ table.ledger .del{ background:none; border:none; color:var(--danger); cursor:poi
       </button>
       <span class="user-badge" id="userBadge"></span>
       <button class="logout-btn change-pw-btn" id="changePwBtn">修改密碼</button>
-      <button class="export-btn" id="exportBtn">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3v12m0 0l-4-4m4 4l4-4"/><path d="M4 17v3a1 1 0 001 1h14a1 1 0 001-1v-3"/></svg>
-        匯出 Excel
+      <button class="export-btn" id="todayPagesBtn">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19h16"/><path d="M6 19V9m6 10V5m6 14v-7"/></svg>
+        今日各書頁數
       </button>
       <button class="logout-btn" id="logoutBtn">登出</button>
     </div>
@@ -500,6 +499,17 @@ table.ledger .del{ background:none; border:none; color:var(--danger); cursor:poi
 
     <div class="modal-actions">
       <button type="button" class="cancel-btn" id="closeProfileBtn">關閉</button>
+    </div>
+  </div>
+</div>
+
+<!-- 今日各書頁數彈窗 -->
+<div id="todayPagesOverlay" class="modal-overlay hidden">
+  <div class="modal-card">
+    <h2>📖 今天各本寫了幾頁</h2>
+    <div class="badge-grid" id="todayPagesList" style="grid-template-columns:1fr; max-height:320px;"></div>
+    <div class="modal-actions">
+      <button type="button" class="cancel-btn" id="closeTodayPagesBtn">關閉</button>
     </div>
   </div>
 </div>
@@ -989,6 +999,30 @@ function closeProfileModal(){
   document.getElementById('profileOverlay').classList.add('hidden');
 }
 
+// 統計「今天」每一本書寫了幾頁（依 entries 的 date 欄位比對今天日期）
+function todayPagesByBook(){
+  const today = todayStr();
+  return books.map(b=>{
+    const pages = (entriesByBook[b.id] || [])
+      .filter(e=>e.date === today)
+      .reduce((sum,e)=>sum + (Number(e.pages)||0), 0);
+    return { name: b.name, pages };
+  }).filter(row=>row.pages > 0);
+}
+
+function openTodayPagesModal(){
+  const rows = todayPagesByBook();
+  const listEl = document.getElementById('todayPagesList');
+  listEl.innerHTML = rows.length
+    ? rows.map(r=>`<div class="badge-chip"><span class="badge-label">${escapeHtml(r.name)}</span><span class="badge-date">${r.pages} 頁</span></div>`).join('')
+    : `<div class="badge-empty">今天還沒有寫任何頁數唷！</div>`;
+  document.getElementById('todayPagesOverlay').classList.remove('hidden');
+}
+
+function closeTodayPagesModal(){
+  document.getElementById('todayPagesOverlay').classList.add('hidden');
+}
+
 function lastWrittenPage(bookId){
   return (entriesByBook[bookId] || []).reduce((last, entry)=>{
     return Math.max(last, Number(entry.page_end) || 0);
@@ -1238,6 +1272,7 @@ async function notifyDailyComplete(){
   currentDailyPlan.notified = true;
   const isReroll = dailyRoundNumber() > 1;
   await recordEarnedBadge();
+  if(isReroll) await recordRerollBadge();
   await bumpStreak();
   await checkAchievements();
   const title = isReroll ? '加場任務也完成了！🔁' : '今日任務已完成！🎉';
@@ -1854,38 +1889,6 @@ function bindAddBook(){
   });
 }
 
-/* ---------------- Export ---------------- */
-
-function exportExcel(){
-  if(!books.length){ alert('目前還沒有任何資料可以匯出。'); return; }
-  const wb = XLSX.utils.book_new();
-
-  const summary = books.map(b=>{
-    const total = totalFor(b.id);
-    const target = Number(b.target)||0;
-    return {
-      '書名/科目': b.name,
-      '已完成頁數': total,
-      '目標頁數': target || '',
-      '完成率': target ? Math.round((total/target)*100)+'%' : ''
-    };
-  });
-  const wsSummary = XLSX.utils.json_to_sheet(summary);
-  XLSX.utils.book_append_sheet(wb, wsSummary, '總覽');
-
-  books.forEach(b=>{
-    const rows = cumulativeFor(b.id).map(r=>({
-      '日期': r.date, '當日頁數': r.pages, '累計頁數': r.cum, '備註': r.note||''
-    }));
-    const ws = XLSX.utils.json_to_sheet(rows.length ? rows : [{'日期':'','當日頁數':'','累計頁數':'','備註':''}]);
-    let sheetName = b.name.replace(/[\\/?*\[\]:]/g,'').slice(0,31) || '未命名';
-    XLSX.utils.book_append_sheet(wb, ws, sheetName);
-  });
-
-  const stamp = todayStr().replace(/-/g,'');
-  XLSX.writeFile(wb, `寫書進度_${stamp}.xlsx`);
-}
-
 /* ---------------- View switching ---------------- */
 
 function showAuthView(){
@@ -1912,7 +1915,11 @@ async function init(){
   document.getElementById('authForm').addEventListener('submit', handleAuthSubmit);
   document.getElementById('authToggleBtn').addEventListener('click', toggleAuthMode);
   document.getElementById('logoutBtn').addEventListener('click', handleLogout);
-  document.getElementById('exportBtn').addEventListener('click', exportExcel);
+  document.getElementById('todayPagesBtn').addEventListener('click', openTodayPagesModal);
+  document.getElementById('closeTodayPagesBtn').addEventListener('click', closeTodayPagesModal);
+  document.getElementById('todayPagesOverlay').addEventListener('click', (e)=>{
+    if(e.target.id === 'todayPagesOverlay') closeTodayPagesModal();
+  });
   document.getElementById('changePwBtn').addEventListener('click', openChangePwModal);
   document.getElementById('cancelPwBtn').addEventListener('click', closeChangePwModal);
   document.getElementById('changePwForm').addEventListener('submit', handleChangePwSubmit);
