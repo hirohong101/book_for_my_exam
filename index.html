@@ -2229,6 +2229,36 @@ function extractOptionsFromOcrText(text, count){
 }
 
 // 去掉題目開頭的題號標記，例如「1. ( )」「12.（）」，那只是題號不是題目內容
+// Tesseract 很容易漏掉左上引號「，右下引號」通常還在，靠這個規律把漏掉的「補回去：
+// 由左到右掃描，遇到沒有配對開引號的」，就在「這個字所屬的那個片段」開頭（也就是上一個
+// 分隔符號之後，例如 / 、 空白 或 開頭）補上一個「。這是用猜的，不保證 100% 正確。
+function restoreMissingOpenQuotes(text){
+  const DELIMS = new Set(['/', '／', '、', ',', '，', ' ', '\n', '\t', '(', '（', ')', '）', ':', '：']);
+  let result = '';
+  let openCount = 0;
+  let segmentStart = 0; // result 目前長度中，「這一段」開頭的位置
+  for(const ch of text){
+    if(ch === '「'){
+      openCount++;
+      result += ch;
+      segmentStart = result.length;
+    }else if(ch === '」'){
+      if(openCount > 0){
+        openCount--;
+        result += ch;
+      }else{
+        // 找不到配對的開引號，補在這一段的開頭
+        result = result.slice(0, segmentStart) + '「' + result.slice(segmentStart) + ch;
+      }
+      segmentStart = result.length;
+    }else{
+      result += ch;
+      if(DELIMS.has(ch)) segmentStart = result.length;
+    }
+  }
+  return result;
+}
+
 function stripQuestionNumberMarker(text){
   return text.replace(/^\s*\d+\s*[.、．]\s*[(（「]\s*[)）」]\s*/, '').trim();
 }
@@ -2272,7 +2302,8 @@ async function handleOcrFile(e){
 
     statusEl.textContent = '辨識中… 0%';
     const result = await worker.recognize(processedImage);
-    const text = stripQuestionNumberMarker(((result && result.data && result.data.text) || '').trim());
+    const rawText = ((result && result.data && result.data.text) || '').trim();
+    const text = stripQuestionNumberMarker(restoreMissingOpenQuotes(rawText));
     if(text){
       const isFillType = mistakeFormType === 'fill';
       const count = isFillType ? 0 : parseInt(mistakeFormType, 10);
