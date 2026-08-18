@@ -390,6 +390,154 @@ table.ledger .del{ background:none; border:none; color:var(--danger); cursor:poi
 
 @keyframes toast-in{ from{ opacity:0; transform:translateX(16px); } to{ opacity:1; transform:translateX(0); } }
 @keyframes toast-out{ from{ opacity:1; transform:translateX(0); } to{ opacity:0; transform:translateX(16px); } }
+
+/* ============================================================
+   主選單（講義紀錄 / 錯題本 / 複習）
+   ============================================================ */
+.app-shell{ display:grid; grid-template-columns:200px 1fr; gap:20px; align-items:start; }
+@media (max-width:720px){ .app-shell{ grid-template-columns:1fr; } }
+
+.main-sidebar{
+  background:var(--card); border:1px solid var(--card-border); border-radius:var(--radius);
+  box-shadow:var(--shadow); padding:10px; display:flex; flex-direction:column; gap:6px;
+  position:sticky; top:20px;
+}
+@media (max-width:720px){ .main-sidebar{ position:static; flex-direction:row; overflow-x:auto; } }
+.main-sidebar h2{
+  font-family:'JetBrains Mono',monospace; font-size:11px; text-transform:uppercase;
+  letter-spacing:0.08em; color:var(--ink-soft); margin:4px 6px 2px; font-weight:700;
+}
+@media (max-width:720px){ .main-sidebar h2{ display:none; } }
+.nav-item{
+  display:flex; align-items:center; gap:9px; text-align:left; width:100%;
+  background:transparent; border:none; border-left:4px solid var(--nav-color, var(--ledger-green));
+  border-radius:3px; padding:11px 10px; cursor:pointer; font-family:'Inter',sans-serif;
+  font-size:14.5px; font-weight:600; color:var(--ink); transition:background .12s ease;
+  white-space:nowrap;
+}
+.nav-item .nav-icon{ font-size:16px; line-height:1; flex-shrink:0; }
+.nav-item:hover{ background:var(--ledger-green-soft); }
+.nav-item.active{ background:var(--ledger-green-soft); color:var(--nav-color, var(--ledger-green)); }
+
+.main-content{ min-width:0; }
+.hidden{ display:none !important; }
+
+/* ---------- 錯題本／複習 共用元件 ---------- */
+.section-head{ display:flex; justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap; margin-bottom:16px; }
+.section-head h2{ font-family:'Fraunces',serif; font-size:22px; font-weight:600; margin:0; }
+.ghost-btn{
+  font-family:'Inter',sans-serif; font-weight:600; font-size:13.5px;
+  padding:9px 16px; border-radius:4px; border:1px solid var(--ledger-green);
+  background:#fff; color:var(--ledger-green); cursor:pointer;
+}
+.ghost-btn:hover{ background:var(--ledger-green-soft); }
+.solid-btn{
+  font-family:'Inter',sans-serif; font-weight:600; font-size:13.5px;
+  padding:9px 18px; border-radius:4px; border:none;
+  background:var(--ledger-green); color:#fff; cursor:pointer;
+}
+.solid-btn:hover{ background:#264c41; }
+.solid-btn:disabled{ opacity:.5; cursor:default; }
+.chip-row{ display:flex; gap:8px; flex-wrap:wrap; margin-bottom:16px; }
+.chip{
+  font-family:'JetBrains Mono',monospace; font-size:12px; padding:6px 13px;
+  border:1px solid var(--card-border); border-radius:999px; background:#fff;
+  color:var(--ink-soft); cursor:pointer;
+}
+.chip:hover{ border-color:var(--ledger-green); }
+.chip.active{ background:var(--ledger-green); border-color:var(--ledger-green); color:#fff; }
+
+.mistake-form{ background:var(--ledger-green-soft); border-radius:var(--radius); padding:18px 18px 16px; margin-bottom:20px; }
+.mistake-form .field{ display:flex; flex-direction:column; gap:4px; margin-bottom:12px; }
+.mistake-form label{ font-size:11px; text-transform:uppercase; letter-spacing:0.05em; color:var(--ink-soft); font-family:'JetBrains Mono',monospace; }
+.mistake-form input[type=text], .mistake-form textarea, .mistake-form select{
+  font-family:'Inter',sans-serif; font-size:14px; padding:8px 10px; border:1px solid var(--card-border);
+  border-radius:4px; background:#fff; width:100%;
+}
+.mistake-form textarea{ min-height:56px; resize:vertical; font-family:'Inter',sans-serif; }
+.mistake-form .row2{ display:grid; grid-template-columns:1fr 1fr; gap:14px; }
+@media (max-width:560px){ .mistake-form .row2{ grid-template-columns:1fr; } }
+.opt-input-row{ display:flex; align-items:center; gap:8px; margin-bottom:7px; }
+.opt-letter{
+  font-family:'JetBrains Mono',monospace; font-weight:700; width:22px; height:22px;
+  border:1px solid var(--ink); border-radius:50%; display:flex; align-items:center; justify-content:center;
+  font-size:11.5px; flex-shrink:0; background:#fff;
+}
+.mistake-form-actions{ display:flex; justify-content:flex-end; gap:10px; margin-top:4px; }
+.field-error{ color:var(--danger); font-size:12.5px; margin-top:2px; }
+
+.mistake-list{ display:flex; flex-direction:column; gap:12px; }
+.mistake-card{
+  background:var(--card); border:1px solid var(--card-border); border-left:4px solid var(--tab-color, var(--ledger-green));
+  border-radius:var(--radius); box-shadow:var(--shadow); padding:16px 18px;
+}
+.mistake-card .m-meta{ display:flex; justify-content:space-between; align-items:center; gap:10px; margin-bottom:8px; }
+.subject-tag{
+  font-family:'JetBrains Mono',monospace; font-size:11px; font-weight:700;
+  background:var(--ledger-green-soft); color:var(--ledger-green); padding:3px 10px; border-radius:999px;
+}
+.mastery-stamp{
+  font-family:'Fraunces',serif; font-size:11px; font-weight:700; border:2px solid var(--brass);
+  color:#72530f; padding:2px 9px; border-radius:4px; transform:rotate(-4deg); background:var(--brass-soft);
+}
+.mastery-stamp.mastered{ border-color:var(--ledger-green); color:var(--ledger-green); background:var(--ledger-green-soft); }
+.mistake-card .m-question{ font-size:15px; line-height:1.55; margin:2px 0 10px; }
+.mistake-card .m-opts{ display:flex; flex-direction:column; gap:5px; margin-bottom:10px; }
+.mistake-card .m-opt{
+  font-size:13.5px; padding:6px 10px; border-radius:4px; background:#fff;
+  border:1px solid var(--card-border); display:flex; gap:8px; font-family:'Inter',sans-serif;
+}
+.mistake-card .m-opt.wrong{ border-color:var(--danger); background:#f7e3e0; color:var(--danger); }
+.mistake-card .m-opt.correct{ border-color:var(--ledger-green); background:var(--ledger-green-soft); color:var(--ledger-green); font-weight:700; }
+.mistake-card .m-opt .tag{ margin-left:auto; font-family:'JetBrains Mono',monospace; font-size:10.5px; }
+.mistake-card .m-fill-ans{ display:flex; gap:18px; font-size:13px; margin-bottom:10px; flex-wrap:wrap; }
+.mistake-card .m-fill-ans .label{ display:block; color:var(--ink-soft); font-family:'JetBrains Mono',monospace; font-size:10.5px; }
+.mistake-card .m-fill-ans .wrong-v{ color:var(--danger); font-weight:700; }
+.mistake-card .m-fill-ans .correct-v{ color:var(--ledger-green); font-weight:700; }
+.mistake-card .m-actions{ display:flex; justify-content:space-between; align-items:center; }
+.mistake-card .m-review-count{ font-size:11.5px; color:var(--ink-soft); font-family:'JetBrains Mono',monospace; }
+.mistake-card .m-del{ background:none; border:none; color:var(--danger); cursor:pointer; font-size:12px; text-decoration:underline; }
+
+/* ---------- 複習 flashcard ---------- */
+.review-setup-card{ text-align:center; padding:28px 24px; }
+.review-setup-card p{ color:var(--ink-soft); font-size:13.5px; margin:4px 0 18px; }
+.review-toggle{ display:flex; align-items:center; justify-content:center; gap:8px; margin:14px 0 20px; font-size:13.5px; }
+.flash-wrap{ max-width:600px; margin:0 auto; }
+.flash-progress{ display:flex; justify-content:space-between; font-family:'JetBrains Mono',monospace; font-size:12px; color:var(--ink-soft); margin-bottom:8px; }
+.flash-bar{ height:4px; background:var(--card-border); border-radius:2px; overflow:hidden; margin-bottom:18px; }
+.flash-bar .fill{ height:100%; background:var(--brass); transition:width .25s ease; }
+.flashcard{
+  background:var(--card); border:1px solid var(--card-border); box-shadow:var(--shadow);
+  border-radius:var(--radius); padding:26px 24px; min-height:200px;
+}
+.flashcard .m-question{ font-family:'Fraunces',serif; font-size:18px; font-weight:500; line-height:1.6; margin:10px 0 20px; }
+.choice-btn{
+  width:100%; text-align:left; padding:11px 14px; margin-bottom:9px;
+  border:1.5px solid var(--card-border); border-radius:4px; background:#fff; font-size:14.5px;
+  cursor:pointer; display:flex; gap:10px; font-family:'Inter',sans-serif;
+}
+.choice-btn:hover{ border-color:var(--ledger-green); }
+.choice-btn.picked{ border-color:var(--ink); background:#faf7ee; }
+.choice-btn.reveal-correct{ border-color:var(--ledger-green); background:var(--ledger-green-soft); color:var(--ledger-green); font-weight:700; }
+.choice-btn.reveal-wrong{ border-color:var(--danger); background:#f7e3e0; color:var(--danger); }
+.choice-btn:disabled{ cursor:default; }
+.fill-answer-input{
+  width:100%; padding:11px 14px; border:1.5px solid var(--card-border); border-radius:4px;
+  font-size:14.5px; margin-bottom:12px; font-family:'Inter',sans-serif;
+}
+.fill-answer-input:focus{ outline:2px solid var(--ledger-green); }
+.result-banner{
+  display:inline-flex; align-items:center; gap:8px; font-family:'Fraunces',serif; font-weight:700;
+  font-size:14px; padding:6px 14px; border-radius:4px; margin-bottom:12px; border:2px solid; transform:rotate(-2deg);
+}
+.result-banner.ok{ color:var(--ledger-green); border-color:var(--ledger-green); background:var(--ledger-green-soft); }
+.result-banner.no{ color:var(--danger); border-color:var(--danger); background:#f7e3e0; }
+.correct-line{ font-size:13.5px; color:var(--ink-soft); margin-bottom:14px; }
+.correct-line b{ color:var(--ledger-green); }
+.flash-actions{ display:flex; justify-content:flex-end; gap:10px; margin-top:6px; }
+.summary-card{ text-align:center; padding:34px 20px; }
+.summary-card .score{ font-family:'JetBrains Mono',monospace; font-size:42px; font-weight:700; margin:8px 0; }
+.summary-card .score span{ color:var(--brass); }
 </style>
 </head>
 <body>
@@ -463,7 +611,19 @@ table.ledger .del{ background:none; border:none; color:var(--danger); cursor:poi
     </div>
   </header>
 
-  <div id="appPanel"><div class="loading">讀取資料中…</div></div>
+  <div class="app-shell">
+    <nav class="main-sidebar" id="mainNav">
+      <h2>選單</h2>
+      <button type="button" class="nav-item active" data-section="ledger" style="--nav-color:#2F5D50;"><span class="nav-icon">📚</span><span>講義紀錄</span></button>
+      <button type="button" class="nav-item" data-section="mistakes" style="--nav-color:#A03A2E;"><span class="nav-icon">✏️</span><span>錯題本</span></button>
+      <button type="button" class="nav-item" data-section="review" style="--nav-color:#B0812C;"><span class="nav-icon">🧠</span><span>複習</span></button>
+    </nav>
+    <div class="main-content">
+      <div id="appPanel"><div class="loading">讀取資料中…</div></div>
+      <div id="mistakesPanel" class="hidden"><div class="loading">讀取資料中…</div></div>
+      <div id="reviewPanel" class="hidden"><div class="loading">讀取資料中…</div></div>
+    </div>
+  </div>
 </div>
 
 <!-- 個人檔案彈窗：頭像、已獲得徽章、總完成率、總頁數 -->
@@ -582,6 +742,22 @@ let earnedAchievements = []; // 里程碑成就 [{id,date,icon,title,desc}]，�
 let currentStreak = { count: 0, lastDate: null }; // 連續完成天數，登入時從 Supabase 載入
 let currentDailyPlan = null; // 今天的任務排程 { date, tasks, bonus, notified, bonusNotified }，存在 Supabase
 let dailyRerollActive = false; // 目前這輪主線任務是不是「完成過一次後主動重排」的加場，換日期會自動歸零
+
+/* ---------------- 錯題本 / 複習：全域狀態 ---------------- */
+let currentSection = 'ledger'; // 'ledger' | 'mistakes' | 'review'
+let mistakes = [];             // [{id,subject,question,type,options,my_answer,correct_answer,review_count,streak,created_at}]
+const MASTER_STREAK = 2;       // 連續答對幾次算「已熟練」
+const OPTION_LABELS = ['A','B','C','D','E'];
+
+let mistakeSubjectFilter = 'all';
+let mistakeShowForm = false;
+let mistakeFormType = '4';
+let mistakeFormError = '';
+let mistakeFormDraft = {};
+
+let reviewSubjectFilter = 'all';
+let reviewOnlyUnmastered = false;
+let reviewSession = null; // {queue:[ids], idx, correctCount, picked, revealed, lastCorrect}
 
 function todayStr(){ return new Date().toISOString().slice(0,10); }
 function escapeHtml(s){
@@ -1552,6 +1728,393 @@ async function loadAllData(){
   }
   await loadBadges();
   await loadStreak();
+  await loadMistakes();
+}
+
+/* ============================================================
+   錯題本 / 複習
+   ============================================================ */
+
+async function loadMistakes(){
+  mistakes = [];
+  if(!currentUser) return;
+  const { data, error } = await supabase
+    .from('mistakes').select('*').order('created_at', { ascending:false });
+  if(error){ console.error('讀取錯題本失敗', error); return; }
+  mistakes = data || [];
+}
+
+function mistakeSubjects(){
+  return Array.from(new Set(mistakes.map(m=>m.subject).filter(Boolean)));
+}
+
+function isMastered(m){ return (m.streak||0) >= MASTER_STREAK; }
+
+function switchSection(section){
+  currentSection = section;
+  document.querySelectorAll('.nav-item').forEach(el=>{
+    el.classList.toggle('active', el.dataset.section === section);
+  });
+  document.getElementById('appPanel').classList.toggle('hidden', section !== 'ledger');
+  document.getElementById('mistakesPanel').classList.toggle('hidden', section !== 'mistakes');
+  document.getElementById('reviewPanel').classList.toggle('hidden', section !== 'review');
+  if(section === 'mistakes'){ mistakeShowForm = false; renderMistakesPanel(); }
+  if(section === 'review'){ reviewSession = null; renderReviewPanel(); }
+}
+
+/* ---------------- 錯題本：整理 ---------------- */
+
+function renderMistakesPanel(){
+  const panel = document.getElementById('mistakesPanel');
+  const subs = mistakeSubjects();
+  const filtered = mistakeSubjectFilter === 'all' ? mistakes : mistakes.filter(m=>m.subject===mistakeSubjectFilter);
+
+  panel.innerHTML = `
+    <div class="panel">
+      <div class="section-head">
+        <h2>錯題本</h2>
+        <button type="button" class="solid-btn" id="toggleMistakeFormBtn">${mistakeShowForm ? '－ 收起表單' : '＋ 新增錯題'}</button>
+      </div>
+      ${mistakeShowForm ? mistakeFormHTML() : ''}
+      ${subs.length ? `
+        <div class="chip-row">
+          <button type="button" class="chip ${mistakeSubjectFilter==='all'?'active':''}" data-subject="all">全部 (${mistakes.length})</button>
+          ${subs.map(s=>`<button type="button" class="chip ${mistakeSubjectFilter===s?'active':''}" data-subject="${escapeHtml(s)}">${escapeHtml(s)} (${mistakes.filter(m=>m.subject===s).length})</button>`).join('')}
+        </div>` : ''}
+      ${filtered.length === 0 ? `
+        <div class="empty"><h2>還沒有錯題</h2><p>按上方「＋ 新增錯題」開始記錄第一題吧。</p></div>
+      ` : `<div class="mistake-list">${filtered.map(mistakeCardHTML).join('')}</div>`}
+    </div>
+  `;
+  bindMistakesPanelEvents();
+}
+
+function mistakeFormHTML(){
+  const type = mistakeFormType;
+  const isFill = type === 'fill';
+  const count = isFill ? 0 : parseInt(type,10);
+  const draft = mistakeFormDraft || {};
+  return `
+    <form class="mistake-form" id="mistakeForm">
+      <div class="row2">
+        <div class="field">
+          <label>科目</label>
+          <input type="text" id="mSubject" list="mistakeSubjectList" placeholder="例如：數學、英文" value="${escapeHtml(draft.subject||'')}">
+          <datalist id="mistakeSubjectList">${mistakeSubjects().map(s=>`<option value="${escapeHtml(s)}">`).join('')}</datalist>
+        </div>
+        <div class="field">
+          <label>選項數量</label>
+          <select id="mOptType">
+            <option value="2" ${type==='2'?'selected':''}>2 個選項</option>
+            <option value="3" ${type==='3'?'selected':''}>3 個選項</option>
+            <option value="4" ${type==='4'?'selected':''}>4 個選項</option>
+            <option value="5" ${type==='5'?'selected':''}>5 個選項</option>
+            <option value="fill" ${type==='fill'?'selected':''}>填空（無選項）</option>
+          </select>
+        </div>
+      </div>
+      <div class="field">
+        <label>題目</label>
+        <textarea id="mQuestion" placeholder="輸入題目內容">${escapeHtml(draft.question||'')}</textarea>
+      </div>
+      ${!isFill ? `
+        <div class="field">
+          <label>選項內容</label>
+          ${Array.from({length:count}).map((_,i)=>`
+            <div class="opt-input-row">
+              <span class="opt-letter">${OPTION_LABELS[i]}</span>
+              <input type="text" class="mOption" data-idx="${i}" placeholder="選項 ${OPTION_LABELS[i]} 的內容" value="${escapeHtml((draft.options||[])[i]||'')}">
+            </div>`).join('')}
+        </div>
+        <div class="row2">
+          <div class="field">
+            <label>我寫的答案</label>
+            <select id="mMyAnswer">
+              <option value="">請選擇</option>
+              ${Array.from({length:count}).map((_,i)=>`<option value="${OPTION_LABELS[i]}" ${draft.myAnswer===OPTION_LABELS[i]?'selected':''}>${OPTION_LABELS[i]}</option>`).join('')}
+            </select>
+          </div>
+          <div class="field">
+            <label>正確答案</label>
+            <select id="mCorrectAnswer">
+              <option value="">請選擇</option>
+              ${Array.from({length:count}).map((_,i)=>`<option value="${OPTION_LABELS[i]}" ${draft.correctAnswer===OPTION_LABELS[i]?'selected':''}>${OPTION_LABELS[i]}</option>`).join('')}
+            </select>
+          </div>
+        </div>
+      ` : `
+        <div class="row2">
+          <div class="field"><label>我寫的答案</label><input type="text" id="mMyAnswerFill" placeholder="輸入你當時寫的答案" value="${escapeHtml(draft.myAnswer||'')}"></div>
+          <div class="field"><label>正確答案</label><input type="text" id="mCorrectAnswerFill" placeholder="輸入正確答案" value="${escapeHtml(draft.correctAnswer||'')}"></div>
+        </div>
+      `}
+      ${mistakeFormError ? `<div class="field-error">${escapeHtml(mistakeFormError)}</div>` : ''}
+      <div class="mistake-form-actions">
+        <button type="button" class="ghost-btn" id="cancelMistakeFormBtn">取消</button>
+        <button type="submit" class="solid-btn">加入錯題本</button>
+      </div>
+    </form>
+  `;
+}
+
+function mistakeCardHTML(m){
+  const mastered = isMastered(m);
+  const color = PALETTE[Math.abs(hashStr(m.subject||'')) % PALETTE.length];
+  let body = '';
+  if(m.type !== 'fill'){
+    const opts = m.options || [];
+    body = `<div class="m-opts">${opts.map((opt,i)=>{
+      const letter = OPTION_LABELS[i];
+      const mine = letter === m.my_answer, correct = letter === m.correct_answer;
+      let cls = 'm-opt' + (correct ? ' correct' : (mine ? ' wrong' : ''));
+      return `<div class="${cls}"><span>${letter}.</span><span>${escapeHtml(opt)}</span>${correct?'<span class="tag">✓ 正確</span>':''}${mine&&!correct?'<span class="tag">✗ 我的答案</span>':''}</div>`;
+    }).join('')}</div>`;
+  }else{
+    body = `<div class="m-fill-ans">
+      <div><span class="label">我寫的答案</span><span class="wrong-v">${escapeHtml(m.my_answer||'')}</span></div>
+      <div><span class="label">正確答案</span><span class="correct-v">${escapeHtml(m.correct_answer||'')}</span></div>
+    </div>`;
+  }
+  return `
+    <div class="mistake-card" style="--tab-color:${color}">
+      <div class="m-meta">
+        <span class="subject-tag">${escapeHtml(m.subject||'未分類')}</span>
+        <span class="mastery-stamp ${mastered?'mastered':''}">${mastered?'✓ 已熟練':'尚未熟練'}</span>
+      </div>
+      <div class="m-question">${escapeHtml(m.question)}</div>
+      ${body}
+      <div class="m-actions">
+        <span class="m-review-count">複習過 ${m.review_count||0} 次</span>
+        <button type="button" class="m-del" data-id="${m.id}">刪除</button>
+      </div>
+    </div>
+  `;
+}
+
+function hashStr(s){ let h=0; for(let i=0;i<s.length;i++){ h = (h*31 + s.charCodeAt(i)) | 0; } return h; }
+
+function captureMistakeDraft(){
+  mistakeFormDraft = mistakeFormDraft || {};
+  const subjectEl = document.getElementById('mSubject');
+  const questionEl = document.getElementById('mQuestion');
+  if(subjectEl) mistakeFormDraft.subject = subjectEl.value;
+  if(questionEl) mistakeFormDraft.question = questionEl.value;
+  const opts = Array.from(document.querySelectorAll('.mOption')).map(i=>i.value);
+  if(opts.length) mistakeFormDraft.options = opts;
+  const myA = document.getElementById('mMyAnswer') || document.getElementById('mMyAnswerFill');
+  const coA = document.getElementById('mCorrectAnswer') || document.getElementById('mCorrectAnswerFill');
+  if(myA) mistakeFormDraft.myAnswer = myA.value;
+  if(coA) mistakeFormDraft.correctAnswer = coA.value;
+}
+
+function bindMistakesPanelEvents(){
+  document.getElementById('toggleMistakeFormBtn').addEventListener('click', ()=>{
+    mistakeShowForm = !mistakeShowForm;
+    if(mistakeShowForm){ mistakeFormDraft = {}; mistakeFormType = '4'; mistakeFormError = ''; }
+    renderMistakesPanel();
+  });
+  document.querySelectorAll('#mistakesPanel .chip').forEach(el=>{
+    el.addEventListener('click', ()=>{ mistakeSubjectFilter = el.dataset.subject; renderMistakesPanel(); });
+  });
+  document.querySelectorAll('#mistakesPanel .m-del').forEach(el=>{
+    el.addEventListener('click', async ()=>{
+      if(!confirm('確定要刪除這一題錯題嗎？')) return;
+      const { error } = await supabase.from('mistakes').delete().eq('id', el.dataset.id);
+      if(error){ alert('刪除失敗：' + error.message); return; }
+      mistakes = mistakes.filter(m=>m.id !== el.dataset.id);
+      renderMistakesPanel();
+    });
+  });
+  const cancelBtn = document.getElementById('cancelMistakeFormBtn');
+  if(cancelBtn) cancelBtn.addEventListener('click', ()=>{ mistakeShowForm=false; mistakeFormDraft={}; mistakeFormError=''; renderMistakesPanel(); });
+  const form = document.getElementById('mistakeForm');
+  if(form){
+    form.addEventListener('submit', submitMistakeForm);
+    const optType = document.getElementById('mOptType');
+    optType.addEventListener('change', (e)=>{ captureMistakeDraft(); mistakeFormType = e.target.value; renderMistakesPanel(); });
+  }
+}
+
+async function submitMistakeForm(e){
+  e.preventDefault();
+  const subject = document.getElementById('mSubject').value.trim();
+  const question = document.getElementById('mQuestion').value.trim();
+  const type = mistakeFormType;
+  mistakeFormError = '';
+  if(!question){ mistakeFormError = '請輸入題目內容'; renderMistakesPanel(); return; }
+
+  let entry = { subject: subject || '未分類', question, type, user_id: currentUser.id, review_count:0, streak:0 };
+  if(type === 'fill'){
+    const myAnswer = document.getElementById('mMyAnswerFill').value.trim();
+    const correctAnswer = document.getElementById('mCorrectAnswerFill').value.trim();
+    if(!myAnswer || !correctAnswer){ mistakeFormError = '請填寫我寫的答案與正確答案'; renderMistakesPanel(); return; }
+    entry.my_answer = myAnswer; entry.correct_answer = correctAnswer; entry.options = [];
+  }else{
+    const count = parseInt(type,10);
+    const options = Array.from(document.querySelectorAll('.mOption')).map(i=>i.value.trim());
+    if(options.some(o=>!o)){ mistakeFormError = '請填寫所有選項內容'; renderMistakesPanel(); return; }
+    const myAnswer = document.getElementById('mMyAnswer').value;
+    const correctAnswer = document.getElementById('mCorrectAnswer').value;
+    if(!myAnswer || !correctAnswer){ mistakeFormError = '請選擇我寫的答案與正確答案'; renderMistakesPanel(); return; }
+    entry.options = options.slice(0,count); entry.my_answer = myAnswer; entry.correct_answer = correctAnswer;
+  }
+
+  const { data, error } = await supabase.from('mistakes').insert(entry).select().single();
+  if(error){ mistakeFormError = '新增失敗：' + error.message; renderMistakesPanel(); return; }
+  mistakes.unshift(data);
+  mistakeShowForm = false; mistakeFormDraft = {};
+  renderMistakesPanel();
+}
+
+/* ---------------- 複習 ---------------- */
+
+function renderReviewPanel(){
+  const panel = document.getElementById('reviewPanel');
+  if(reviewSession){ panel.innerHTML = `<div class="panel">${reviewSessionHTML()}</div>`; bindReviewSessionEvents(); return; }
+
+  const subs = mistakeSubjects();
+  const pool = reviewSubjectFilter === 'all' ? mistakes : mistakes.filter(m=>m.subject===reviewSubjectFilter);
+  const eligible = reviewOnlyUnmastered ? pool.filter(m=>!isMastered(m)) : pool;
+
+  panel.innerHTML = `
+    <div class="panel review-setup-card">
+      <h2 style="font-family:'Fraunces',serif;margin:0 0 4px;">開始複習</h2>
+      <p>選擇要複習的科目範圍，逐題作答並立刻看到對錯</p>
+      <div class="chip-row" style="justify-content:center;">
+        <button type="button" class="chip ${reviewSubjectFilter==='all'?'active':''}" data-subject="all">全部科目</button>
+        ${subs.map(s=>`<button type="button" class="chip ${reviewSubjectFilter===s?'active':''}" data-subject="${escapeHtml(s)}">${escapeHtml(s)}</button>`).join('')}
+      </div>
+      <div class="review-toggle">
+        <input type="checkbox" id="onlyUnmasteredChk" ${reviewOnlyUnmastered?'checked':''}>
+        <label for="onlyUnmasteredChk">只複習尚未熟練的題目</label>
+      </div>
+      ${eligible.length === 0 ? `
+        <div class="empty"><h2>目前沒有可複習的題目</h2><p>試試切換篩選條件，或先去「錯題本」新增一些題目。</p></div>
+      ` : `<button type="button" class="solid-btn" id="startReviewBtn">開始複習（共 ${eligible.length} 題）</button>`}
+    </div>
+  `;
+  document.querySelectorAll('#reviewPanel .chip').forEach(el=>{
+    el.addEventListener('click', ()=>{ reviewSubjectFilter = el.dataset.subject; renderReviewPanel(); });
+  });
+  const chk = document.getElementById('onlyUnmasteredChk');
+  if(chk) chk.addEventListener('change', (e)=>{ reviewOnlyUnmastered = e.target.checked; renderReviewPanel(); });
+  const startBtn = document.getElementById('startReviewBtn');
+  if(startBtn) startBtn.addEventListener('click', startReviewSession);
+}
+
+function startReviewSession(){
+  const pool = reviewSubjectFilter === 'all' ? mistakes : mistakes.filter(m=>m.subject===reviewSubjectFilter);
+  const eligible = reviewOnlyUnmastered ? pool.filter(m=>!isMastered(m)) : pool;
+  const queue = eligible.map(m=>m.id);
+  for(let i=queue.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [queue[i],queue[j]]=[queue[j],queue[i]]; }
+  reviewSession = { queue, idx:0, correctCount:0, picked:null, revealed:false, lastCorrect:false };
+  renderReviewPanel();
+}
+
+function reviewSessionHTML(){
+  const total = reviewSession.queue.length;
+  if(reviewSession.idx >= total){
+    const correct = reviewSession.correctCount;
+    return `
+      <div class="flash-wrap">
+        <div class="summary-card">
+          <span class="subject-tag">複習結果</span>
+          <div class="score">${correct} <span>/ ${total}</span></div>
+          <p style="color:var(--ink-soft);font-size:13.5px;">答對率 ${total?Math.round(correct/total*100):0}%</p>
+          <div class="flash-actions" style="justify-content:center;margin-top:16px;">
+            <button type="button" class="ghost-btn" id="backToSetupBtn">回到設定</button>
+            <button type="button" class="solid-btn" id="restartReviewBtn">再複習一次</button>
+          </div>
+        </div>
+      </div>`;
+  }
+  const m = mistakes.find(x=>x.id===reviewSession.queue[reviewSession.idx]);
+  if(!m){ reviewSession.idx++; return reviewSessionHTML(); }
+  const revealed = reviewSession.revealed;
+
+  let bodyHtml = '';
+  if(m.type !== 'fill'){
+    bodyHtml = (m.options||[]).map((opt,i)=>{
+      const letter = OPTION_LABELS[i];
+      let cls = 'choice-btn';
+      if(revealed){
+        if(letter === m.correct_answer) cls += ' reveal-correct';
+        else if(letter === reviewSession.picked) cls += ' reveal-wrong';
+      }else if(letter === reviewSession.picked) cls += ' picked';
+      return `<button type="button" class="${cls}" data-letter="${letter}" ${revealed?'disabled':''}><span>${letter}.</span><span>${escapeHtml(opt)}</span></button>`;
+    }).join('');
+  }else{
+    bodyHtml = `<input type="text" class="fill-answer-input" id="fillAnswerInput" placeholder="輸入你的答案" ${revealed?'disabled':''} value="${revealed?escapeHtml(reviewSession.picked||''):''}">`;
+  }
+
+  let resultHtml = '';
+  if(revealed){
+    resultHtml = `
+      <div class="result-banner ${reviewSession.lastCorrect?'ok':'no'}">${reviewSession.lastCorrect?'✓ 答對了':'✗ 答錯了'}</div>
+      ${m.type==='fill' ? `<div class="correct-line">正確答案：<b>${escapeHtml(m.correct_answer)}</b></div>` : ''}
+    `;
+  }
+
+  return `
+    <div class="flash-wrap">
+      <div class="flash-progress"><span>第 ${reviewSession.idx+1} / ${total} 題</span><span>答對 ${reviewSession.correctCount} 題</span></div>
+      <div class="flash-bar"><div class="fill" style="width:${(reviewSession.idx/total*100)}%"></div></div>
+      <div class="flashcard">
+        <span class="subject-tag">${escapeHtml(m.subject||'未分類')}</span>
+        <div class="m-question">${escapeHtml(m.question)}</div>
+        ${bodyHtml}
+        ${resultHtml}
+        <div class="flash-actions">
+          ${m.type==='fill' && !revealed ? `<button type="button" class="solid-btn" id="submitFillBtn">送出答案</button>` : ''}
+          ${revealed ? `<button type="button" class="solid-btn" id="nextCardBtn">${reviewSession.idx+1>=total?'查看結果':'下一題'}</button>` : ''}
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+function bindReviewSessionEvents(){
+  document.querySelectorAll('#reviewPanel .choice-btn').forEach(el=>{
+    el.addEventListener('click', ()=>{
+      if(reviewSession.revealed) return;
+      reviewSession.picked = el.dataset.letter;
+      revealReviewAnswer();
+    });
+  });
+  const submitFillBtn = document.getElementById('submitFillBtn');
+  if(submitFillBtn) submitFillBtn.addEventListener('click', ()=>{
+    const input = document.getElementById('fillAnswerInput');
+    reviewSession.picked = input ? input.value.trim() : '';
+    revealReviewAnswer();
+  });
+  const fillInput = document.getElementById('fillAnswerInput');
+  if(fillInput) fillInput.addEventListener('keydown', (e)=>{ if(e.key==='Enter'){ e.preventDefault(); submitFillBtn?.click(); } });
+  const nextBtn = document.getElementById('nextCardBtn');
+  if(nextBtn) nextBtn.addEventListener('click', ()=>{
+    reviewSession.idx++; reviewSession.revealed = false; reviewSession.picked = null;
+    renderReviewPanel();
+  });
+  const backBtn = document.getElementById('backToSetupBtn');
+  if(backBtn) backBtn.addEventListener('click', ()=>{ reviewSession = null; renderReviewPanel(); });
+  const restartBtn = document.getElementById('restartReviewBtn');
+  if(restartBtn) restartBtn.addEventListener('click', startReviewSession);
+}
+
+async function revealReviewAnswer(){
+  const m = mistakes.find(x=>x.id===reviewSession.queue[reviewSession.idx]);
+  let correct;
+  if(m.type === 'fill'){
+    correct = (reviewSession.picked||'').trim().toLowerCase() === (m.correct_answer||'').trim().toLowerCase();
+  }else{
+    correct = reviewSession.picked === m.correct_answer;
+  }
+  reviewSession.revealed = true;
+  reviewSession.lastCorrect = correct;
+  if(correct){ reviewSession.correctCount++; m.streak = (m.streak||0) + 1; } else { m.streak = 0; }
+  m.review_count = (m.review_count||0) + 1;
+  renderReviewPanel();
+  const { error } = await supabase.from('mistakes').update({ review_count:m.review_count, streak:m.streak }).eq('id', m.id);
+  if(error) console.error('更新複習紀錄失敗', error);
 }
 
 function cumulativeFor(bookId){
@@ -1967,6 +2530,9 @@ async function init(){
   });
   document.getElementById('changePwOverlay').addEventListener('click', (e)=>{
     if(e.target.id === 'changePwOverlay') closeChangePwModal();
+  });
+  document.querySelectorAll('.nav-item').forEach(el=>{
+    el.addEventListener('click', ()=> switchSection(el.dataset.section));
   });
   document.getElementById('avatarBtn').addEventListener('click', openProfileModal);
   document.getElementById('closeProfileBtn').addEventListener('click', closeProfileModal);
