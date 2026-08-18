@@ -2197,7 +2197,7 @@ function preprocessImageForOcr(file){
 function extractOptionsFromOcrText(text, count){
   if(!count || !text) return null;
   const labels = OPTION_LABELS.slice(0, count);
-  const markerRe = new RegExp('(?:^|[\\s\\n(（])(' + labels.join('|') + ')[\\.\\)）、:．]\\s*', 'g');
+  const markerRe = new RegExp('(?:^|[\\s\\n(（「])(' + labels.join('|') + ')[\\.\\)）」、:．]\\s*', 'g');
   const matches = [];
   let m;
   while((m = markerRe.exec(text))){
@@ -2230,7 +2230,7 @@ function extractOptionsFromOcrText(text, count){
 
 // 去掉題目開頭的題號標記，例如「1. ( )」「12.（）」，那只是題號不是題目內容
 function stripQuestionNumberMarker(text){
-  return text.replace(/^\s*\d+\s*[.、．]\s*[(（]\s*[)）]\s*/, '').trim();
+  return text.replace(/^\s*\d+\s*[.、．]\s*[(（「]\s*[)）」]\s*/, '').trim();
 }
 
 async function handleOcrFile(e){
