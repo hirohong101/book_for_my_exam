@@ -327,7 +327,13 @@ table.ledger .del{ background:none; border:none; color:var(--danger); cursor:poi
 .daily-task-list{ margin:20px 0 16px; padding:14px 16px; border-radius:7px; background:var(--ledger-green-soft); text-align:left; }
 .daily-task-list p{ margin:0; line-height:1.8; font-size:15px; }
 .daily-task-list p + p{ margin-top:4px; }
-.daily-task-list .task-progress{ color:var(--ink-soft); font-size:12px; }
+.daily-task-list .task-row{
+  display:flex; align-items:baseline; justify-content:space-between; gap:8px;
+  flex-wrap:wrap; line-height:1.5; font-size:15px; padding:3px 0;
+}
+.daily-task-list .task-row + .task-row{ margin-top:2px; }
+.daily-task-list .task-row .task-main{ flex:1 1 auto; min-width:200px; }
+.daily-task-list .task-progress{ color:var(--ink-soft); font-size:12px; white-space:nowrap; flex-shrink:0; }
 .daily-task-list .task-progress-total{
   font-family:'JetBrains Mono',monospace; font-size:13px; color:var(--ink-soft);
   padding-bottom:10px; margin-bottom:8px !important; border-bottom:1px dashed var(--card-border);
@@ -658,6 +664,10 @@ function dailyIndex(){
 }
 
 const DAILY_PICK_COUNT = 4; // 每天挑幾本書
+const RESHUFFLE_PASSWORD = '262144'; // 沒寫完也能破例重排一次的密碼（只能用一次）
+function passwordReshuffleUsedKey(){
+  return `passwordReshuffleUsed:${currentUser ? currentUser.id : 'anon'}`;
+}
 
 // 今天（含）到今年 12/31 還剩幾天，用來估算每本書的每日進度
 function daysUntilYearEnd(){
@@ -1050,9 +1060,12 @@ function createDailyTaskPlan(){
 
   // 完全依完成率由低到高排序，直接取完成率最低的 picksPerDay 本，
   // 不再另外保留輪替名額——4 個名額都給目前進度最落後的講義。
-  const selectedBooks = available.slice()
-    .sort((a,b)=>completionPctOf(a) - completionPctOf(b))
-    .slice(0, picksPerDay);
+  // 完成率打平時，選書本清單中排比較後面（畫面上比較靠下）的那一本。
+  const selectedBooks = available
+    .map((book, idx)=>({ book, idx }))
+    .sort((a,b)=> completionPctOf(a.book) - completionPctOf(b.book) || b.idx - a.idx)
+    .slice(0, picksPerDay)
+    .map(x=>x.book);
 
   const plan = [];
   const pendingRangesByBook = {}; // 同一天同一本書被排到第二次時，避免跟這次剛排好的範圍重疊
@@ -1162,10 +1175,10 @@ function taskProgressForBook(bookId){
 
 // 清掉今天已經產生的「主線任務」重新算一次（要今天的任務全部完成 100% 才能重排）。
 // 加碼任務不會被這裡影響，會維持原本的那個；想換加碼任務請按它旁邊的「換一個」按鈕。
-async function reshuffleDailyTasks(){
+async function reshuffleDailyTasks(force){
   const plan = await getDailyTaskPlan();
   const pct = dailyCompletionPct(plan.tasks || []);
-  if(pct < 100){
+  if(pct < 100 && !force){
     showDailyToast({ icon:'🔒', title:'先寫完今天的任務唷', body:`目前完成 ${pct}%，全部寫完才能重排喔！` });
     return;
   }
@@ -1369,7 +1382,7 @@ async function showDailyTask(){
       const bookTarget = book ? Number(book.target) || 0 : 0;
       const sharePct = bookTarget > 0 ? Math.round((taskTotal / bookTarget) * 100) : null;
       const shareLabel = sharePct === null ? '未設定目標' : `佔本書 ${sharePct}%`;
-      return `<p><b>${i + 1}. ${escapeHtml(task.bookName)}</b>：第 ${pages} 頁 <span class="task-progress">${shareLabel}</span></p>`;
+      return `<div class="task-row"><span class="task-main"><b>${i + 1}. ${escapeHtml(task.bookName)}</b>：第 ${pages} 頁</span><span class="task-progress">${shareLabel}</span></div>`;
     }).join('');
     taskEl.innerHTML = `<p class="task-progress-total">今日總進度：<b>${overallPct}%</b>（${donePages} / ${totalPages} 頁）</p>${rows}${bonusHtml}`;
   }else{
@@ -1931,7 +1944,27 @@ async function init(){
     requestNotifyPermission();
     await showDailyTask();
   });
-  document.getElementById('dailyReshuffleBtn').addEventListener('click', reshuffleDailyTasks);
+  document.getElementById('dailyReshuffleBtn').addEventListener('click', async ()=>{
+    const plan = await getDailyTaskPlan();
+    const pct = dailyCompletionPct(plan.tasks || []);
+    if(pct < 100){
+      const usedKey = passwordReshuffleUsedKey();
+      if(localStorage.getItem(usedKey) === '1'){
+        showDailyToast({ icon:'🔒', title:'密碼破例只能用一次', body:'已經用過囉，寫到 100% 才能再重排唷' });
+        return;
+      }
+      const input = prompt('今天還沒寫完，輸入密碼可以破例重排一次：');
+      if(input === null) return; // 使用者取消
+      if(input !== RESHUFFLE_PASSWORD){
+        showDailyToast({ icon:'🔒', title:'密碼不對', body:'先寫完今天的任務，或輸入正確密碼才能重排' });
+        return;
+      }
+      localStorage.setItem(usedKey, '1');
+      await reshuffleDailyTasks(true);
+      return;
+    }
+    await reshuffleDailyTasks(false);
+  });
   document.getElementById('changePwOverlay').addEventListener('click', (e)=>{
     if(e.target.id === 'changePwOverlay') closeChangePwModal();
   });
