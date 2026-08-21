@@ -298,8 +298,11 @@ table.ledger .del{ background:none; border:none; color:var(--danger); cursor:poi
 .profile-exp-progress > span{ display:block; height:100%; width:0; border-radius:inherit; background:var(--brass); transition:width .25s ease; }
 .profile-exp-note{ font:11px 'JetBrains Mono',monospace; color:var(--ink-soft); }
 .profile-badges h3{ font-family:'Fraunces',serif; font-size:15px; margin:0 0 10px; display:flex; align-items:center; gap:6px; }
+.badge-subhead{ font-family:'Inter',sans-serif; font-weight:600; font-size:12.5px; color:var(--ink-soft); margin:0 0 6px; display:flex; align-items:center; gap:6px; }
+.badge-subsection{ margin-bottom:14px; }
+.badge-subsection:last-child{ margin-bottom:18px; }
 .badge-count{ font-family:'JetBrains Mono',monospace; font-size:12px; color:var(--ink-soft); font-weight:400; }
-.badge-grid{ display:grid; grid-template-columns:repeat(auto-fill,minmax(120px,1fr)); gap:8px; max-height:220px; overflow-y:auto; margin-bottom:18px; }
+.badge-grid{ display:grid; grid-template-columns:repeat(auto-fill,minmax(120px,1fr)); gap:8px; max-height:220px; overflow-y:auto; }
 .badge-chip{
   background:var(--brass-soft); border:1px solid var(--card-border); border-radius:8px;
   padding:8px 10px; display:flex; flex-direction:column; gap:2px; align-items:center; text-align:center;
@@ -671,7 +674,14 @@ table.ledger .del{ background:none; border:none; color:var(--danger); cursor:poi
 
     <div class="profile-badges">
       <h3>🏅 已獲得徽章 <span class="badge-count" id="profileBadgeCount"></span></h3>
-      <div class="badge-grid" id="badgeGrid"></div>
+      <div class="badge-subsection">
+        <p class="badge-subhead">🎁 加碼任務徽章 <span class="badge-count" id="bonusBadgeCount"></span></p>
+        <div class="badge-grid" id="bonusBadgeGrid"></div>
+      </div>
+      <div class="badge-subsection">
+        <p class="badge-subhead">📖 每日任務徽章 <span class="badge-count" id="dailyBadgeCount"></span></p>
+        <div class="badge-grid" id="dailyBadgeGrid"></div>
+      </div>
     </div>
 
     <div class="profile-badges">
@@ -1269,24 +1279,40 @@ function overallStats(){
   return { totalPagesAll, rate };
 }
 
+function badgeChipHTML(b){
+  const m = b.text.match(/^(\p{Extended_Pictographic}+)\s*(.*)$/u);
+  const icon = m ? m[1] : '🏅';
+  const label = m ? m[2] : b.text;
+  const cls = b.kind === 'bonus' ? 'badge-chip bonus' : b.kind === 'reroll' ? 'badge-chip reroll' : 'badge-chip';
+  const round = b.round ? ` · 第 ${b.round} 輪` : '';
+  return `<div class="${cls}"><span class="badge-icon">${icon}</span><span class="badge-label">${label}</span><span class="badge-date">${b.date}${round}</span></div>`;
+}
+
 function renderBadgeGrid(){
-  const grid = document.getElementById('badgeGrid');
-  const countEl = document.getElementById('profileBadgeCount');
-  const daily = getEarnedBadges().map(b=>({ ...b, kind:'daily' }));
-  const bonus = getEarnedBonusBadges().map(b=>({ ...b, kind:'bonus' }));
-  const reroll = getEarnedRerollBadges().map(b=>({ ...b, kind:'reroll' }));
-  const earned = [...daily, ...bonus, ...reroll].sort((a,b)=>b.date.localeCompare(a.date));
-  countEl.textContent = earned.length ? `（共 ${earned.length} 個）` : '';
-  grid.innerHTML = earned.length
-    ? earned.map(b=>{
-        const m = b.text.match(/^(\p{Extended_Pictographic}+)\s*(.*)$/u);
-        const icon = m ? m[1] : '🏅';
-        const label = m ? m[2] : b.text;
-        const cls = b.kind === 'bonus' ? 'badge-chip bonus' : b.kind === 'reroll' ? 'badge-chip reroll' : 'badge-chip';
-        const round = b.kind === 'daily' && b.round ? ` · 第 ${b.round} 輪` : '';
-        return `<div class="${cls}"><span class="badge-icon">${icon}</span><span class="badge-label">${label}</span><span class="badge-date">${b.date}${round}</span></div>`;
-      }).join('')
-    : `<div class="badge-empty">還沒有獲得任何徽章，完成今日任務即可獲得！</div>`;
+  const totalCountEl = document.getElementById('profileBadgeCount');
+  const bonusGrid = document.getElementById('bonusBadgeGrid');
+  const bonusCountEl = document.getElementById('bonusBadgeCount');
+  const dailyGrid = document.getElementById('dailyBadgeGrid');
+  const dailyCountEl = document.getElementById('dailyBadgeCount');
+
+  const bonus = getEarnedBonusBadges().map(b=>({ ...b, kind:'bonus' })).sort((a,b)=>b.date.localeCompare(a.date));
+  // 每日任務徽章：一般每日徽章 + 過去的加場徽章（同屬完成每日任務所得）
+  const daily = [
+    ...getEarnedBadges().map(b=>({ ...b, kind:'daily' })),
+    ...getEarnedRerollBadges().map(b=>({ ...b, kind:'reroll' })),
+  ].sort((a,b)=>b.date.localeCompare(a.date));
+
+  totalCountEl.textContent = (daily.length + bonus.length) ? `（共 ${daily.length + bonus.length} 個）` : '';
+
+  bonusCountEl.textContent = bonus.length ? `（${bonus.length}）` : '';
+  bonusGrid.innerHTML = bonus.length
+    ? bonus.map(badgeChipHTML).join('')
+    : `<div class="badge-empty">還沒有加碼任務徽章</div>`;
+
+  dailyCountEl.textContent = daily.length ? `（${daily.length}）` : '';
+  dailyGrid.innerHTML = daily.length
+    ? daily.map(badgeChipHTML).join('')
+    : `<div class="badge-empty">還沒有每日任務徽章</div>`;
 }
 
 function renderAchievementGrid(){
