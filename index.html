@@ -253,6 +253,57 @@ table.ledger .del{ background:none; border:none; color:var(--danger); cursor:poi
 
 .loading{ text-align:center; padding:60px; color:var(--ink-soft); font-family:'JetBrains Mono',monospace; font-size:13px; }
 
+/* ---------- 每日紀錄（熱力圖） ---------- */
+.daily-summary{ display:flex; gap:18px; flex-wrap:wrap; margin-bottom:18px; }
+.daily-summary .stat{ font-family:'JetBrains Mono',monospace; font-size:12.5px; color:var(--ink-soft); }
+.daily-summary .stat b{ color:var(--ledger-green); font-size:15px; }
+.heatmap-scroll{ overflow-x:auto; padding-bottom:8px; margin-bottom:22px; }
+.heatmap-inner{ display:inline-block; min-width:100%; }
+.heatmap-months{
+  display:grid; grid-auto-flow:column; grid-auto-columns:12px; gap:3px;
+  margin-left:30px; height:14px; font:10px 'JetBrains Mono',monospace; color:var(--ink-soft);
+}
+.heatmap-body{ display:flex; gap:6px; }
+.heatmap-weekday-labels{
+  display:grid; grid-template-rows:repeat(7,12px); gap:3px;
+  font:9.5px 'JetBrains Mono',monospace; color:var(--ink-soft); width:24px; text-align:right;
+}
+.heatmap-grid{
+  display:grid; grid-template-rows:repeat(7,12px); grid-auto-flow:column; grid-auto-columns:12px; gap:3px;
+}
+.heatmap-cell{
+  width:12px; height:12px; border-radius:3px; background:var(--paper-line);
+  cursor:pointer; transition:transform .1s ease, outline .1s ease;
+}
+.heatmap-cell:hover{ transform:scale(1.3); }
+.heatmap-cell.empty-pad{ background:transparent; cursor:default; pointer-events:none; }
+.heatmap-cell.level-0{ background:var(--paper-line); }
+.heatmap-cell.level-1{ background:#cfe3da; }
+.heatmap-cell.level-2{ background:#9cc4b3; }
+.heatmap-cell.level-3{ background:#5c9784; }
+.heatmap-cell.level-4{ background:var(--ledger-green); }
+.heatmap-cell.selected{ outline:2px solid var(--brass); outline-offset:1px; }
+.heatmap-legend{ display:flex; align-items:center; gap:5px; margin-top:8px; font:10px 'JetBrains Mono',monospace; color:var(--ink-soft); }
+.heatmap-legend .heatmap-cell{ cursor:default; }
+.heatmap-legend .heatmap-cell:hover{ transform:none; }
+
+.daily-detail{
+  background:var(--ledger-green-soft); border-radius:var(--radius); padding:16px 18px;
+}
+.daily-detail-head{ display:flex; justify-content:space-between; align-items:baseline; flex-wrap:wrap; gap:8px; margin-bottom:10px; }
+.daily-detail-head h3{ font-family:'Fraunces',serif; font-size:16px; margin:0; }
+.daily-detail-head .total{ font-family:'JetBrains Mono',monospace; font-size:13px; color:var(--ledger-green); }
+.daily-detail-head .total b{ font-size:16px; }
+.daily-detail-list{ display:flex; flex-direction:column; gap:6px; }
+.daily-detail-row{
+  display:flex; justify-content:space-between; align-items:center; gap:10px;
+  background:var(--card); border:1px solid var(--card-border); border-radius:4px; padding:8px 12px;
+}
+.daily-detail-row .subject{ font-weight:600; font-size:13.5px; }
+.daily-detail-row .pages{ font-family:'JetBrains Mono',monospace; font-size:13px; color:var(--ink-soft); white-space:nowrap; }
+.daily-detail-row .pages b{ color:var(--ink); }
+.daily-detail-empty{ color:var(--ink-soft); font-size:13px; text-align:center; padding:14px 0; }
+
 /* ---------- 修改密碼彈窗 ---------- */
 .modal-overlay{
   position:fixed; inset:0; background:rgba(43,42,38,0.45); display:flex;
@@ -636,11 +687,13 @@ table.ledger .del{ background:none; border:none; color:var(--danger); cursor:poi
       <button type="button" class="nav-item active" data-section="ledger" style="--nav-color:#2F5D50;"><span class="nav-icon">📚</span><span>講義紀錄</span></button>
       <button type="button" class="nav-item" data-section="mistakes" style="--nav-color:#A03A2E;"><span class="nav-icon">✏️</span><span>錯題本</span></button>
       <button type="button" class="nav-item" data-section="review" style="--nav-color:#B0812C;"><span class="nav-icon">🧠</span><span>複習</span></button>
+      <button type="button" class="nav-item" data-section="daily" style="--nav-color:#4A6FA5;"><span class="nav-icon">📅</span><span>每日紀錄</span></button>
     </nav>
     <div class="main-content">
       <div id="appPanel"><div class="loading">讀取資料中…</div></div>
       <div id="mistakesPanel" class="hidden"><div class="loading">讀取資料中…</div></div>
       <div id="reviewPanel" class="hidden"><div class="loading">讀取資料中…</div></div>
+      <div id="dailyPanel" class="hidden"><div class="loading">讀取資料中…</div></div>
     </div>
   </div>
 </div>
@@ -1948,6 +2001,164 @@ function mistakeSubjects(){
 
 function isMastered(m){ return (m.streak||0) >= MASTER_STREAK; }
 
+/* ============================================================
+   每日紀錄（熱力圖）：最近 365 天每天寫了多少頁、各科分別多少
+   ============================================================ */
+
+let selectedDailyDate = todayStr(); // 目前熱力圖選中的日期，預設今天
+
+// 把所有書的 entries 依日期彙總：{ date: { total, bySubject:{book_id:pages} } }
+function dailyAggregation(){
+  const map = {};
+  books.forEach(b=>{
+    (entriesByBook[b.id] || []).forEach(e=>{
+      if(!map[e.date]) map[e.date] = { total:0, bySubject:{} };
+      map[e.date].total += e.pages;
+      map[e.date].bySubject[b.id] = (map[e.date].bySubject[b.id] || 0) + e.pages;
+    });
+  });
+  return map;
+}
+
+function dailyLevel(pages, maxPages){
+  if(!pages) return 0;
+  if(maxPages <= 0) return 0;
+  const ratio = pages / maxPages;
+  if(ratio >= 0.75) return 4;
+  if(ratio >= 0.5) return 3;
+  if(ratio >= 0.25) return 2;
+  return 1;
+}
+
+function fmtDate(d){ return d.toISOString().slice(0,10); }
+
+const MONTH_ZH = ['1月','2月','3月','4月','5月','6月','7月','8月','9月','10月','11月','12月'];
+
+function renderDailyPanel(){
+  const panel = document.getElementById('dailyPanel');
+  const agg = dailyAggregation();
+
+  const todayD = new Date(todayStr() + 'T00:00:00');
+  const rangeStart = new Date(todayD); rangeStart.setDate(rangeStart.getDate() - 364); // 最近 365 天起點
+
+  // 對齊到週：格子從最近一個週日開始排到本週六，共 53 週
+  const weeks = 53;
+  const gridEnd = new Date(todayD); gridEnd.setDate(gridEnd.getDate() + (6 - todayD.getDay()));
+  const gridStart = new Date(gridEnd); gridStart.setDate(gridStart.getDate() - (weeks * 7 - 1));
+
+  // 最近 365 天的統計摘要
+  let totalPages365 = 0, activeDays365 = 0;
+  Object.keys(agg).forEach(date=>{
+    const d = new Date(date + 'T00:00:00');
+    if(d >= rangeStart && d <= todayD){ totalPages365 += agg[date].total; activeDays365++; }
+  });
+  const maxPages = Math.max(0, ...Object.values(agg).map(v=>v.total));
+
+  // 逐日建立格子（gridStart 一定是週日，天然依序填滿 grid-auto-flow:column 的 7 列）
+  let cells = '';
+  let months = '';
+  let prevMonth = null;
+  for(let i=0, d=new Date(gridStart); d<=gridEnd; i++, d.setDate(d.getDate()+1)){
+    const dateStr = fmtDate(d);
+    const isFuture = d > todayD;
+    if(d.getDay() === 0){ // 每週日代表一個新的一週欄位，檢查是否要標月份
+      const m = d.getMonth();
+      months += `<span>${m !== prevMonth ? MONTH_ZH[m] : ''}</span>`;
+      prevMonth = m;
+    }
+    if(isFuture){
+      cells += `<div class="heatmap-cell empty-pad"></div>`;
+    }else{
+      const pages = agg[dateStr] ? agg[dateStr].total : 0;
+      const level = dailyLevel(pages, maxPages);
+      const sel = dateStr === selectedDailyDate ? ' selected' : '';
+      cells += `<div class="heatmap-cell level-${level}${sel}" data-date="${dateStr}" title="${dateStr}・${pages}頁"></div>`;
+    }
+  }
+
+  panel.innerHTML = `
+    <div class="panel">
+      <div class="section-head">
+        <h2>📅 每日紀錄</h2>
+      </div>
+      <div class="daily-summary">
+        <span class="stat">最近 365 天總頁數 <b>${totalPages365}</b> 頁</span>
+        <span class="stat">有紀錄的天數 <b>${activeDays365}</b> 天</span>
+      </div>
+      <div class="heatmap-scroll">
+        <div class="heatmap-inner">
+          <div class="heatmap-months">${months}</div>
+          <div class="heatmap-body">
+            <div class="heatmap-weekday-labels"><span></span><span>一</span><span></span><span>三</span><span></span><span>五</span><span></span></div>
+            <div class="heatmap-grid" id="dailyHeatmapGrid">${cells}</div>
+          </div>
+        </div>
+      </div>
+      <div class="heatmap-legend">
+        <span>少</span>
+        <div class="heatmap-cell level-0"></div>
+        <div class="heatmap-cell level-1"></div>
+        <div class="heatmap-cell level-2"></div>
+        <div class="heatmap-cell level-3"></div>
+        <div class="heatmap-cell level-4"></div>
+        <span>多</span>
+      </div>
+      <div class="daily-detail" id="dailyDetail"></div>
+    </div>
+  `;
+
+  updateDailyDetail(agg);
+  bindDailyPanelEvents(agg);
+}
+
+function updateDailyDetail(agg){
+  const detail = document.getElementById('dailyDetail');
+  const info = agg[selectedDailyDate];
+  const dateLabel = selectedDailyDate === todayStr() ? `${selectedDailyDate}（今天）` : selectedDailyDate;
+
+  if(!info || info.total === 0){
+    detail.innerHTML = `
+      <div class="daily-detail-head">
+        <h3>${dateLabel}</h3>
+        <span class="total">共 <b>0</b> 頁</span>
+      </div>
+      <div class="daily-detail-empty">這天沒有寫紀錄</div>
+    `;
+    return;
+  }
+
+  const rows = Object.entries(info.bySubject)
+    .map(([bookId, pages])=>({ name: (books.find(b=>b.id===bookId)||{}).name || '未知科目', pages }))
+    .sort((a,b)=>b.pages - a.pages);
+
+  detail.innerHTML = `
+    <div class="daily-detail-head">
+      <h3>${dateLabel}</h3>
+      <span class="total">共 <b>${info.total}</b> 頁</span>
+    </div>
+    <div class="daily-detail-list">
+      ${rows.map(r=>`
+        <div class="daily-detail-row">
+          <span class="subject">${escapeHtml(r.name)}</span>
+          <span class="pages"><b>${r.pages}</b> 頁</span>
+        </div>
+      `).join('')}
+    </div>
+  `;
+}
+
+function bindDailyPanelEvents(agg){
+  document.querySelectorAll('#dailyHeatmapGrid .heatmap-cell[data-date]').forEach(el=>{
+    el.addEventListener('click', ()=>{
+      selectedDailyDate = el.dataset.date;
+      document.querySelectorAll('#dailyHeatmapGrid .heatmap-cell').forEach(c=>c.classList.remove('selected'));
+      el.classList.add('selected');
+      updateDailyDetail(agg);
+    });
+  });
+}
+
+
 function switchSection(section){
   currentSection = section;
   document.querySelectorAll('.nav-item').forEach(el=>{
@@ -1956,8 +2167,10 @@ function switchSection(section){
   document.getElementById('appPanel').classList.toggle('hidden', section !== 'ledger');
   document.getElementById('mistakesPanel').classList.toggle('hidden', section !== 'mistakes');
   document.getElementById('reviewPanel').classList.toggle('hidden', section !== 'review');
+  document.getElementById('dailyPanel').classList.toggle('hidden', section !== 'daily');
   if(section === 'mistakes'){ mistakeShowForm = false; renderMistakesPanel(); }
   if(section === 'review'){ reviewSession = null; renderReviewPanel(); }
+  if(section === 'daily'){ renderDailyPanel(); }
 }
 
 /* ---------------- 錯題本：整理 ---------------- */
