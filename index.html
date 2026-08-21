@@ -1611,11 +1611,12 @@ function sendBrowserNotification(title, body){
 async function notifyDailyComplete(){
   if(!currentDailyPlan || currentDailyPlan.notified) return; // 今天已經通知過了，避免重複跳出
   currentDailyPlan.notified = true;
+  const isReroll = dailyRoundNumber() > 1;
   await recordEarnedBadge();
   await bumpStreak();
   await checkAchievements();
-  const title = '今日任務已完成！🎉';
-  const body = '恭喜你完成今天的所有任務，記得看看獲得的徽章～';
+  const title = isReroll ? '加場任務也完成了！🎉' : '今日任務已完成！🎉';
+  const body = isReroll ? '重排後的新一輪任務也全部寫完，一樣拿到今天的徽章！' : '恭喜你完成今天的所有任務，記得看看獲得的徽章～';
   showDailyToast({ icon: '🏅', title, body });
   sendBrowserNotification(title, body);
   if(currentUser){
