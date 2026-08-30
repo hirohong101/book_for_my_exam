@@ -181,6 +181,12 @@ header.top{
 .book-tab .pct{ font-family:'JetBrains Mono',monospace; font-size:11px; color:var(--ink-soft); }
 .book-tab:hover{ background:var(--ledger-green-soft); }
 .book-tab.active{ background:var(--ledger-green-soft); font-weight:600; }
+.book-tab.paused{ opacity:0.5; }
+.book-tab.paused .pct{ color:var(--brass); }
+.paused-tag{
+  font-family:'JetBrains Mono',monospace; font-size:10px; font-weight:700; color:#72530f;
+  background:var(--brass-soft); border:1px solid var(--brass); border-radius:999px; padding:1px 7px; margin-left:6px;
+}
 
 .add-book{ border-top:1px dashed var(--card-border); margin-top:4px; padding-top:8px; }
 .add-book input{
@@ -208,6 +214,8 @@ header.top{
   border:1px solid var(--card-border); border-radius:4px; text-align:right;
 }
 .delete-book{ background:none; border:none; color:var(--danger); font-size:12px; cursor:pointer; text-decoration:underline; padding:0; }
+.pause-book{ background:none; border:none; color:var(--brass); font-size:12px; cursor:pointer; text-decoration:underline; padding:0; }
+.pause-book.is-paused{ color:var(--ledger-green); }
 
 .ruler{ margin:22px 0 26px; }
 .ruler .stats{ display:flex; justify-content:space-between; font-family:'JetBrains Mono',monospace; font-size:13px; color:var(--ink-soft); margin-bottom:10px; }
@@ -1039,6 +1047,29 @@ function dailyIndex(){
   return Math.floor(localMidnight.getTime() / 86400000);
 }
 
+// 「暫停排入每日任務」：屬於暫時性的個人設定，存在 localStorage 就好，
+// 不用動到 Supabase 的 books 資料表結構。暫停的書本還是看得到、可以手動記錄頁數，
+// 只是每天洗牌選書、加碼任務都不會抽到它，直到使用者自己再按一次恢復。
+function pausedBooksKey(){
+  return `pausedBooks:${currentUser ? currentUser.id : 'guest'}`;
+}
+function getPausedBookIds(){
+  try{ return JSON.parse(localStorage.getItem(pausedBooksKey()) || '[]'); }
+  catch{ return []; }
+}
+function setPausedBookIds(ids){
+  localStorage.setItem(pausedBooksKey(), JSON.stringify(ids));
+}
+function isBookPaused(bookId){
+  return getPausedBookIds().includes(bookId);
+}
+function toggleBookPaused(bookId){
+  const ids = getPausedBookIds();
+  const idx = ids.indexOf(bookId);
+  if(idx >= 0) ids.splice(idx, 1); else ids.push(bookId);
+  setPausedBookIds(ids);
+}
+
 const DAILY_PICK_COUNT = 4; // 每天挑幾本書
 const RESHUFFLE_PASSWORD = '262144'; // 沒寫完也能破例重排一次的密碼（只能用一次）
 function passwordReshuffleUsedKey(){
@@ -1066,8 +1097,10 @@ function createBonusTask(excludeBooks, mainTasks, seedOffset = 0){
     const target = Number(book.target) || 0;
     return !target || totalFor(book.id) < target;
   };
-  const candidates = books.filter(book=>notFull(book) && !excludeBooks.includes(book));
-  const pool = candidates.length ? candidates : books.filter(notFull);
+  const pausedIds = getPausedBookIds();
+  const notPaused = book=>!pausedIds.includes(book.id);
+  const candidates = books.filter(book=>notFull(book) && notPaused(book) && !excludeBooks.includes(book));
+  const pool = candidates.length ? candidates : books.filter(book=>notFull(book) && notPaused(book));
   if(!pool.length) return null;
 
   const book = pool[(dailyIndex() + seedOffset) % pool.length];
@@ -1410,7 +1443,9 @@ function lastWrittenPage(bookId){
 }
 
 function createDailyTaskPlan(){
+  const pausedIds = getPausedBookIds();
   const available = books.filter(book=>{
+    if(pausedIds.includes(book.id)) return false;
     const target = Number(book.target) || 0;
     return !target || totalFor(book.id) < target;
   });
@@ -2880,7 +2915,7 @@ function render(){
           const p = Math.round(pExact);
           const color = PALETTE[i % PALETTE.length];
           return `<button class="overview-card ${b.id===active.id?'active':''}" style="--tab-color:${color}" data-id="${b.id}">
-            <span class="name">${escapeHtml(b.name)}</span>
+            <span class="name">${escapeHtml(b.name)}${isBookPaused(b.id) ? '<span class="paused-tag">⏸ 暫停排程</span>' : ''}</span>
             ${tg>0 ? `
               <span class="num">已寫 <b>${t}</b> / ${tg} 頁</span>
               ${pageGridHTML(b.id, tg, color, 'compact')}
@@ -2897,9 +2932,10 @@ function render(){
           const t = totalFor(b.id); const tg = Number(b.target)||0;
           const p = tg>0 ? Math.min(100, Math.round((t/tg)*100)) : 0;
           const color = PALETTE[i % PALETTE.length];
-          return `<button class="book-tab ${b.id===active.id?'active':''}" style="--tab-color:${color}" data-id="${b.id}">
+          const paused = isBookPaused(b.id);
+          return `<button class="book-tab ${b.id===active.id?'active':''} ${paused?'paused':''}" style="--tab-color:${color}" data-id="${b.id}">
             <span class="name">${escapeHtml(b.name)}</span>
-            <span class="pct">${tg>0 ? p+'%' : t+'頁'}</span>
+            <span class="pct">${paused ? '⏸ 暫停' : (tg>0 ? p+'%' : t+'頁')}</span>
           </button>`;
         }).join('')}
         <div class="add-book">${addBookFormHTML()}</div>
@@ -2911,6 +2947,7 @@ function render(){
           <div class="target-edit">
             目標頁數
             <input type="number" min="0" id="targetInput" value="${target||''}" placeholder="未設定">
+            <button class="pause-book ${isBookPaused(active.id)?'is-paused':''}" id="pauseBookBtn">${isBookPaused(active.id) ? '▶ 恢復排入每日任務' : '⏸ 暫停排入每日任務'}</button>
             <button class="delete-book" id="delBookBtn">刪除此書</button>
           </div>
         </div>
@@ -2976,6 +3013,10 @@ function render(){
     const { error } = await db.from('books').update({ target: val }).eq('id', active.id);
     if(error){ alert('更新失敗：' + error.message); return; }
     active.target = val;
+    render();
+  });
+  document.getElementById('pauseBookBtn').addEventListener('click', ()=>{
+    toggleBookPaused(active.id);
     render();
   });
   document.getElementById('delBookBtn').addEventListener('click', async ()=>{
