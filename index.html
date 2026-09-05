@@ -574,6 +574,46 @@ table.ledger .del{ background:none; border:none; color:var(--danger); cursor:poi
 .mistake-card .m-review-count{ font-size:11.5px; color:var(--ink-soft); font-family:'JetBrains Mono',monospace; }
 .mistake-card .m-del{ background:none; border:none; color:var(--danger); cursor:pointer; font-size:12px; text-decoration:underline; }
 
+/* ---------- 我的單字本 ---------- */
+.vocab-form{ background:var(--ledger-green-soft); border-radius:var(--radius); padding:18px 18px 16px; margin-bottom:20px; }
+.vocab-form .field{ display:flex; flex-direction:column; gap:4px; margin-bottom:12px; }
+.vocab-form label{ font-size:11px; text-transform:uppercase; letter-spacing:0.05em; color:var(--ink-soft); font-family:'JetBrains Mono',monospace; }
+.vocab-form input[type=text], .vocab-form select{
+  font-family:'Inter',sans-serif; font-size:14px; padding:9px 11px; border:1px solid var(--card-border);
+  border-radius:4px; background:#fff; width:100%;
+}
+.vocab-form .row3{ display:grid; grid-template-columns:1.4fr 1.4fr 1fr; gap:14px; }
+@media (max-width:600px){ .vocab-form .row3{ grid-template-columns:1fr; } }
+.vocab-form-actions{ display:flex; justify-content:flex-end; gap:10px; margin-top:4px; }
+.vocab-form-error{ color:var(--danger); font-size:12.5px; margin:-4px 0 10px; }
+
+.vocab-grid{ display:grid; grid-template-columns:repeat(auto-fill, minmax(220px, 1fr)); gap:12px; }
+.vocab-card{
+  background:var(--card); border:1px solid var(--card-border); border-left:4px solid var(--cefr-color, var(--brass));
+  border-radius:var(--radius); box-shadow:var(--shadow); padding:14px 16px; display:flex; flex-direction:column; gap:6px;
+}
+.vocab-card .v-top{ display:flex; justify-content:space-between; align-items:flex-start; gap:8px; }
+.vocab-card .v-word{ font-family:'Fraunces',serif; font-size:18px; font-weight:600; }
+.cefr-tag{
+  font-family:'JetBrains Mono',monospace; font-size:10.5px; font-weight:700; flex-shrink:0;
+  background:var(--cefr-color, var(--brass)); color:#fff; padding:2px 8px; border-radius:999px;
+}
+.vocab-card .v-translation{ font-size:14px; color:var(--ink-soft); }
+.vocab-card .v-actions{ display:flex; justify-content:flex-end; margin-top:2px; }
+.vocab-card .v-del{ background:none; border:none; color:var(--danger); cursor:pointer; font-size:12px; text-decoration:underline; padding:0; }
+.vocab-seed-btn{
+  background:#fff; border:1px dashed var(--card-border); color:var(--ink-soft); border-radius:var(--radius);
+  padding:9px 16px; font-size:13px; cursor:pointer; font-family:'Inter',sans-serif; margin-top:10px;
+}
+.vocab-seed-btn:hover{ border-color:var(--ledger-green); color:var(--ledger-green); }
+.vocab-quiz-word-input{
+  width:100%; font-family:'JetBrains Mono',monospace; font-size:20px; text-align:center; padding:14px;
+  border:2px solid var(--card-border); border-radius:6px; margin-bottom:14px; background:#fff;
+}
+.vocab-quiz-word-input:focus{ outline:2px solid var(--ledger-green); }
+.vocab-quiz-prompt{ text-align:center; font-size:22px; font-weight:600; font-family:'Fraunces',serif; margin:6px 0 16px; }
+.vocab-quiz-hint{ text-align:center; font-size:12px; color:var(--ink-soft); margin:-6px 0 14px; }
+
 /* ---------- 複習 flashcard ---------- */
 .review-setup-card{ text-align:center; padding:28px 24px; }
 .review-setup-card p{ color:var(--ink-soft); font-size:13.5px; margin:4px 0 18px; }
@@ -696,12 +736,14 @@ table.ledger .del{ background:none; border:none; color:var(--danger); cursor:poi
       <button type="button" class="nav-item" data-section="mistakes" style="--nav-color:#A03A2E;"><span class="nav-icon">✏️</span><span>錯題本</span></button>
       <button type="button" class="nav-item" data-section="review" style="--nav-color:#B0812C;"><span class="nav-icon">🧠</span><span>複習</span></button>
       <button type="button" class="nav-item" data-section="daily" style="--nav-color:#4A6FA5;"><span class="nav-icon">📅</span><span>每日紀錄</span></button>
+      <button type="button" class="nav-item" data-section="vocab" style="--nav-color:#7A4A6B;"><span class="nav-icon">🔤</span><span>我的單字本</span></button>
     </nav>
     <div class="main-content">
       <div id="appPanel"><div class="loading">讀取資料中…</div></div>
       <div id="mistakesPanel" class="hidden"><div class="loading">讀取資料中…</div></div>
       <div id="reviewPanel" class="hidden"><div class="loading">讀取資料中…</div></div>
       <div id="dailyPanel" class="hidden"><div class="loading">讀取資料中…</div></div>
+      <div id="vocabPanel" class="hidden"><div class="loading">讀取資料中…</div></div>
     </div>
   </div>
 </div>
@@ -978,6 +1020,32 @@ let mistakeFormDraft = {};
 let reviewSubjectFilter = 'all';
 let reviewOnlyUnmastered = false;
 let reviewSession = null; // {queue:[ids], idx, correctCount, picked, revealed, lastCorrect}
+
+/* ---------------- 我的單字本：全域狀態 ---------------- */
+let vocab = [];              // [{id,word,translation,cefr,created_at}]
+const CEFR_LEVELS = ['A1','A2','B1','B2','C1','C2'];
+const CEFR_COLORS = { A1:'#3A8B6C', A2:'#2F5D50', B1:'#3A6B8A', B2:'#4A5B9E', C1:'#7A4A6B', C2:'#A03A2E' };
+let vocabShowForm = false;
+let vocabFormError = '';
+let vocabCefrFilter = 'all';
+let vocabQuizLevelFilter = 'all';
+let vocabShowQuizSetup = false;
+let vocabQuizSession = null; // {queue:[ids], idx, correctCount, picked, revealed, lastCorrect}
+
+const VOCAB_SAMPLE_WORDS = [
+  { word:'apple',        translation:'蘋果',        cefr:'A1' },
+  { word:'happy',        translation:'開心的',      cefr:'A1' },
+  { word:'curious',      translation:'好奇的',      cefr:'A2' },
+  { word:'travel',       translation:'旅行',        cefr:'A2' },
+  { word:'environment',  translation:'環境',        cefr:'B1' },
+  { word:'achieve',      translation:'達成；完成',  cefr:'B1' },
+  { word:'opportunity',  translation:'機會',        cefr:'B2' },
+  { word:'negotiate',    translation:'談判；協商',  cefr:'B2' },
+  { word:'resilience',   translation:'韌性；恢復力',cefr:'B2' },
+  { word:'ambiguous',    translation:'模糊不清的',  cefr:'C1' },
+  { word:'meticulous',   translation:'一絲不苟的',  cefr:'C1' },
+  { word:'ubiquitous',   translation:'無所不在的',  cefr:'C2' }
+];
 
 function todayStr(){ return new Date().toISOString().slice(0,10); }
 function escapeHtml(s){
@@ -1973,6 +2041,7 @@ async function loadAllData(){
   await loadBadges();
   await loadStreak();
   await loadMistakes();
+  await loadVocab();
 }
 
 /* ============================================================
@@ -1993,6 +2062,300 @@ function mistakeSubjects(){
 }
 
 function isMastered(m){ return (m.streak||0) >= MASTER_STREAK; }
+
+/* ============================================================
+   我的單字本
+   ============================================================ */
+
+async function loadVocab(){
+  vocab = [];
+  if(!currentUser) return;
+  const { data, error } = await db
+    .from('vocab').select('*').order('created_at', { ascending:false });
+  if(error){ console.error('讀取單字本失敗', error); return; }
+  vocab = data || [];
+}
+
+function vocabCefrCounts(){
+  const counts = {};
+  CEFR_LEVELS.forEach(l=> counts[l] = 0);
+  vocab.forEach(v=>{ if(counts[v.cefr] !== undefined) counts[v.cefr]++; });
+  return counts;
+}
+
+function renderVocabPanel(){
+  const panel = document.getElementById('vocabPanel');
+  if(vocabQuizSession){
+    panel.innerHTML = `<div class="panel">${vocabQuizSessionHTML()}</div>`;
+    bindVocabQuizEvents();
+    return;
+  }
+  if(vocabShowQuizSetup){
+    panel.innerHTML = `<div class="panel">${vocabQuizSetupHTML()}</div>`;
+    bindVocabQuizSetupEvents();
+    return;
+  }
+
+  const filtered = vocabCefrFilter === 'all' ? vocab : vocab.filter(v=>v.cefr===vocabCefrFilter);
+  const counts = vocabCefrCounts();
+
+  panel.innerHTML = `
+    <div class="panel">
+      <div class="section-head">
+        <h2>我的單字本</h2>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;">
+          ${vocab.length ? `<button type="button" class="ghost-btn" id="startVocabQuizSetupBtn">🧠 中翻英測驗</button>` : ''}
+          <button type="button" class="solid-btn" id="toggleVocabFormBtn">${vocabShowForm ? '－ 收起表單' : '＋ 新增單字'}</button>
+        </div>
+      </div>
+      ${vocabShowForm ? vocabFormHTML() : ''}
+      <div class="chip-row">
+        <button type="button" class="chip ${vocabCefrFilter==='all'?'active':''}" data-cefr="all">全部 (${vocab.length})</button>
+        ${CEFR_LEVELS.map(l=>`<button type="button" class="chip ${vocabCefrFilter===l?'active':''}" data-cefr="${l}">${l} (${counts[l]})</button>`).join('')}
+      </div>
+      ${vocab.length === 0 ? `
+        <div class="empty">
+          <h2>單字本還是空的</h2>
+          <p>按上方「＋ 新增單字」開始輸入第一個英文單字吧。</p>
+          <button type="button" class="vocab-seed-btn" id="seedVocabBtn">或者先載入 12 個試用單字試試看</button>
+        </div>
+      ` : (filtered.length === 0 ? `
+        <div class="empty"><h2>這個等級還沒有單字</h2><p>切換篩選條件，或新增屬於這個等級的單字。</p></div>
+      ` : `<div class="vocab-grid">${filtered.map(vocabCardHTML).join('')}</div>`)}
+    </div>
+  `;
+  bindVocabPanelEvents();
+}
+
+function vocabFormHTML(){
+  return `
+    <form class="vocab-form" id="vocabForm">
+      ${vocabFormError ? `<div class="vocab-form-error">${escapeHtml(vocabFormError)}</div>` : ''}
+      <div class="row3">
+        <div class="field">
+          <label>英文單字</label>
+          <input type="text" id="vWord" placeholder="例如：apple" autocomplete="off">
+        </div>
+        <div class="field">
+          <label>中文翻譯</label>
+          <input type="text" id="vTranslation" placeholder="例如：蘋果" autocomplete="off">
+        </div>
+        <div class="field">
+          <label>CEFR 難度</label>
+          <select id="vCefr">
+            ${CEFR_LEVELS.map(l=>`<option value="${l}">${l}</option>`).join('')}
+          </select>
+        </div>
+      </div>
+      <div class="vocab-form-actions">
+        <button type="button" class="ghost-btn" id="cancelVocabFormBtn">取消</button>
+        <button type="submit" class="solid-btn">新增單字</button>
+      </div>
+    </form>
+  `;
+}
+
+function vocabCardHTML(v){
+  const color = CEFR_COLORS[v.cefr] || 'var(--brass)';
+  return `
+    <div class="vocab-card" style="--cefr-color:${color}">
+      <div class="v-top">
+        <span class="v-word">${escapeHtml(v.word)}</span>
+        <span class="cefr-tag">${escapeHtml(v.cefr||'—')}</span>
+      </div>
+      <div class="v-translation">${escapeHtml(v.translation)}</div>
+      <div class="v-actions">
+        <button type="button" class="v-del" data-id="${v.id}">刪除</button>
+      </div>
+    </div>
+  `;
+}
+
+function bindVocabPanelEvents(){
+  const toggleBtn = document.getElementById('toggleVocabFormBtn');
+  if(toggleBtn) toggleBtn.addEventListener('click', ()=>{
+    vocabShowForm = !vocabShowForm;
+    vocabFormError = '';
+    renderVocabPanel();
+  });
+  const quizSetupBtn = document.getElementById('startVocabQuizSetupBtn');
+  if(quizSetupBtn) quizSetupBtn.addEventListener('click', ()=>{
+    vocabShowQuizSetup = true;
+    renderVocabPanel();
+  });
+  const cancelBtn = document.getElementById('cancelVocabFormBtn');
+  if(cancelBtn) cancelBtn.addEventListener('click', ()=>{
+    vocabShowForm = false; vocabFormError = '';
+    renderVocabPanel();
+  });
+  const form = document.getElementById('vocabForm');
+  if(form) form.addEventListener('submit', submitVocabForm);
+  document.querySelectorAll('#vocabPanel .chip').forEach(el=>{
+    el.addEventListener('click', ()=>{ vocabCefrFilter = el.dataset.cefr; renderVocabPanel(); });
+  });
+  document.querySelectorAll('#vocabPanel .v-del').forEach(el=>{
+    el.addEventListener('click', async ()=>{
+      if(!confirm('確定要刪除這個單字嗎？')) return;
+      const { error } = await db.from('vocab').delete().eq('id', el.dataset.id);
+      if(error){ alert('刪除失敗：' + error.message); return; }
+      vocab = vocab.filter(v=>v.id !== el.dataset.id);
+      renderVocabPanel();
+    });
+  });
+  const seedBtn = document.getElementById('seedVocabBtn');
+  if(seedBtn) seedBtn.addEventListener('click', seedVocabSample);
+}
+
+async function submitVocabForm(e){
+  e.preventDefault();
+  const word = document.getElementById('vWord').value.trim();
+  const translation = document.getElementById('vTranslation').value.trim();
+  const cefr = document.getElementById('vCefr').value;
+  if(!word || !translation){
+    vocabFormError = '請輸入英文單字和中文翻譯';
+    renderVocabPanel();
+    return;
+  }
+  const { data, error } = await db.from('vocab')
+    .insert({ word, translation, cefr, user_id: currentUser.id })
+    .select().single();
+  if(error){ vocabFormError = '新增失敗：' + error.message; renderVocabPanel(); return; }
+  vocab.unshift(data);
+  vocabShowForm = false;
+  vocabFormError = '';
+  renderVocabPanel();
+}
+
+async function seedVocabSample(){
+  const rows = VOCAB_SAMPLE_WORDS.map(w=>({ ...w, user_id: currentUser.id }));
+  const { data, error } = await db.from('vocab').insert(rows).select();
+  if(error){ alert('載入試用單字失敗：' + error.message); return; }
+  vocab = (data || []).concat(vocab);
+  renderVocabPanel();
+}
+
+/* ---------------- 我的單字本：中翻英測驗 ---------------- */
+
+function vocabQuizSetupHTML(){
+  const counts = vocabCefrCounts();
+  const pool = vocabQuizLevelFilter === 'all' ? vocab : vocab.filter(v=>v.cefr===vocabQuizLevelFilter);
+  return `
+    <div class="review-setup-card">
+      <h2 style="font-family:'Fraunces',serif;margin:0 0 4px;">中翻英測驗</h2>
+      <p>看到中文翻譯，寫出對應的英文單字</p>
+      <div class="chip-row" style="justify-content:center;">
+        <button type="button" class="chip ${vocabQuizLevelFilter==='all'?'active':''}" data-cefr="all">全部 (${vocab.length})</button>
+        ${CEFR_LEVELS.map(l=>`<button type="button" class="chip ${vocabQuizLevelFilter===l?'active':''}" data-cefr="${l}">${l} (${counts[l]})</button>`).join('')}
+      </div>
+      ${pool.length === 0 ? `
+        <div class="empty"><h2>這個範圍還沒有單字</h2><p>切換篩選條件，或先去新增一些單字。</p></div>
+      ` : `<button type="button" class="solid-btn" id="startVocabQuizBtn">開始測驗（共 ${pool.length} 題）</button>`}
+      <div style="margin-top:14px;">
+        <button type="button" class="ghost-btn" id="backToVocabListBtn">回到單字本</button>
+      </div>
+    </div>
+  `;
+}
+
+function bindVocabQuizSetupEvents(){
+  document.querySelectorAll('#vocabPanel .chip').forEach(el=>{
+    el.addEventListener('click', ()=>{ vocabQuizLevelFilter = el.dataset.cefr; renderVocabPanel(); });
+  });
+  const startBtn = document.getElementById('startVocabQuizBtn');
+  if(startBtn) startBtn.addEventListener('click', startVocabQuiz);
+  const backBtn = document.getElementById('backToVocabListBtn');
+  if(backBtn) backBtn.addEventListener('click', ()=>{ vocabShowQuizSetup = false; renderVocabPanel(); });
+}
+
+function startVocabQuiz(){
+  const pool = vocabQuizLevelFilter === 'all' ? vocab : vocab.filter(v=>v.cefr===vocabQuizLevelFilter);
+  const queue = pool.map(v=>v.id);
+  for(let i=queue.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [queue[i],queue[j]]=[queue[j],queue[i]]; }
+  vocabShowQuizSetup = false;
+  vocabQuizSession = { queue, idx:0, correctCount:0, picked:null, revealed:false, lastCorrect:false };
+  renderVocabPanel();
+}
+
+function normalizeAnswer(s){
+  return String(s||'').trim().toLowerCase().replace(/\s+/g,' ');
+}
+
+function vocabQuizSessionHTML(){
+  const total = vocabQuizSession.queue.length;
+  if(vocabQuizSession.idx >= total){
+    const correct = vocabQuizSession.correctCount;
+    return `
+      <div class="flash-wrap">
+        <div class="summary-card">
+          <span class="subject-tag">測驗結果</span>
+          <div class="score">${correct} <span>/ ${total}</span></div>
+          <p style="color:var(--ink-soft);font-size:13.5px;">答對率 ${total?Math.round(correct/total*100):0}%</p>
+          <div class="flash-actions" style="justify-content:center;margin-top:16px;">
+            <button type="button" class="ghost-btn" id="vocabBackToListBtn">回到單字本</button>
+            <button type="button" class="solid-btn" id="vocabRestartBtn">再測驗一次</button>
+          </div>
+        </div>
+      </div>`;
+  }
+  const v = vocab.find(x=>x.id===vocabQuizSession.queue[vocabQuizSession.idx]);
+  if(!v){ vocabQuizSession.idx++; return vocabQuizSessionHTML(); }
+  const revealed = vocabQuizSession.revealed;
+
+  let resultHtml = '';
+  if(revealed){
+    resultHtml = `
+      <div class="result-banner ${vocabQuizSession.lastCorrect?'ok':'no'}">${vocabQuizSession.lastCorrect?'✓ 答對了':'✗ 答錯了'}</div>
+      ${!vocabQuizSession.lastCorrect ? `<div class="correct-line">正確答案：<b>${escapeHtml(v.word)}</b></div>` : ''}
+    `;
+  }
+
+  return `
+    <div class="flash-wrap">
+      <div class="flash-progress"><span>第 ${vocabQuizSession.idx+1} / ${total} 題</span><span>答對 ${vocabQuizSession.correctCount} 題</span></div>
+      <div class="flash-bar"><div class="fill" style="width:${(vocabQuizSession.idx/total*100)}%"></div></div>
+      <div class="flashcard">
+        <span class="cefr-tag" style="--cefr-color:${CEFR_COLORS[v.cefr]||'var(--brass)'}">${escapeHtml(v.cefr||'—')}</span>
+        <div class="vocab-quiz-prompt">${escapeHtml(v.translation)}</div>
+        <div class="vocab-quiz-hint">請輸入對應的英文單字</div>
+        <input type="text" class="vocab-quiz-word-input" id="vocabAnswerInput" placeholder="type the English word" autocomplete="off" autocapitalize="off" spellcheck="false" ${revealed?'disabled':''} value="${revealed?escapeHtml(vocabQuizSession.picked||''):''}">
+        ${resultHtml}
+        <div class="flash-actions">
+          ${!revealed ? `<button type="button" class="solid-btn" id="submitVocabAnswerBtn">送出答案</button>` : ''}
+          ${revealed ? `<button type="button" class="solid-btn" id="nextVocabCardBtn">${vocabQuizSession.idx+1>=total?'查看結果':'下一題'}</button>` : ''}
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+function bindVocabQuizEvents(){
+  const input = document.getElementById('vocabAnswerInput');
+  if(input) input.focus();
+  const submitBtn = document.getElementById('submitVocabAnswerBtn');
+  if(submitBtn) submitBtn.addEventListener('click', ()=>{
+    vocabQuizSession.picked = input ? input.value : '';
+    revealVocabAnswer();
+  });
+  if(input) input.addEventListener('keydown', (e)=>{ if(e.key==='Enter'){ e.preventDefault(); submitBtn?.click(); } });
+  const nextBtn = document.getElementById('nextVocabCardBtn');
+  if(nextBtn) nextBtn.addEventListener('click', ()=>{
+    vocabQuizSession.idx++; vocabQuizSession.revealed = false; vocabQuizSession.picked = null;
+    renderVocabPanel();
+  });
+  const backBtn = document.getElementById('vocabBackToListBtn');
+  if(backBtn) backBtn.addEventListener('click', ()=>{ vocabQuizSession = null; renderVocabPanel(); });
+  const restartBtn = document.getElementById('vocabRestartBtn');
+  if(restartBtn) restartBtn.addEventListener('click', ()=>{ vocabQuizSession = null; startVocabQuiz(); });
+}
+
+function revealVocabAnswer(){
+  const v = vocab.find(x=>x.id===vocabQuizSession.queue[vocabQuizSession.idx]);
+  const correct = normalizeAnswer(vocabQuizSession.picked) === normalizeAnswer(v.word);
+  vocabQuizSession.revealed = true;
+  vocabQuizSession.lastCorrect = correct;
+  if(correct) vocabQuizSession.correctCount++;
+  renderVocabPanel();
+}
 
 /* ============================================================
    每日紀錄（熱力圖）：最近 365 天每天寫了多少頁、各科分別多少
@@ -2161,9 +2524,11 @@ function switchSection(section){
   document.getElementById('mistakesPanel').classList.toggle('hidden', section !== 'mistakes');
   document.getElementById('reviewPanel').classList.toggle('hidden', section !== 'review');
   document.getElementById('dailyPanel').classList.toggle('hidden', section !== 'daily');
+  document.getElementById('vocabPanel').classList.toggle('hidden', section !== 'vocab');
   if(section === 'mistakes'){ mistakeShowForm = false; renderMistakesPanel(); }
   if(section === 'review'){ reviewSession = null; renderReviewPanel(); }
   if(section === 'daily'){ renderDailyPanel(); }
+  if(section === 'vocab'){ vocabShowForm = false; vocabShowQuizSetup = false; vocabQuizSession = null; renderVocabPanel(); }
 }
 
 /* ---------------- 錯題本：整理 ---------------- */
