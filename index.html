@@ -582,6 +582,12 @@ table.ledger .del{ background:none; border:none; color:var(--danger); cursor:poi
   font-family:'Inter',sans-serif; font-size:14px; padding:9px 11px; border:1px solid var(--card-border);
   border-radius:4px; background:#fff; width:100%;
 }
+.vocab-form textarea{
+  font-family:'JetBrains Mono',monospace; font-size:13px; padding:9px 11px; border:1px solid var(--card-border);
+  border-radius:4px; background:#fff; width:100%; min-height:64px; resize:vertical; line-height:1.5;
+}
+.vocab-quick-field{ background:#fff; border:1px dashed var(--brass); border-radius:6px; padding:10px 12px; margin-bottom:14px; }
+.vocab-quick-field label{ display:flex; align-items:center; gap:6px; }
 .vocab-form .row3{ display:grid; grid-template-columns:1.4fr 1.4fr 1fr; gap:14px; }
 @media (max-width:600px){ .vocab-form .row3{ grid-template-columns:1fr; } }
 .vocab-form-actions{ display:flex; justify-content:flex-end; gap:10px; margin-top:4px; }
@@ -593,6 +599,19 @@ table.ledger .del{ background:none; border:none; color:var(--danger); cursor:poi
   border-radius:var(--radius); box-shadow:var(--shadow); padding:14px 16px; display:flex; flex-direction:column; gap:6px;
 }
 .vocab-card .v-top{ display:flex; justify-content:space-between; align-items:flex-start; gap:8px; }
+.vocab-card.selected{ outline:2px solid var(--danger); outline-offset:1px; }
+.vocab-card .v-select-chk{ width:16px; height:16px; flex-shrink:0; cursor:pointer; }
+
+.vocab-stats-grid{ display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-bottom:20px; }
+@media (max-width:720px){ .vocab-stats-grid{ grid-template-columns:1fr; } }
+.vocab-chart-card{
+  background:var(--card); border:1px solid var(--card-border); border-radius:var(--radius);
+  box-shadow:var(--shadow); padding:16px 18px;
+}
+.vocab-chart-card h3{ font-family:'Fraunces',serif; font-size:14px; font-weight:600; margin:0 0 10px; text-align:center; color:var(--ink); }
+.vocab-pie-legend{ display:flex; flex-direction:column; gap:6px; font-size:12.5px; color:var(--ink-soft); font-family:'JetBrains Mono',monospace; }
+.vocab-pie-legend .legend-item{ display:flex; align-items:center; }
+.legend-dot{ display:inline-block; width:10px; height:10px; border-radius:50%; margin-right:7px; flex-shrink:0; }
 .vocab-card .v-word{ font-family:'Fraunces',serif; font-size:18px; font-weight:600; }
 .cefr-tag{
   font-family:'JetBrains Mono',monospace; font-size:10.5px; font-weight:700; flex-shrink:0;
@@ -1031,6 +1050,8 @@ let vocabCefrFilter = 'all';
 let vocabQuizLevelFilter = 'all';
 let vocabShowQuizSetup = false;
 let vocabQuizSession = null; // {queue:[ids], idx, correctCount, picked, revealed, lastCorrect}
+let vocabSelectMode = false;
+let vocabSelectedIds = new Set();
 
 const VOCAB_SAMPLE_WORDS = [
   { word:'apple',        translation:'蘋果',        cefr:'A1' },
@@ -2083,6 +2104,84 @@ function vocabCefrCounts(){
   return counts;
 }
 
+function cefrDataForChart(){
+  const counts = vocabCefrCounts();
+  return CEFR_LEVELS.map(l=>({ level:l, count: counts[l]||0, color: CEFR_COLORS[l] }));
+}
+
+function vocabBarChartSVG(){
+  const data = cefrDataForChart();
+  const max = Math.max(1, ...data.map(d=>d.count));
+  const barW = 34, gap = 20, chartH = 130, baseY = 150, leftPad = 20;
+  const width = leftPad*2 + data.length*(barW+gap) - gap;
+  const bars = data.map((d,i)=>{
+    const x = leftPad + i*(barW+gap);
+    const h = d.count === 0 ? 0 : Math.max(3, Math.round((d.count/max)*chartH));
+    const y = baseY - h;
+    return `
+      <rect x="${x}" y="${y}" width="${barW}" height="${h}" rx="4" fill="${d.color}"></rect>
+      <text x="${x+barW/2}" y="${baseY+18}" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="11" fill="#6b6659">${d.level}</text>
+      <text x="${x+barW/2}" y="${h>0?y-6:baseY-6}" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="12" font-weight="700" fill="#2B2A26">${d.count}</text>
+    `;
+  }).join('');
+  return `<svg viewBox="0 0 ${width} 176" width="100%" height="176" role="img" aria-label="各CEFR等級單字數量長條圖">
+    <line x1="6" y1="${baseY}" x2="${width-6}" y2="${baseY}" stroke="#DAD3C1" stroke-width="1"></line>
+    ${bars}
+  </svg>`;
+}
+
+function polarToCartesian(cx, cy, r, angleDeg){
+  const rad = (angleDeg - 90) * Math.PI / 180;
+  return [cx + r*Math.cos(rad), cy + r*Math.sin(rad)];
+}
+
+function vocabPieChartSVG(){
+  const data = cefrDataForChart().filter(d=>d.count>0);
+  const total = data.reduce((s,d)=>s+d.count,0);
+  const cx=90, cy=90, r=80;
+  if(total === 0 || data.length === 1){
+    const color = data[0] ? data[0].color : '#DAD3C1';
+    return `<svg viewBox="0 0 180 180" width="180" height="180" role="img" aria-label="各CEFR等級單字比例圓餅圖">
+      <circle cx="${cx}" cy="${cy}" r="${r}" fill="${color}"></circle>
+    </svg>`;
+  }
+  let startAngle = 0;
+  const slices = data.map(d=>{
+    const angle = (d.count/total)*360;
+    const endAngle = startAngle+angle;
+    const largeArc = angle>180?1:0;
+    const [x1,y1] = polarToCartesian(cx,cy,r,startAngle);
+    const [x2,y2] = polarToCartesian(cx,cy,r,endAngle);
+    const path = `M ${cx} ${cy} L ${x1.toFixed(2)} ${y1.toFixed(2)} A ${r} ${r} 0 ${largeArc} 1 ${x2.toFixed(2)} ${y2.toFixed(2)} Z`;
+    const slice = `<path d="${path}" fill="${d.color}" stroke="#FCFAF5" stroke-width="1.5"><title>${d.level}: ${d.count}</title></path>`;
+    startAngle = endAngle;
+    return slice;
+  }).join('');
+  return `<svg viewBox="0 0 180 180" width="180" height="180" role="img" aria-label="各CEFR等級單字比例圓餅圖">${slices}</svg>`;
+}
+
+function vocabStatsHTML(){
+  if(vocab.length === 0) return '';
+  const data = cefrDataForChart().filter(d=>d.count>0);
+  return `
+    <div class="vocab-stats-grid">
+      <div class="vocab-chart-card">
+        <h3>各等級單字數量（長條圖）</h3>
+        ${vocabBarChartSVG()}
+      </div>
+      <div class="vocab-chart-card">
+        <h3>各等級比例（圓餅圖）</h3>
+        <div style="display:flex;align-items:center;gap:20px;flex-wrap:wrap;justify-content:center;">
+          ${vocabPieChartSVG()}
+          <div class="vocab-pie-legend">
+            ${data.map(d=>`<div class="legend-item"><span class="legend-dot" style="background:${d.color}"></span>${d.level} · ${d.count} 個（${Math.round(d.count/vocab.length*100)}%）</div>`).join('')}
+          </div>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
 function renderVocabPanel(){
   const panel = document.getElementById('vocabPanel');
   if(vocabQuizSession){
@@ -2103,16 +2202,25 @@ function renderVocabPanel(){
     <div class="panel">
       <div class="section-head">
         <h2>我的單字本</h2>
-        <div style="display:flex;gap:8px;flex-wrap:wrap;">
-          ${vocab.length ? `<button type="button" class="ghost-btn" id="startVocabQuizSetupBtn">🧠 中翻英測驗</button>` : ''}
-          <button type="button" class="solid-btn" id="toggleVocabFormBtn">${vocabShowForm ? '－ 收起表單' : '＋ 新增單字'}</button>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
+          ${vocabSelectMode ? `
+            <span style="font-size:12.5px;color:var(--ink-soft);font-family:'JetBrains Mono',monospace;">已選 ${vocabSelectedIds.size} 個</span>
+            <button type="button" class="solid-btn" id="deleteSelectedVocabBtn" style="background:var(--danger);" ${vocabSelectedIds.size===0?'disabled':''}>刪除已選</button>
+            <button type="button" class="ghost-btn" id="cancelVocabSelectBtn">取消選擇</button>
+          ` : `
+            ${vocab.length ? `<button type="button" class="ghost-btn" id="startVocabQuizSetupBtn">🧠 中翻英測驗</button>` : ''}
+            ${vocab.length ? `<button type="button" class="ghost-btn" id="toggleVocabSelectBtn">☑️ 選擇刪除</button>` : ''}
+            ${vocab.length ? `<button type="button" class="ghost-btn" id="deleteAllVocabBtn" style="color:var(--danger);border-color:var(--danger);">🗑 全部刪除</button>` : ''}
+            <button type="button" class="solid-btn" id="toggleVocabFormBtn">${vocabShowForm ? '－ 收起表單' : '＋ 新增單字'}</button>
+          `}
         </div>
       </div>
-      ${vocabShowForm ? vocabFormHTML() : ''}
+      ${(vocabShowForm && !vocabSelectMode) ? vocabFormHTML() : ''}
       <div class="chip-row">
         <button type="button" class="chip ${vocabCefrFilter==='all'?'active':''}" data-cefr="all">全部 (${vocab.length})</button>
         ${CEFR_LEVELS.map(l=>`<button type="button" class="chip ${vocabCefrFilter===l?'active':''}" data-cefr="${l}">${l} (${counts[l]})</button>`).join('')}
       </div>
+      ${vocabStatsHTML()}
       ${vocab.length === 0 ? `
         <div class="empty">
           <h2>單字本還是空的</h2>
@@ -2131,6 +2239,15 @@ function vocabFormHTML(){
   return `
     <form class="vocab-form" id="vocabForm">
       ${vocabFormError ? `<div class="vocab-form-error">${escapeHtml(vocabFormError)}</div>` : ''}
+      <div class="field vocab-quick-field">
+        <label>⚡ 特別格式快速輸入（支援：①單字/翻譯/CEFR 三行一組，空行分隔多組；②直接從試算表貼上「編號、單字、翻譯、CEFR」一行一筆，多筆亦可）</label>
+        <textarea id="vQuickInput" placeholder="dull
+無聊的；乏味的；暗淡的；鈍的
+B1" rows="3"></textarea>
+        <div style="display:flex;justify-content:flex-end;margin-top:6px;">
+          <button type="button" class="ghost-btn" id="parseVocabQuickBtn" style="padding:6px 14px;font-size:12.5px;">解析並帶入</button>
+        </div>
+      </div>
       <div class="row3">
         <div class="field">
           <label>英文單字</label>
@@ -2157,16 +2274,21 @@ function vocabFormHTML(){
 
 function vocabCardHTML(v){
   const color = CEFR_COLORS[v.cefr] || 'var(--brass)';
+  const checked = vocabSelectedIds.has(v.id);
   return `
-    <div class="vocab-card" style="--cefr-color:${color}">
+    <div class="vocab-card ${checked?'selected':''}" style="--cefr-color:${color}">
       <div class="v-top">
-        <span class="v-word">${escapeHtml(v.word)}</span>
+        <div style="display:flex;align-items:center;gap:8px;min-width:0;">
+          ${vocabSelectMode ? `<input type="checkbox" class="v-select-chk" data-id="${v.id}" ${checked?'checked':''}>` : ''}
+          <span class="v-word">${escapeHtml(v.word)}</span>
+        </div>
         <span class="cefr-tag">${escapeHtml(v.cefr||'—')}</span>
       </div>
       <div class="v-translation">${escapeHtml(v.translation)}</div>
+      ${!vocabSelectMode ? `
       <div class="v-actions">
         <button type="button" class="v-del" data-id="${v.id}">刪除</button>
-      </div>
+      </div>` : ''}
     </div>
   `;
 }
@@ -2204,6 +2326,154 @@ function bindVocabPanelEvents(){
   });
   const seedBtn = document.getElementById('seedVocabBtn');
   if(seedBtn) seedBtn.addEventListener('click', seedVocabSample);
+
+  // 選擇刪除模式
+  const selectToggleBtn = document.getElementById('toggleVocabSelectBtn');
+  if(selectToggleBtn) selectToggleBtn.addEventListener('click', ()=>{
+    vocabSelectMode = true; vocabSelectedIds = new Set(); vocabShowForm = false;
+    renderVocabPanel();
+  });
+  const cancelSelectBtn = document.getElementById('cancelVocabSelectBtn');
+  if(cancelSelectBtn) cancelSelectBtn.addEventListener('click', ()=>{
+    vocabSelectMode = false; vocabSelectedIds = new Set();
+    renderVocabPanel();
+  });
+  document.querySelectorAll('#vocabPanel .v-select-chk').forEach(el=>{
+    el.addEventListener('change', ()=>{
+      if(el.checked) vocabSelectedIds.add(el.dataset.id); else vocabSelectedIds.delete(el.dataset.id);
+      renderVocabPanel();
+    });
+  });
+  const deleteSelectedBtn = document.getElementById('deleteSelectedVocabBtn');
+  if(deleteSelectedBtn) deleteSelectedBtn.addEventListener('click', deleteSelectedVocab);
+  const deleteAllBtn = document.getElementById('deleteAllVocabBtn');
+  if(deleteAllBtn) deleteAllBtn.addEventListener('click', deleteAllVocab);
+
+  bindVocabQuickInput();
+}
+
+function vocabWordExists(word, excludeId){
+  const key = normalizeAnswer(word);
+  return vocab.some(v => v.id !== excludeId && normalizeAnswer(v.word) === key);
+}
+
+async function deleteSelectedVocab(){
+  if(vocabSelectedIds.size === 0) return;
+  const ids = Array.from(vocabSelectedIds);
+  if(!confirm(`確定要刪除已選取的 ${ids.length} 個單字嗎？`)) return;
+  const results = await Promise.all(ids.map(id => db.from('vocab').delete().eq('id', id)));
+  const failedIds = new Set();
+  let firstErrorMsg = '';
+  results.forEach((r,i)=>{ if(r.error){ failedIds.add(ids[i]); firstErrorMsg = firstErrorMsg || r.error.message; } });
+  if(failedIds.size) alert(`有 ${failedIds.size} 筆刪除失敗：${firstErrorMsg}`);
+  vocab = vocab.filter(v => !ids.includes(v.id) || failedIds.has(v.id));
+  vocabSelectMode = false;
+  vocabSelectedIds = new Set();
+  renderVocabPanel();
+}
+
+async function deleteAllVocab(){
+  if(vocab.length === 0) return;
+  if(!confirm(`確定要刪除單字本裡全部 ${vocab.length} 個單字嗎？這個動作無法復原。`)) return;
+  const { error } = await db.from('vocab').delete().eq('user_id', currentUser.id);
+  if(error){ alert('刪除失敗：' + error.message); return; }
+  vocab = [];
+  vocabSelectMode = false;
+  vocabSelectedIds = new Set();
+  renderVocabPanel();
+}
+
+function normalizeCefrValue(v){
+  const c = String(v||'').trim().toUpperCase();
+  return CEFR_LEVELS.includes(c) ? c : '';
+}
+
+// 解析「一行一筆、欄位用 Tab（或連續空白）分隔」的格式，例如從試算表貼上：
+//   1  dull  無聊的；乏味的；暗淡的；鈍的  B1
+// 開頭的編號欄位會自動被忽略。
+function parseVocabRow(line){
+  let cols = line.split('\t').map(c=>c.trim()).filter(c=>c!=='');
+  if(cols.length < 2){
+    cols = line.trim().split(/\s{2,}/).map(c=>c.trim()).filter(c=>c!=='');
+  }
+  if(cols.length < 2) return null;
+  if(/^\d+[.、]?$/.test(cols[0]) && cols.length >= 3){
+    cols = cols.slice(1); // 去掉開頭的編號欄位
+  }
+  const word = cols[0];
+  const translation = cols[1] || '';
+  const cefr = normalizeCefrValue(cols[2]);
+  if(!word || !translation) return null;
+  return { word, translation, cefr };
+}
+
+function parseVocabQuickInput(text){
+  const raw = String(text||'');
+  const nonEmptyLines = raw.split('\n').map(l=>l.replace(/\r$/,'')).filter(l=>l.trim()!=='');
+  if(nonEmptyLines.length === 0) return [];
+
+  // 格式一：每行一筆（Tab 分隔，常見於試算表貼上，開頭可有編號欄位）
+  if(nonEmptyLines.some(l=>l.includes('\t'))){
+    const rowItems = nonEmptyLines.map(parseVocabRow).filter(Boolean);
+    if(rowItems.length) return rowItems;
+  }
+
+  // 格式二：三行一組（單字／翻譯／CEFR），多組之間用空行分隔
+  const blocks = raw.split(/\n\s*\n/).map(b=>b.trim()).filter(Boolean);
+  const items = [];
+  blocks.forEach(block=>{
+    const lines = block.split('\n').map(l=>l.trim()).filter(Boolean);
+    if(lines.length < 2) return;
+    const word = lines[0];
+    const translation = lines[1];
+    const cefr = normalizeCefrValue(lines[2]);
+    if(word && translation) items.push({ word, translation, cefr });
+  });
+  return items;
+}
+
+function bindVocabQuickInput(){
+  const ta = document.getElementById('vQuickInput');
+  const parseBtn = document.getElementById('parseVocabQuickBtn');
+  if(!ta) return;
+  const doParse = async ()=>{
+    const items = parseVocabQuickInput(ta.value);
+    if(items.length === 0) return;
+    if(items.length === 1){
+      const it = items[0];
+      document.getElementById('vWord').value = it.word;
+      document.getElementById('vTranslation').value = it.translation;
+      if(it.cefr) document.getElementById('vCefr').value = it.cefr;
+      ta.value = '';
+    }else{
+      const seen = new Set();
+      const deduped = [];
+      items.forEach(it=>{
+        const key = normalizeAnswer(it.word);
+        if(seen.has(key)) return;
+        seen.add(key);
+        deduped.push(it);
+      });
+      const newOnes = deduped.filter(it=>!vocabWordExists(it.word));
+      const dupCount = items.length - newOnes.length;
+      if(newOnes.length === 0){
+        alert('這些單字都已經在單字本裡了，沒有新增任何項目。');
+        return;
+      }
+      const msg = dupCount > 0
+        ? `偵測到 ${items.length} 筆單字（其中 ${dupCount} 筆重複，將略過），要新增其餘 ${newOnes.length} 筆到單字本嗎？`
+        : `偵測到 ${newOnes.length} 筆單字，要一次全部加入單字本嗎？`;
+      if(!confirm(msg)) return;
+      const rows = newOnes.map(it=>({ word:it.word, translation:it.translation, cefr: it.cefr || 'A1', user_id: currentUser.id }));
+      const { data, error } = await db.from('vocab').insert(rows).select();
+      if(error){ alert('批次新增失敗：' + error.message); return; }
+      vocab = (data || []).concat(vocab);
+      vocabShowForm = false;
+      renderVocabPanel();
+    }
+  };
+  ta.addEventListener('paste', ()=> setTimeout(doParse, 0));
+  if(parseBtn) parseBtn.addEventListener('click', doParse);
 }
 
 async function submitVocabForm(e){
@@ -2213,6 +2483,11 @@ async function submitVocabForm(e){
   const cefr = document.getElementById('vCefr').value;
   if(!word || !translation){
     vocabFormError = '請輸入英文單字和中文翻譯';
+    renderVocabPanel();
+    return;
+  }
+  if(vocabWordExists(word)){
+    vocabFormError = `「${word}」已經在單字本裡了，不重複新增。`;
     renderVocabPanel();
     return;
   }
@@ -2227,7 +2502,12 @@ async function submitVocabForm(e){
 }
 
 async function seedVocabSample(){
-  const rows = VOCAB_SAMPLE_WORDS.map(w=>({ ...w, user_id: currentUser.id }));
+  const newOnes = VOCAB_SAMPLE_WORDS.filter(w=>!vocabWordExists(w.word));
+  if(newOnes.length === 0){
+    alert('這些試用單字都已經在單字本裡囉。');
+    return;
+  }
+  const rows = newOnes.map(w=>({ ...w, user_id: currentUser.id }));
   const { data, error } = await db.from('vocab').insert(rows).select();
   if(error){ alert('載入試用單字失敗：' + error.message); return; }
   vocab = (data || []).concat(vocab);
@@ -2528,7 +2808,7 @@ function switchSection(section){
   if(section === 'mistakes'){ mistakeShowForm = false; renderMistakesPanel(); }
   if(section === 'review'){ reviewSession = null; renderReviewPanel(); }
   if(section === 'daily'){ renderDailyPanel(); }
-  if(section === 'vocab'){ vocabShowForm = false; vocabShowQuizSetup = false; vocabQuizSession = null; renderVocabPanel(); }
+  if(section === 'vocab'){ vocabShowForm = false; vocabShowQuizSetup = false; vocabQuizSession = null; vocabSelectMode = false; vocabSelectedIds = new Set(); renderVocabPanel(); }
 }
 
 /* ---------------- 錯題本：整理 ---------------- */
