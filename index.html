@@ -1052,6 +1052,9 @@ let vocabShowQuizSetup = false;
 let vocabQuizSession = null; // {queue:[ids], idx, correctCount, picked, revealed, lastCorrect}
 let vocabSelectMode = false;
 let vocabSelectedIds = new Set();
+const QUIZ_COUNT_OPTIONS = [5,10,15,20,30,50,75,100];
+let vocabQuizType = 'zh2en'; // 'zh2en'（看中文選英文） | 'en2zh'（看英文選中文）
+let vocabQuizCount = 10;
 
 const VOCAB_SAMPLE_WORDS = [
   { word:'apple',        translation:'蘋果',        cefr:'A1' },
@@ -2205,6 +2208,7 @@ function renderVocabPanel(){
         <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
           ${vocabSelectMode ? `
             <span style="font-size:12.5px;color:var(--ink-soft);font-family:'JetBrains Mono',monospace;">已選 ${vocabSelectedIds.size} 個</span>
+            <button type="button" class="ghost-btn" id="copySelectedVocabBtn" ${vocabSelectedIds.size===0?'disabled':''}>📋 複製已選</button>
             <button type="button" class="solid-btn" id="deleteSelectedVocabBtn" style="background:var(--danger);" ${vocabSelectedIds.size===0?'disabled':''}>刪除已選</button>
             <button type="button" class="ghost-btn" id="cancelVocabSelectBtn">取消選擇</button>
           ` : `
@@ -2346,6 +2350,8 @@ function bindVocabPanelEvents(){
   });
   const deleteSelectedBtn = document.getElementById('deleteSelectedVocabBtn');
   if(deleteSelectedBtn) deleteSelectedBtn.addEventListener('click', deleteSelectedVocab);
+  const copySelectedBtn = document.getElementById('copySelectedVocabBtn');
+  if(copySelectedBtn) copySelectedBtn.addEventListener('click', copySelectedVocab);
   const deleteAllBtn = document.getElementById('deleteAllVocabBtn');
   if(deleteAllBtn) deleteAllBtn.addEventListener('click', deleteAllVocab);
 
@@ -2355,6 +2361,38 @@ function bindVocabPanelEvents(){
 function vocabWordExists(word, excludeId){
   const key = normalizeAnswer(word);
   return vocab.some(v => v.id !== excludeId && normalizeAnswer(v.word) === key);
+}
+
+async function copySelectedVocab(){
+  if(vocabSelectedIds.size === 0) return;
+  const ids = Array.from(vocabSelectedIds);
+  const items = vocab.filter(v => ids.includes(v.id));
+  if(items.length === 0) return;
+  const text = items.map(v => `${v.word}\t${v.translation}\t${v.cefr || ''}`).join('\n');
+  const done = ()=> alert(`已複製 ${items.length} 個單字的中英文到剪貼簿。`);
+  try{
+    if(navigator.clipboard && navigator.clipboard.writeText){
+      await navigator.clipboard.writeText(text);
+      done();
+      return;
+    }
+    throw new Error('no clipboard api');
+  }catch(err){
+    try{
+      const ta = document.createElement('textarea');
+      ta.value = text;
+      ta.style.position = 'fixed';
+      ta.style.opacity = '0';
+      document.body.appendChild(ta);
+      ta.focus();
+      ta.select();
+      document.execCommand('copy');
+      document.body.removeChild(ta);
+      done();
+    }catch(err2){
+      alert('複製失敗，請手動選取文字複製。');
+    }
+  }
 }
 
 async function deleteSelectedVocab(){
@@ -2519,17 +2557,39 @@ async function seedVocabSample(){
 function vocabQuizSetupHTML(){
   const counts = vocabCefrCounts();
   const pool = vocabQuizLevelFilter === 'all' ? vocab : vocab.filter(v=>v.cefr===vocabQuizLevelFilter);
+  let effectiveCount = vocabQuizCount;
+  if(effectiveCount !== 'all' && effectiveCount > pool.length) effectiveCount = 'all';
+  const actualCount = effectiveCount === 'all' ? pool.length : effectiveCount;
+  const tooFewWords = vocab.length < 2;
+
   return `
     <div class="review-setup-card">
-      <h2 style="font-family:'Fraunces',serif;margin:0 0 4px;">中翻英測驗</h2>
-      <p>看到中文翻譯，寫出對應的英文單字</p>
+      <h2 style="font-family:'Fraunces',serif;margin:0 0 4px;">單字測驗</h2>
+      <p>選擇題模式，可以自訂測驗種類、範圍與題數</p>
+
+      <div style="margin-top:14px;font-size:12px;color:var(--ink-soft);font-family:'JetBrains Mono',monospace;text-transform:uppercase;letter-spacing:.05em;">測驗種類</div>
+      <div class="chip-row" style="justify-content:center;">
+        <button type="button" class="chip ${vocabQuizType==='zh2en'?'active':''}" data-quiztype="zh2en">中翻英（看中文選英文）</button>
+        <button type="button" class="chip ${vocabQuizType==='en2zh'?'active':''}" data-quiztype="en2zh">英翻中（看英文選中文）</button>
+      </div>
+
+      <div style="margin-top:14px;font-size:12px;color:var(--ink-soft);font-family:'JetBrains Mono',monospace;text-transform:uppercase;letter-spacing:.05em;">CEFR 範圍</div>
       <div class="chip-row" style="justify-content:center;">
         <button type="button" class="chip ${vocabQuizLevelFilter==='all'?'active':''}" data-cefr="all">全部 (${vocab.length})</button>
         ${CEFR_LEVELS.map(l=>`<button type="button" class="chip ${vocabQuizLevelFilter===l?'active':''}" data-cefr="${l}">${l} (${counts[l]})</button>`).join('')}
       </div>
-      ${pool.length === 0 ? `
+
+      <div style="margin-top:14px;font-size:12px;color:var(--ink-soft);font-family:'JetBrains Mono',monospace;text-transform:uppercase;letter-spacing:.05em;">題數</div>
+      <div class="chip-row" style="justify-content:center;">
+        ${QUIZ_COUNT_OPTIONS.map(n=>`<button type="button" class="chip ${effectiveCount===n?'active':''}" data-count="${n}" ${n>pool.length?'disabled':''}>${n} 題</button>`).join('')}
+        <button type="button" class="chip ${effectiveCount==='all'?'active':''}" data-count="all">全部 (${pool.length})</button>
+      </div>
+
+      ${tooFewWords ? `
+        <div class="empty"><h2>單字太少了</h2><p>單字本至少需要 2 個單字才能進行選擇題測驗，先去新增一些單字吧。</p></div>
+      ` : (pool.length === 0 ? `
         <div class="empty"><h2>這個範圍還沒有單字</h2><p>切換篩選條件，或先去新增一些單字。</p></div>
-      ` : `<button type="button" class="solid-btn" id="startVocabQuizBtn">開始測驗（共 ${pool.length} 題）</button>`}
+      ` : `<button type="button" class="solid-btn" id="startVocabQuizBtn">開始測驗（共 ${actualCount} 題）</button>`)}
       <div style="margin-top:14px;">
         <button type="button" class="ghost-btn" id="backToVocabListBtn">回到單字本</button>
       </div>
@@ -2538,8 +2598,18 @@ function vocabQuizSetupHTML(){
 }
 
 function bindVocabQuizSetupEvents(){
-  document.querySelectorAll('#vocabPanel .chip').forEach(el=>{
+  document.querySelectorAll('#vocabPanel [data-quiztype]').forEach(el=>{
+    el.addEventListener('click', ()=>{ vocabQuizType = el.dataset.quiztype; renderVocabPanel(); });
+  });
+  document.querySelectorAll('#vocabPanel [data-cefr]').forEach(el=>{
     el.addEventListener('click', ()=>{ vocabQuizLevelFilter = el.dataset.cefr; renderVocabPanel(); });
+  });
+  document.querySelectorAll('#vocabPanel [data-count]').forEach(el=>{
+    el.addEventListener('click', ()=>{
+      const n = el.dataset.count;
+      vocabQuizCount = n === 'all' ? 'all' : parseInt(n, 10);
+      renderVocabPanel();
+    });
   });
   const startBtn = document.getElementById('startVocabQuizBtn');
   if(startBtn) startBtn.addEventListener('click', startVocabQuiz);
@@ -2547,21 +2617,32 @@ function bindVocabQuizSetupEvents(){
   if(backBtn) backBtn.addEventListener('click', ()=>{ vocabShowQuizSetup = false; renderVocabPanel(); });
 }
 
+function shuffleArr(arr){
+  const a = arr.slice();
+  for(let i=a.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [a[i],a[j]]=[a[j],a[i]]; }
+  return a;
+}
+
+function buildVocabOptionIds(correctWord, distractorSource){
+  const sameLevel = distractorSource.filter(v=>v.id!==correctWord.id && v.cefr===correctWord.cefr);
+  const others = distractorSource.filter(v=>v.id!==correctWord.id && v.cefr!==correctWord.cefr);
+  const distractors = shuffleArr(sameLevel).concat(shuffleArr(others)).slice(0, 3);
+  return shuffleArr([correctWord.id, ...distractors.map(d=>d.id)]);
+}
+
 function startVocabQuiz(){
   const pool = vocabQuizLevelFilter === 'all' ? vocab : vocab.filter(v=>v.cefr===vocabQuizLevelFilter);
-  const queue = pool.map(v=>v.id);
-  for(let i=queue.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [queue[i],queue[j]]=[queue[j],queue[i]]; }
+  if(pool.length === 0 || vocab.length < 2) return;
+  const n = vocabQuizCount === 'all' ? pool.length : Math.min(vocabQuizCount, pool.length);
+  const chosen = shuffleArr(pool).slice(0, n);
+  const questions = chosen.map(v=>({ vocabId: v.id, optionIds: buildVocabOptionIds(v, vocab) }));
   vocabShowQuizSetup = false;
-  vocabQuizSession = { queue, idx:0, correctCount:0, picked:null, revealed:false, lastCorrect:false };
+  vocabQuizSession = { type: vocabQuizType, questions, idx:0, correctCount:0, picked:null, revealed:false, lastCorrect:false };
   renderVocabPanel();
 }
 
-function normalizeAnswer(s){
-  return String(s||'').trim().toLowerCase().replace(/\s+/g,' ');
-}
-
 function vocabQuizSessionHTML(){
-  const total = vocabQuizSession.queue.length;
+  const total = vocabQuizSession.questions.length;
   if(vocabQuizSession.idx >= total){
     const correct = vocabQuizSession.correctCount;
     return `
@@ -2577,15 +2658,30 @@ function vocabQuizSessionHTML(){
         </div>
       </div>`;
   }
-  const v = vocab.find(x=>x.id===vocabQuizSession.queue[vocabQuizSession.idx]);
+  const q = vocabQuizSession.questions[vocabQuizSession.idx];
+  const v = vocab.find(x=>x.id===q.vocabId);
   if(!v){ vocabQuizSession.idx++; return vocabQuizSessionHTML(); }
   const revealed = vocabQuizSession.revealed;
+  const isZh2En = vocabQuizSession.type === 'zh2en';
+  const promptText = isZh2En ? v.translation : v.word;
+  const optionWords = q.optionIds.map(id=>vocab.find(x=>x.id===id)).filter(Boolean);
+
+  const optionsHtml = optionWords.map((opt,i)=>{
+    const letter = OPTION_LABELS[i];
+    const label = isZh2En ? opt.word : opt.translation;
+    let cls = 'choice-btn';
+    if(revealed){
+      if(opt.id === v.id) cls += ' reveal-correct';
+      else if(opt.id === vocabQuizSession.picked) cls += ' reveal-wrong';
+    }else if(opt.id === vocabQuizSession.picked) cls += ' picked';
+    return `<button type="button" class="${cls}" data-id="${opt.id}" ${revealed?'disabled':''}><span>${letter}.</span><span>${escapeHtml(label)}</span></button>`;
+  }).join('');
 
   let resultHtml = '';
   if(revealed){
     resultHtml = `
       <div class="result-banner ${vocabQuizSession.lastCorrect?'ok':'no'}">${vocabQuizSession.lastCorrect?'✓ 答對了':'✗ 答錯了'}</div>
-      ${!vocabQuizSession.lastCorrect ? `<div class="correct-line">正確答案：<b>${escapeHtml(v.word)}</b></div>` : ''}
+      ${!vocabQuizSession.lastCorrect ? `<div class="correct-line">正確答案：<b>${escapeHtml(isZh2En?v.word:v.translation)}</b></div>` : ''}
     `;
   }
 
@@ -2595,12 +2691,11 @@ function vocabQuizSessionHTML(){
       <div class="flash-bar"><div class="fill" style="width:${(vocabQuizSession.idx/total*100)}%"></div></div>
       <div class="flashcard">
         <span class="cefr-tag" style="--cefr-color:${CEFR_COLORS[v.cefr]||'var(--brass)'}">${escapeHtml(v.cefr||'—')}</span>
-        <div class="vocab-quiz-prompt">${escapeHtml(v.translation)}</div>
-        <div class="vocab-quiz-hint">請輸入對應的英文單字</div>
-        <input type="text" class="vocab-quiz-word-input" id="vocabAnswerInput" placeholder="type the English word" autocomplete="off" autocapitalize="off" spellcheck="false" ${revealed?'disabled':''} value="${revealed?escapeHtml(vocabQuizSession.picked||''):''}">
+        <div class="vocab-quiz-prompt">${escapeHtml(promptText)}</div>
+        <div class="vocab-quiz-hint">${isZh2En ? '請選出正確的英文單字' : '請選出正確的中文意思'}</div>
+        <div class="m-opts">${optionsHtml}</div>
         ${resultHtml}
         <div class="flash-actions">
-          ${!revealed ? `<button type="button" class="solid-btn" id="submitVocabAnswerBtn">送出答案</button>` : ''}
           ${revealed ? `<button type="button" class="solid-btn" id="nextVocabCardBtn">${vocabQuizSession.idx+1>=total?'查看結果':'下一題'}</button>` : ''}
         </div>
       </div>
@@ -2609,14 +2704,13 @@ function vocabQuizSessionHTML(){
 }
 
 function bindVocabQuizEvents(){
-  const input = document.getElementById('vocabAnswerInput');
-  if(input) input.focus();
-  const submitBtn = document.getElementById('submitVocabAnswerBtn');
-  if(submitBtn) submitBtn.addEventListener('click', ()=>{
-    vocabQuizSession.picked = input ? input.value : '';
-    revealVocabAnswer();
+  document.querySelectorAll('#vocabPanel .choice-btn').forEach(el=>{
+    el.addEventListener('click', ()=>{
+      if(vocabQuizSession.revealed) return;
+      vocabQuizSession.picked = el.dataset.id;
+      revealVocabAnswer();
+    });
   });
-  if(input) input.addEventListener('keydown', (e)=>{ if(e.key==='Enter'){ e.preventDefault(); submitBtn?.click(); } });
   const nextBtn = document.getElementById('nextVocabCardBtn');
   if(nextBtn) nextBtn.addEventListener('click', ()=>{
     vocabQuizSession.idx++; vocabQuizSession.revealed = false; vocabQuizSession.picked = null;
@@ -2629,12 +2723,16 @@ function bindVocabQuizEvents(){
 }
 
 function revealVocabAnswer(){
-  const v = vocab.find(x=>x.id===vocabQuizSession.queue[vocabQuizSession.idx]);
-  const correct = normalizeAnswer(vocabQuizSession.picked) === normalizeAnswer(v.word);
+  const q = vocabQuizSession.questions[vocabQuizSession.idx];
+  const correct = vocabQuizSession.picked === q.vocabId;
   vocabQuizSession.revealed = true;
   vocabQuizSession.lastCorrect = correct;
   if(correct) vocabQuizSession.correctCount++;
   renderVocabPanel();
+}
+
+function normalizeAnswer(s){
+  return String(s||'').trim().toLowerCase().replace(/\s+/g,' ');
 }
 
 /* ============================================================
