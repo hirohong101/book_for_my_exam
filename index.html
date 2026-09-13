@@ -356,6 +356,7 @@ table.ledger .del{ background:none; border:none; color:var(--danger); cursor:poi
 .profile-exp-progress{ height:7px; border-radius:99px; background:rgba(176,129,44,.2); overflow:hidden; }
 .profile-exp-progress > span{ display:block; height:100%; width:0; border-radius:inherit; background:var(--brass); transition:width .25s ease; }
 .profile-exp-note{ font:11px 'JetBrains Mono',monospace; color:var(--ink-soft); }
+
 .profile-badges-head{ display:flex; align-items:center; gap:6px; margin:0 0 10px; font-family:'Fraunces',serif; font-size:15px; }
 .profile-badges-row{ display:grid; grid-template-columns:repeat(3, 1fr); gap:16px; margin-bottom:18px; }
 @media (max-width:640px){ .profile-badges-row{ grid-template-columns:1fr; } }
@@ -597,7 +598,9 @@ table.ledger .del{ background:none; border:none; color:var(--danger); cursor:poi
 .vocab-card{
   background:var(--card); border:1px solid var(--card-border); border-left:4px solid var(--cefr-color, var(--brass));
   border-radius:var(--radius); box-shadow:var(--shadow); padding:14px 16px; display:flex; flex-direction:column; gap:6px;
+  cursor:pointer; transition:transform .12s ease, box-shadow .12s ease;
 }
+.vocab-card:hover{ transform:translateY(-2px); box-shadow:0 4px 10px rgba(0,0,0,.08); }
 .vocab-card .v-top{ display:flex; justify-content:space-between; align-items:flex-start; gap:8px; }
 .vocab-card.selected{ outline:2px solid var(--danger); outline-offset:1px; }
 .vocab-card .v-select-chk{ width:16px; height:16px; flex-shrink:0; cursor:pointer; }
@@ -630,8 +633,70 @@ table.ledger .del{ background:none; border:none; color:var(--danger); cursor:poi
   border:2px solid var(--card-border); border-radius:6px; margin-bottom:14px; background:#fff;
 }
 .vocab-quiz-word-input:focus{ outline:2px solid var(--ledger-green); }
+.vocab-quiz-select{
+  font-family:'Inter',sans-serif; font-size:14px; padding:9px 14px; border:1px solid var(--card-border);
+  border-radius:6px; background:#fff; min-width:220px; cursor:pointer;
+}
 .vocab-quiz-prompt{ text-align:center; font-size:22px; font-weight:600; font-family:'Fraunces',serif; margin:6px 0 16px; }
 .vocab-quiz-hint{ text-align:center; font-size:12px; color:var(--ink-soft); margin:-6px 0 14px; }
+
+/* ---------- 遊戲模式：選單 / 記憶配對 / 打字挑戰 / 字母重組 / 聽力選擇 ---------- */
+.game-menu-grid{ display:grid; grid-template-columns:repeat(auto-fill, minmax(200px, 1fr)); gap:14px; margin-top:18px; }
+.game-menu-card{
+  background:var(--card); border:1px solid var(--card-border); border-radius:var(--radius);
+  box-shadow:var(--shadow); padding:20px 16px; text-align:center; cursor:pointer;
+  font-family:inherit; transition:transform .12s ease, box-shadow .12s ease;
+}
+.game-menu-card:hover{ transform:translateY(-2px); box-shadow:0 4px 10px rgba(0,0,0,.08); border-color:var(--ledger-green); }
+.game-menu-card .g-icon{ font-size:30px; margin-bottom:8px; }
+.game-menu-card .g-name{ font-family:'Fraunces',serif; font-weight:600; font-size:15px; margin-bottom:4px; }
+.game-menu-card .g-desc{ font-size:12px; color:var(--ink-soft); line-height:1.5; }
+
+.memory-topbar{ display:flex; justify-content:space-between; align-items:center; font-family:'JetBrains Mono',monospace; font-size:12.5px; color:var(--ink-soft); margin-bottom:12px; flex-wrap:wrap; gap:8px; }
+.memory-grid{ display:grid; grid-template-columns:repeat(auto-fill, minmax(120px, 1fr)); gap:10px; }
+.memory-tile{ position:relative; aspect-ratio:1/0.85; perspective:600px; cursor:pointer; }
+.memory-tile .mt-inner{ position:relative; width:100%; height:100%; transition:transform .35s ease; transform-style:preserve-3d; }
+.memory-tile.flipped .mt-inner, .memory-tile.matched .mt-inner{ transform:rotateY(180deg); }
+.memory-tile .mt-face{
+  position:absolute; inset:0; display:flex; align-items:center; justify-content:center; text-align:center;
+  border-radius:6px; padding:6px; backface-visibility:hidden; font-size:13px; font-family:'Inter',sans-serif;
+  border:1.5px solid var(--card-border); box-shadow:var(--shadow); word-break:break-word; overflow:hidden;
+}
+.memory-tile .mt-back{ background:var(--ledger-green); color:#fff; font-size:20px; }
+.memory-tile .mt-front{ background:#fff; transform:rotateY(180deg); font-weight:600; }
+.memory-tile.matched .mt-front{ background:var(--ledger-green-soft); border-color:var(--ledger-green); color:var(--ledger-green); }
+.memory-tile.wrong-flash .mt-front{ background:#f7e3e0; border-color:var(--danger); color:var(--danger); }
+
+.typing-timer{
+  font-family:'JetBrains Mono',monospace; font-weight:700; font-size:15px; text-align:center;
+  padding:6px 14px; border-radius:999px; background:var(--brass-soft); color:#72530f; display:block; width:fit-content; margin:0 auto 10px;
+}
+.typing-timer.low{ background:#f7e3e0; color:var(--danger); }
+.typing-stats{ display:flex; justify-content:center; gap:18px; font-family:'JetBrains Mono',monospace; font-size:12.5px; color:var(--ink-soft); margin-bottom:14px; }
+
+.scramble-tiles{ display:flex; flex-wrap:wrap; justify-content:center; gap:8px; margin:14px 0 10px; min-height:52px; }
+.scramble-letter{
+  width:42px; height:42px; border-radius:6px; border:1.5px solid var(--card-border); background:#fff;
+  font-family:'JetBrains Mono',monospace; font-size:18px; font-weight:700; cursor:pointer;
+  display:flex; align-items:center; justify-content:center; box-shadow:var(--shadow);
+}
+.scramble-letter:hover{ border-color:var(--ledger-green); }
+.scramble-letter.used{ opacity:.25; cursor:default; pointer-events:none; }
+.scramble-answer-row{ display:flex; flex-wrap:wrap; justify-content:center; gap:8px; margin-bottom:16px; min-height:52px; padding:8px; border:1.5px dashed var(--card-border); border-radius:6px; }
+.scramble-blank{
+  width:42px; height:42px; border-radius:6px; border:1.5px solid var(--card-border); background:#fbfaf6;
+  font-family:'JetBrains Mono',monospace; font-size:18px; font-weight:700; cursor:pointer;
+  display:flex; align-items:center; justify-content:center;
+}
+.scramble-blank.filled{ background:var(--ledger-green-soft); border-color:var(--ledger-green); color:var(--ledger-green); }
+
+.listen-btn{
+  width:76px; height:76px; border-radius:50%; border:none; background:var(--ledger-green); color:#fff;
+  font-size:28px; cursor:pointer; box-shadow:var(--shadow); display:flex; align-items:center; justify-content:center;
+  margin:6px auto 16px; transition:transform .12s ease;
+}
+.listen-btn:hover{ transform:scale(1.06); }
+.listen-hint{ text-align:center; font-size:12px; color:var(--ink-soft); margin:-8px 0 16px; }
 
 /* ---------- 複習 flashcard ---------- */
 .review-setup-card{ text-align:center; padding:28px 24px; }
@@ -825,6 +890,11 @@ table.ledger .del{ background:none; border:none; color:var(--danger); cursor:poi
       <button type="button" class="cancel-btn" id="closeTodayPagesBtn">關閉</button>
     </div>
   </div>
+</div>
+
+<!-- 單字詳細內容彈窗 -->
+<div id="vocabDetailOverlay" class="modal-overlay hidden">
+  <div class="modal-card" id="vocabDetailCard"></div>
 </div>
 
 <!-- 修改密碼彈窗 -->
@@ -1055,6 +1125,26 @@ let vocabSelectedIds = new Set();
 const QUIZ_COUNT_OPTIONS = [5,10,15,20,30,50,75,100];
 let vocabQuizType = 'zh2en'; // 'zh2en'（看中文選英文） | 'en2zh'（看英文選中文）
 let vocabQuizCount = 10;
+let vocabDetailId = null;
+let vocabDetailEditing = false;
+
+let vocabGameMode = 'mc';        // 'mc' | 'memory' | 'typing' | 'scramble' | 'listening'
+let vocabShowGameMenu = false;
+let vocabMemorySession = null;   // {tiles, flippedKeys, moves, matchedPairs, totalPairs, lock}
+let vocabTypingSession = null;   // {words, idx, correctCount, wrongCount, input, timeLeft, timerId, totalTime, finished, lastResult, revealed}
+let vocabScrambleSession = null; // {words, idx, correctCount, letters, answer, revealed, lastCorrect}
+let vocabListeningSession = null;// {questions, idx, correctCount, picked, revealed, lastCorrect}
+let vocabTypingTimeLimit = 60;   // 限時打字挑戰的秒數
+const TYPING_TIME_OPTIONS = [30, 60, 90, 120];
+const MEMORY_PAIR_OPTIONS = [4, 6, 8, 10, 12];
+
+const VOCAB_GAME_MODES = [
+  { id:'mc', icon:'🧠', name:'選擇題測驗', desc:'看中文選英文、看英文選中文，或綜合出題' },
+  { id:'memory', icon:'🎴', name:'記憶配對', desc:'翻牌配對單字與翻譯，考驗記憶力' },
+  { id:'typing', icon:'⏱', name:'限時打字挑戰', desc:'倒數計時內打出正確拼字' },
+  { id:'scramble', icon:'🔤', name:'字母重組', desc:'打亂字母，拼回正確單字' },
+  { id:'listening', icon:'🔊', name:'聽力選擇', desc:'唸出單字，選出正確中文意思' },
+];
 
 const VOCAB_SAMPLE_WORDS = [
   { word:'apple',        translation:'蘋果',        cefr:'A1' },
@@ -1259,18 +1349,6 @@ function getEarnedBadges(){
   return earnedBadges;
 }
 
-const EXP_START = 902;
-const EXP_BASE = 100;
-
-function experienceForEntry(pages){
-  const count = Math.max(0, Number(pages) || 0);
-  if(count === 1) return count;
-  if(count <= 6) return count * 2;
-  if(count <= 18) return count * 3;
-  if(count <= 31) return count * 4;
-  return count * 5;
-}
-
 function dailyRoundNumber(plan = currentDailyPlan){
   return Math.max(1, Number(plan?.round) || 1);
 }
@@ -1298,25 +1376,6 @@ async function recordEarnedBadge(){
   }
 }
 
-function experienceStats(){
-  // EXP is rebuilt from persisted entries: larger single-session page ranges
-  // earn higher per-page EXP, while the initial account balance is 902 EXP.
-  const earnedExp = Object.values(entriesByBook).flat().reduce(
-    (sum, entry)=>sum + experienceForEntry(entry.pages), 0
-  );
-  const totalExp = EXP_START + earnedExp;
-  let level = 1;
-  let spent = 0;
-  let nextLevelExp = EXP_BASE;
-  while(totalExp >= spent + nextLevelExp){
-    spent += nextLevelExp;
-    level += 1;
-    nextLevelExp = EXP_BASE * level;
-  }
-  const currentLevelExp = totalExp - spent;
-  return { totalExp, level, currentLevelExp, nextLevelExp, percent: (currentLevelExp / nextLevelExp) * 100 };
-}
-
 function getEarnedBonusBadges(){
   return earnedBonusBadges;
 }
@@ -1331,6 +1390,27 @@ async function recordBonusBadge(){
     user_id: currentUser.id, kind: 'bonus', badge_date: date, text
   });
   if(error) console.error('儲存加碼徽章失敗', error);
+}
+
+/* ---------------- 完成每日任務的經驗值／等級 ---------------- */
+// EXP 完全來自「每日任務徽章」與「加碼任務徽章」的累積筆數，不會因為改寫紀錄而變動，
+// 也不會重複計算（同一輪 / 同一天只會各記一次徽章，見 recordEarnedBadge / recordBonusBadge）。
+const DAILY_TASK_EXP = 50;
+const BONUS_TASK_EXP = 20;
+const LEVEL_EXP_BASE = 100;
+
+function experienceStats(){
+  const totalExp = earnedBadges.length * DAILY_TASK_EXP + earnedBonusBadges.length * BONUS_TASK_EXP;
+  let level = 1;
+  let spent = 0;
+  let nextLevelExp = LEVEL_EXP_BASE;
+  while(totalExp >= spent + nextLevelExp){
+    spent += nextLevelExp;
+    level += 1;
+    nextLevelExp = LEVEL_EXP_BASE * level;
+  }
+  const currentLevelExp = totalExp - spent;
+  return { totalExp, level, currentLevelExp, nextLevelExp, percent: (currentLevelExp / nextLevelExp) * 100 };
 }
 
 /* ---------------- 連續完成天數（streak） ---------------- */
@@ -1487,17 +1567,6 @@ function openProfileModal(){
   renderBadgeGrid();
   renderAchievementGrid();
   document.getElementById('profileOverlay').classList.remove('hidden');
-}
-
-function showExperienceToast(pages){
-  if(!pages) return;
-  const earned = experienceForEntry(pages);
-  const exp = experienceStats();
-  showDailyToast({
-    icon:'⭐',
-    title:`獲得 ${earned} EXP`,
-    body:`本次寫 ${pages} 頁，目前 Lv. ${exp.level}（共 ${exp.totalExp} EXP）`
-  });
 }
 
 function closeProfileModal(){
@@ -1777,13 +1846,18 @@ async function notifyDailyComplete(){
   if(!currentDailyPlan || currentDailyPlan.notified) return; // 今天已經通知過了，避免重複跳出
   currentDailyPlan.notified = true;
   const isReroll = dailyRoundNumber() > 1;
+  const levelBefore = experienceStats().level;
   await recordEarnedBadge();
   await bumpStreak();
   await checkAchievements();
   const title = isReroll ? '加場任務也完成了！🎉' : '今日任務已完成！🎉';
-  const body = isReroll ? '重排後的新一輪任務也全部寫完，一樣拿到今天的徽章！' : '恭喜你完成今天的所有任務，記得看看獲得的徽章～';
+  const body = (isReroll ? '重排後的新一輪任務也全部寫完，一樣拿到今天的徽章！' : '恭喜你完成今天的所有任務，記得看看獲得的徽章～') + ` +${DAILY_TASK_EXP} EXP`;
   showDailyToast({ icon: '🏅', title, body });
   sendBrowserNotification(title, body);
+  const levelAfter = experienceStats().level;
+  if(levelAfter > levelBefore){
+    showDailyToast({ icon:'🆙', title:'升級了！', body:`恭喜升上 Lv. ${levelAfter}！` });
+  }
   if(currentUser){
     const { error } = await db.from('daily_plans')
       .update({ notified: true }).eq('user_id', currentUser.id).eq('plan_date', currentDailyPlan.date);
@@ -1795,11 +1869,16 @@ async function notifyDailyComplete(){
 async function notifyBonusComplete(){
   if(!currentDailyPlan || currentDailyPlan.bonusNotified) return;
   currentDailyPlan.bonusNotified = true;
+  const levelBefore = experienceStats().level;
   await recordBonusBadge();
   const title = '加碼任務完成！🎁';
-  const body = '寫少少也能拿到特別徽章，太划算了～';
+  const body = `寫少少也能拿到特別徽章，太划算了～ +${BONUS_TASK_EXP} EXP`;
   showDailyToast({ icon:'🎁', title, body });
   sendBrowserNotification(title, body);
+  const levelAfter = experienceStats().level;
+  if(levelAfter > levelBefore){
+    showDailyToast({ icon:'🆙', title:'升級了！', body:`恭喜升上 Lv. ${levelAfter}！` });
+  }
   if(currentUser){
     const { error } = await db.from('daily_plans')
       .update({ bonus_notified: true }).eq('user_id', currentUser.id).eq('plan_date', currentDailyPlan.date);
@@ -2187,6 +2266,26 @@ function vocabStatsHTML(){
 
 function renderVocabPanel(){
   const panel = document.getElementById('vocabPanel');
+  if(vocabMemorySession){
+    panel.innerHTML = `<div class="panel">${vocabMemorySessionHTML()}</div>`;
+    bindVocabMemoryEvents();
+    return;
+  }
+  if(vocabTypingSession){
+    panel.innerHTML = `<div class="panel">${vocabTypingSessionHTML()}</div>`;
+    bindVocabTypingEvents();
+    return;
+  }
+  if(vocabScrambleSession){
+    panel.innerHTML = `<div class="panel">${vocabScrambleSessionHTML()}</div>`;
+    bindVocabScrambleEvents();
+    return;
+  }
+  if(vocabListeningSession){
+    panel.innerHTML = `<div class="panel">${vocabListeningSessionHTML()}</div>`;
+    bindVocabListeningEvents();
+    return;
+  }
   if(vocabQuizSession){
     panel.innerHTML = `<div class="panel">${vocabQuizSessionHTML()}</div>`;
     bindVocabQuizEvents();
@@ -2195,6 +2294,11 @@ function renderVocabPanel(){
   if(vocabShowQuizSetup){
     panel.innerHTML = `<div class="panel">${vocabQuizSetupHTML()}</div>`;
     bindVocabQuizSetupEvents();
+    return;
+  }
+  if(vocabShowGameMenu){
+    panel.innerHTML = `<div class="panel">${vocabGameMenuHTML()}</div>`;
+    bindVocabGameMenuEvents();
     return;
   }
 
@@ -2212,7 +2316,7 @@ function renderVocabPanel(){
             <button type="button" class="solid-btn" id="deleteSelectedVocabBtn" style="background:var(--danger);" ${vocabSelectedIds.size===0?'disabled':''}>刪除已選</button>
             <button type="button" class="ghost-btn" id="cancelVocabSelectBtn">取消選擇</button>
           ` : `
-            ${vocab.length ? `<button type="button" class="ghost-btn" id="startVocabQuizSetupBtn">🧠 中翻英測驗</button>` : ''}
+            ${vocab.length ? `<button type="button" class="ghost-btn" id="startVocabGameMenuBtn">🎮 練習遊戲</button>` : ''}
             ${vocab.length ? `<button type="button" class="ghost-btn" id="toggleVocabSelectBtn">☑️ 選擇刪除</button>` : ''}
             ${vocab.length ? `<button type="button" class="ghost-btn" id="deleteAllVocabBtn" style="color:var(--danger);border-color:var(--danger);">🗑 全部刪除</button>` : ''}
             <button type="button" class="solid-btn" id="toggleVocabFormBtn">${vocabShowForm ? '－ 收起表單' : '＋ 新增單字'}</button>
@@ -2280,7 +2384,7 @@ function vocabCardHTML(v){
   const color = CEFR_COLORS[v.cefr] || 'var(--brass)';
   const checked = vocabSelectedIds.has(v.id);
   return `
-    <div class="vocab-card ${checked?'selected':''}" style="--cefr-color:${color}">
+    <div class="vocab-card ${checked?'selected':''}" style="--cefr-color:${color}" data-id="${v.id}">
       <div class="v-top">
         <div style="display:flex;align-items:center;gap:8px;min-width:0;">
           ${vocabSelectMode ? `<input type="checkbox" class="v-select-chk" data-id="${v.id}" ${checked?'checked':''}>` : ''}
@@ -2304,9 +2408,9 @@ function bindVocabPanelEvents(){
     vocabFormError = '';
     renderVocabPanel();
   });
-  const quizSetupBtn = document.getElementById('startVocabQuizSetupBtn');
-  if(quizSetupBtn) quizSetupBtn.addEventListener('click', ()=>{
-    vocabShowQuizSetup = true;
+  const gameMenuBtn = document.getElementById('startVocabGameMenuBtn');
+  if(gameMenuBtn) gameMenuBtn.addEventListener('click', ()=>{
+    vocabShowGameMenu = true;
     renderVocabPanel();
   });
   const cancelBtn = document.getElementById('cancelVocabFormBtn');
@@ -2320,12 +2424,24 @@ function bindVocabPanelEvents(){
     el.addEventListener('click', ()=>{ vocabCefrFilter = el.dataset.cefr; renderVocabPanel(); });
   });
   document.querySelectorAll('#vocabPanel .v-del').forEach(el=>{
-    el.addEventListener('click', async ()=>{
+    el.addEventListener('click', async (e)=>{
+      e.stopPropagation();
       if(!confirm('確定要刪除這個單字嗎？')) return;
       const { error } = await db.from('vocab').delete().eq('id', el.dataset.id);
       if(error){ alert('刪除失敗：' + error.message); return; }
       vocab = vocab.filter(v=>v.id !== el.dataset.id);
       renderVocabPanel();
+    });
+  });
+  document.querySelectorAll('#vocabPanel .vocab-card').forEach(el=>{
+    el.addEventListener('click', (e)=>{
+      if(e.target.closest('.v-del')) return;
+      if(vocabSelectMode){
+        const chk = el.querySelector('.v-select-chk');
+        if(chk && e.target !== chk){ chk.checked = !chk.checked; chk.dispatchEvent(new Event('change')); }
+        return;
+      }
+      openVocabDetail(el.dataset.id);
     });
   });
   const seedBtn = document.getElementById('seedVocabBtn');
@@ -2361,6 +2477,111 @@ function bindVocabPanelEvents(){
 function vocabWordExists(word, excludeId){
   const key = normalizeAnswer(word);
   return vocab.some(v => v.id !== excludeId && normalizeAnswer(v.word) === key);
+}
+
+function openVocabDetail(id){
+  vocabDetailId = id;
+  vocabDetailEditing = false;
+  renderVocabDetailModal();
+  document.getElementById('vocabDetailOverlay').classList.remove('hidden');
+}
+
+function closeVocabDetail(){
+  document.getElementById('vocabDetailOverlay').classList.add('hidden');
+  vocabDetailId = null;
+  vocabDetailEditing = false;
+}
+
+function formatVocabDate(iso){
+  if(!iso) return '—';
+  const d = new Date(iso);
+  if(isNaN(d.getTime())) return '—';
+  return d.toLocaleDateString('zh-TW', { year:'numeric', month:'2-digit', day:'2-digit' });
+}
+
+function renderVocabDetailModal(){
+  const card = document.getElementById('vocabDetailCard');
+  const v = vocab.find(x=>x.id === vocabDetailId);
+  if(!v){ closeVocabDetail(); return; }
+  const color = CEFR_COLORS[v.cefr] || 'var(--brass)';
+
+  if(vocabDetailEditing){
+    card.innerHTML = `
+      <h2 style="font-family:'Fraunces',serif;margin:0 0 14px;text-align:center;">編輯單字</h2>
+      <div class="vocab-form" style="background:none;padding:0;margin-bottom:8px;">
+        <div class="field">
+          <label>英文單字</label>
+          <input type="text" id="vdWord" value="${escapeHtml(v.word)}">
+        </div>
+        <div class="field">
+          <label>中文翻譯</label>
+          <input type="text" id="vdTranslation" value="${escapeHtml(v.translation)}">
+        </div>
+        <div class="field">
+          <label>CEFR 難度</label>
+          <select id="vdCefr">
+            ${CEFR_LEVELS.map(l=>`<option value="${l}" ${v.cefr===l?'selected':''}>${l}</option>`).join('')}
+          </select>
+        </div>
+      </div>
+      <div class="modal-actions">
+        <button type="button" class="cancel-btn" id="cancelVocabDetailEditBtn">取消</button>
+        <button type="button" class="solid-btn" id="saveVocabDetailBtn">儲存</button>
+      </div>
+    `;
+    document.getElementById('cancelVocabDetailEditBtn').addEventListener('click', ()=>{
+      vocabDetailEditing = false;
+      renderVocabDetailModal();
+    });
+    document.getElementById('saveVocabDetailBtn').addEventListener('click', saveVocabDetailEdit);
+    return;
+  }
+
+  card.innerHTML = `
+    <div style="text-align:center;">
+      <span class="cefr-tag" style="--cefr-color:${color}">${escapeHtml(v.cefr||'—')}</span>
+      <h2 style="font-family:'Fraunces',serif;font-size:32px;margin:14px 0 6px;word-break:break-word;">${escapeHtml(v.word)}</h2>
+      <p style="font-size:16px;color:var(--ink-soft);margin:0 0 10px;">${escapeHtml(v.translation)}</p>
+      <p style="font-size:11px;color:var(--ink-soft);font-family:'JetBrains Mono',monospace;">加入時間：${formatVocabDate(v.created_at)}</p>
+    </div>
+    <div class="modal-actions">
+      <button type="button" class="cancel-btn" id="closeVocabDetailBtn">關閉</button>
+      <button type="button" class="ghost-btn" id="editVocabDetailBtn">✏️ 編輯</button>
+      <button type="button" class="ghost-btn" id="deleteVocabDetailBtn" style="color:var(--danger);border-color:var(--danger);">🗑 刪除</button>
+    </div>
+  `;
+  document.getElementById('closeVocabDetailBtn').addEventListener('click', closeVocabDetail);
+  document.getElementById('editVocabDetailBtn').addEventListener('click', ()=>{
+    vocabDetailEditing = true;
+    renderVocabDetailModal();
+  });
+  document.getElementById('deleteVocabDetailBtn').addEventListener('click', deleteVocabDetail);
+}
+
+async function saveVocabDetailEdit(){
+  const word = document.getElementById('vdWord').value.trim();
+  const translation = document.getElementById('vdTranslation').value.trim();
+  const cefr = document.getElementById('vdCefr').value;
+  if(!word || !translation){ alert('請輸入英文單字和中文翻譯'); return; }
+  if(vocabWordExists(word, vocabDetailId)){ alert(`「${word}」已經在單字本裡了。`); return; }
+  const item = vocab.find(v=>v.id === vocabDetailId);
+  if(!item) return;
+  item.word = word; item.translation = translation; item.cefr = cefr;
+  vocabDetailEditing = false;
+  renderVocabDetailModal();
+  renderVocabPanel();
+  const { error } = await db.from('vocab').update({ word, translation, cefr }).eq('id', vocabDetailId);
+  if(error) alert('更新失敗：' + error.message);
+}
+
+async function deleteVocabDetail(){
+  if(!confirm('確定要刪除這個單字嗎？')) return;
+  const id = vocabDetailId;
+  const { error } = await db.from('vocab').delete().eq('id', id);
+  if(error){ alert('刪除失敗：' + error.message); return; }
+  vocab = vocab.filter(v=>v.id !== id);
+  closeVocabDetail();
+  renderVocabPanel();
 }
 
 async function copySelectedVocab(){
@@ -2554,43 +2775,112 @@ async function seedVocabSample(){
 
 /* ---------------- 我的單字本：中翻英測驗 ---------------- */
 
+function vocabGameMenuHTML(){
+  const tooFewWords = vocab.length < 2;
+  return `
+    <div class="review-setup-card">
+      <h2 style="font-family:'Fraunces',serif;margin:0 0 4px;">練習遊戲</h2>
+      <p>挑一種玩法，複習你的單字本</p>
+      ${tooFewWords ? `
+        <div class="empty"><h2>單字太少了</h2><p>單字本至少需要 2 個單字才能開始玩遊戲，先去新增一些單字吧。</p></div>
+      ` : `
+        <div class="game-menu-grid">
+          ${VOCAB_GAME_MODES.map(m=>`
+            <button type="button" class="game-menu-card" data-gamemode="${m.id}">
+              <div class="g-icon">${m.icon}</div>
+              <div class="g-name">${m.name}</div>
+              <div class="g-desc">${m.desc}</div>
+            </button>
+          `).join('')}
+        </div>
+      `}
+      <div style="margin-top:18px;">
+        <button type="button" class="ghost-btn" id="backToVocabListBtn">回到單字本</button>
+      </div>
+    </div>
+  `;
+}
+
+function bindVocabGameMenuEvents(){
+  document.querySelectorAll('#vocabPanel [data-gamemode]').forEach(el=>{
+    el.addEventListener('click', ()=>{
+      vocabGameMode = el.dataset.gamemode;
+      vocabShowGameMenu = false;
+      vocabShowQuizSetup = true;
+      renderVocabPanel();
+    });
+  });
+  const backBtn = document.getElementById('backToVocabListBtn');
+  if(backBtn) backBtn.addEventListener('click', ()=>{ vocabShowGameMenu = false; renderVocabPanel(); });
+}
+
 function vocabQuizSetupHTML(){
   const counts = vocabCefrCounts();
   const pool = vocabQuizLevelFilter === 'all' ? vocab : vocab.filter(v=>v.cefr===vocabQuizLevelFilter);
-  let effectiveCount = vocabQuizCount;
-  if(effectiveCount !== 'all' && effectiveCount > pool.length) effectiveCount = 'all';
-  const actualCount = effectiveCount === 'all' ? pool.length : effectiveCount;
+  const mode = vocabGameMode;
+  const modeInfo = VOCAB_GAME_MODES.find(m=>m.id===mode) || VOCAB_GAME_MODES[0];
   const tooFewWords = vocab.length < 2;
+
+  // 記憶配對：以「配對組數」為單位；其他模式以「題數／單字數」為單位
+  const countOptions = mode === 'memory' ? MEMORY_PAIR_OPTIONS : QUIZ_COUNT_OPTIONS;
+  const countUnit = mode === 'memory' ? '組' : '題';
+  let effectiveCount = mode === 'memory' ? (MEMORY_PAIR_OPTIONS.includes(vocabQuizCount) ? vocabQuizCount : MEMORY_PAIR_OPTIONS[0]) : vocabQuizCount;
+  if(effectiveCount !== 'all' && effectiveCount > pool.length) effectiveCount = mode === 'memory' ? Math.min(...MEMORY_PAIR_OPTIONS) : 'all';
+  const actualCount = effectiveCount === 'all' ? pool.length : effectiveCount;
+  const minNeeded = mode === 'memory' ? 2 : 2;
+
+  const startLabel = {
+    mc: `開始測驗（共 ${actualCount} 題）`,
+    memory: `開始配對（共 ${actualCount} 組）`,
+    typing: `開始打字挑戰（共 ${actualCount} 題，${vocabTypingTimeLimit} 秒）`,
+    scramble: `開始字母重組（共 ${actualCount} 題）`,
+    listening: `開始聽力選擇（共 ${actualCount} 題）`,
+  }[mode];
 
   return `
     <div class="review-setup-card">
-      <h2 style="font-family:'Fraunces',serif;margin:0 0 4px;">單字測驗</h2>
-      <p>選擇題模式，可以自訂測驗種類、範圍與題數</p>
+      <h2 style="font-family:'Fraunces',serif;margin:0 0 4px;">${modeInfo.icon} ${modeInfo.name}</h2>
+      <p>${modeInfo.desc}</p>
 
-      <div style="margin-top:14px;font-size:12px;color:var(--ink-soft);font-family:'JetBrains Mono',monospace;text-transform:uppercase;letter-spacing:.05em;">測驗種類</div>
-      <div class="chip-row" style="justify-content:center;">
-        <button type="button" class="chip ${vocabQuizType==='zh2en'?'active':''}" data-quiztype="zh2en">中翻英（看中文選英文）</button>
-        <button type="button" class="chip ${vocabQuizType==='en2zh'?'active':''}" data-quiztype="en2zh">英翻中（看英文選中文）</button>
-      </div>
+      ${mode === 'mc' ? `
+        <div style="margin-top:14px;font-size:12px;color:var(--ink-soft);font-family:'JetBrains Mono',monospace;text-transform:uppercase;letter-spacing:.05em;">測驗種類</div>
+        <div class="chip-row" style="justify-content:center;">
+          <button type="button" class="chip ${vocabQuizType==='zh2en'?'active':''}" data-quiztype="zh2en">中翻英（看中文選英文）</button>
+          <button type="button" class="chip ${vocabQuizType==='en2zh'?'active':''}" data-quiztype="en2zh">英翻中（看英文選中文）</button>
+          <button type="button" class="chip ${vocabQuizType==='mixed'?'active':''}" data-quiztype="mixed">綜合（中翻英＋英翻中混合）</button>
+        </div>
+      ` : ''}
+
+      ${mode === 'typing' ? `
+        <div style="margin-top:14px;font-size:12px;color:var(--ink-soft);font-family:'JetBrains Mono',monospace;text-transform:uppercase;letter-spacing:.05em;">倒數秒數</div>
+        <div class="chip-row" style="justify-content:center;">
+          ${TYPING_TIME_OPTIONS.map(t=>`<button type="button" class="chip ${vocabTypingTimeLimit===t?'active':''}" data-typingtime="${t}">${t} 秒</button>`).join('')}
+        </div>
+      ` : ''}
 
       <div style="margin-top:14px;font-size:12px;color:var(--ink-soft);font-family:'JetBrains Mono',monospace;text-transform:uppercase;letter-spacing:.05em;">CEFR 範圍</div>
-      <div class="chip-row" style="justify-content:center;">
-        <button type="button" class="chip ${vocabQuizLevelFilter==='all'?'active':''}" data-cefr="all">全部 (${vocab.length})</button>
-        ${CEFR_LEVELS.map(l=>`<button type="button" class="chip ${vocabQuizLevelFilter===l?'active':''}" data-cefr="${l}">${l} (${counts[l]})</button>`).join('')}
+      <div style="display:flex;justify-content:center;margin-top:6px;">
+        <select id="vocabQuizLevelSelect" class="vocab-quiz-select">
+          <option value="all" ${vocabQuizLevelFilter==='all'?'selected':''}>全部 (${vocab.length})</option>
+          ${CEFR_LEVELS.map(l=>`<option value="${l}" ${vocabQuizLevelFilter===l?'selected':''}>${l} (${counts[l]})</option>`).join('')}
+        </select>
       </div>
 
-      <div style="margin-top:14px;font-size:12px;color:var(--ink-soft);font-family:'JetBrains Mono',monospace;text-transform:uppercase;letter-spacing:.05em;">題數</div>
-      <div class="chip-row" style="justify-content:center;">
-        ${QUIZ_COUNT_OPTIONS.map(n=>`<button type="button" class="chip ${effectiveCount===n?'active':''}" data-count="${n}" ${n>pool.length?'disabled':''}>${n} 題</button>`).join('')}
-        <button type="button" class="chip ${effectiveCount==='all'?'active':''}" data-count="all">全部 (${pool.length})</button>
+      <div style="margin-top:14px;font-size:12px;color:var(--ink-soft);font-family:'JetBrains Mono',monospace;text-transform:uppercase;letter-spacing:.05em;">${mode === 'memory' ? '配對組數' : '題數'}</div>
+      <div style="display:flex;justify-content:center;margin-top:6px;">
+        <select id="vocabQuizCountSelect" class="vocab-quiz-select">
+          ${countOptions.map(n=>`<option value="${n}" ${n>pool.length?'disabled':''} ${effectiveCount===n?'selected':''}>${n} ${countUnit}</option>`).join('')}
+          ${mode === 'memory' ? '' : `<option value="all" ${effectiveCount==='all'?'selected':''}>全部 (${pool.length})</option>`}
+        </select>
       </div>
 
       ${tooFewWords ? `
-        <div class="empty"><h2>單字太少了</h2><p>單字本至少需要 2 個單字才能進行選擇題測驗，先去新增一些單字吧。</p></div>
-      ` : (pool.length === 0 ? `
-        <div class="empty"><h2>這個範圍還沒有單字</h2><p>切換篩選條件，或先去新增一些單字。</p></div>
-      ` : `<button type="button" class="solid-btn" id="startVocabQuizBtn">開始測驗（共 ${actualCount} 題）</button>`)}
+        <div class="empty"><h2>單字太少了</h2><p>單字本至少需要 ${minNeeded} 個單字才能進行這個遊戲，先去新增一些單字吧。</p></div>
+      ` : (pool.length < minNeeded ? `
+        <div class="empty"><h2>這個範圍的單字不夠</h2><p>切換篩選條件，或先去新增一些單字。</p></div>
+      ` : `<button type="button" class="solid-btn" id="startVocabQuizBtn" style="margin-top:16px;">${startLabel}</button>`)}
       <div style="margin-top:14px;">
+        <button type="button" class="ghost-btn" id="backToVocabGameMenuBtn">換一種玩法</button>
         <button type="button" class="ghost-btn" id="backToVocabListBtn">回到單字本</button>
       </div>
     </div>
@@ -2601,18 +2891,29 @@ function bindVocabQuizSetupEvents(){
   document.querySelectorAll('#vocabPanel [data-quiztype]').forEach(el=>{
     el.addEventListener('click', ()=>{ vocabQuizType = el.dataset.quiztype; renderVocabPanel(); });
   });
-  document.querySelectorAll('#vocabPanel [data-cefr]').forEach(el=>{
-    el.addEventListener('click', ()=>{ vocabQuizLevelFilter = el.dataset.cefr; renderVocabPanel(); });
+  document.querySelectorAll('#vocabPanel [data-typingtime]').forEach(el=>{
+    el.addEventListener('click', ()=>{ vocabTypingTimeLimit = parseInt(el.dataset.typingtime, 10); renderVocabPanel(); });
   });
-  document.querySelectorAll('#vocabPanel [data-count]').forEach(el=>{
-    el.addEventListener('click', ()=>{
-      const n = el.dataset.count;
-      vocabQuizCount = n === 'all' ? 'all' : parseInt(n, 10);
-      renderVocabPanel();
-    });
+  const levelSelect = document.getElementById('vocabQuizLevelSelect');
+  if(levelSelect) levelSelect.addEventListener('change', ()=>{
+    vocabQuizLevelFilter = levelSelect.value;
+    renderVocabPanel();
+  });
+  const countSelect = document.getElementById('vocabQuizCountSelect');
+  if(countSelect) countSelect.addEventListener('change', ()=>{
+    vocabQuizCount = countSelect.value === 'all' ? 'all' : parseInt(countSelect.value, 10);
+    renderVocabPanel();
   });
   const startBtn = document.getElementById('startVocabQuizBtn');
-  if(startBtn) startBtn.addEventListener('click', startVocabQuiz);
+  if(startBtn) startBtn.addEventListener('click', ()=>{
+    if(vocabGameMode === 'mc') startVocabQuiz();
+    else if(vocabGameMode === 'memory') startVocabMemory();
+    else if(vocabGameMode === 'typing') startVocabTyping();
+    else if(vocabGameMode === 'scramble') startVocabScramble();
+    else if(vocabGameMode === 'listening') startVocabListening();
+  });
+  const backMenuBtn = document.getElementById('backToVocabGameMenuBtn');
+  if(backMenuBtn) backMenuBtn.addEventListener('click', ()=>{ vocabShowQuizSetup = false; vocabShowGameMenu = true; renderVocabPanel(); });
   const backBtn = document.getElementById('backToVocabListBtn');
   if(backBtn) backBtn.addEventListener('click', ()=>{ vocabShowQuizSetup = false; renderVocabPanel(); });
 }
@@ -2635,7 +2936,10 @@ function startVocabQuiz(){
   if(pool.length === 0 || vocab.length < 2) return;
   const n = vocabQuizCount === 'all' ? pool.length : Math.min(vocabQuizCount, pool.length);
   const chosen = shuffleArr(pool).slice(0, n);
-  const questions = chosen.map(v=>({ vocabId: v.id, optionIds: buildVocabOptionIds(v, vocab) }));
+  const questions = chosen.map(v=>{
+    const qType = vocabQuizType === 'mixed' ? (Math.random() < 0.5 ? 'zh2en' : 'en2zh') : vocabQuizType;
+    return { vocabId: v.id, optionIds: buildVocabOptionIds(v, vocab), type: qType };
+  });
   vocabShowQuizSetup = false;
   vocabQuizSession = { type: vocabQuizType, questions, idx:0, correctCount:0, picked:null, revealed:false, lastCorrect:false };
   renderVocabPanel();
@@ -2662,7 +2966,7 @@ function vocabQuizSessionHTML(){
   const v = vocab.find(x=>x.id===q.vocabId);
   if(!v){ vocabQuizSession.idx++; return vocabQuizSessionHTML(); }
   const revealed = vocabQuizSession.revealed;
-  const isZh2En = vocabQuizSession.type === 'zh2en';
+  const isZh2En = q.type === 'zh2en';
   const promptText = isZh2En ? v.translation : v.word;
   const optionWords = q.optionIds.map(id=>vocab.find(x=>x.id===id)).filter(Boolean);
 
@@ -2733,6 +3037,531 @@ function revealVocabAnswer(){
 
 function normalizeAnswer(s){
   return String(s||'').trim().toLowerCase().replace(/\s+/g,' ');
+}
+
+/* ============================================================
+   遊戲模式 1：🎴 記憶配對
+   ============================================================ */
+
+function startVocabMemory(){
+  const pool = vocabQuizLevelFilter === 'all' ? vocab : vocab.filter(v=>v.cefr===vocabQuizLevelFilter);
+  if(pool.length < 2) return;
+  const n = MEMORY_PAIR_OPTIONS.includes(vocabQuizCount) ? Math.min(vocabQuizCount, pool.length) : Math.min(MEMORY_PAIR_OPTIONS[0], pool.length);
+  const chosen = shuffleArr(pool).slice(0, n);
+  let tiles = [];
+  chosen.forEach(v=>{
+    tiles.push({ key: v.id+'-w', pairId: v.id, kind:'word', text: v.word });
+    tiles.push({ key: v.id+'-t', pairId: v.id, kind:'translation', text: v.translation });
+  });
+  tiles = shuffleArr(tiles);
+  vocabShowQuizSetup = false;
+  vocabMemorySession = { tiles, flippedKeys: [], matchedPairIds: new Set(), moves: 0, lock:false, totalPairs: n };
+  renderVocabPanel();
+}
+
+function vocabMemorySessionHTML(){
+  const s = vocabMemorySession;
+  const done = s.matchedPairIds.size === s.totalPairs;
+  if(done){
+    return `
+      <div class="flash-wrap">
+        <div class="summary-card">
+          <span class="subject-tag">記憶配對完成</span>
+          <div class="score">${s.moves} <span>次翻牌</span></div>
+          <p style="color:var(--ink-soft);font-size:13.5px;">共配對 ${s.totalPairs} 組單字</p>
+          <div class="flash-actions" style="justify-content:center;margin-top:16px;">
+            <button type="button" class="ghost-btn" id="vocabBackToListBtn">回到單字本</button>
+            <button type="button" class="solid-btn" id="vocabRestartBtn">再玩一次</button>
+          </div>
+        </div>
+      </div>`;
+  }
+  const tilesHtml = s.tiles.map(t=>{
+    const flipped = s.flippedKeys.includes(t.key);
+    const matched = s.matchedPairIds.has(t.pairId);
+    let cls = 'memory-tile';
+    if(flipped || matched) cls += ' flipped';
+    if(matched) cls += ' matched';
+    return `
+      <div class="${cls}" data-key="${t.key}">
+        <div class="mt-inner">
+          <div class="mt-face mt-back">🎴</div>
+          <div class="mt-face mt-front">${escapeHtml(t.text)}</div>
+        </div>
+      </div>`;
+  }).join('');
+  return `
+    <div class="flash-wrap" style="max-width:760px;">
+      <div class="memory-topbar">
+        <span>已配對 ${s.matchedPairIds.size} / ${s.totalPairs} 組</span>
+        <span>翻牌次數：${s.moves}</span>
+      </div>
+      <div class="memory-grid">${tilesHtml}</div>
+      <div class="flash-actions" style="margin-top:16px;">
+        <button type="button" class="ghost-btn" id="vocabBackToListBtn">回到單字本</button>
+      </div>
+    </div>
+  `;
+}
+
+function bindVocabMemoryEvents(){
+  document.querySelectorAll('#vocabPanel .memory-tile').forEach(el=>{
+    el.addEventListener('click', ()=>{
+      const s = vocabMemorySession;
+      if(!s || s.lock) return;
+      const key = el.dataset.key;
+      if(s.flippedKeys.includes(key)) return;
+      const tile = s.tiles.find(t=>t.key===key);
+      if(!tile || s.matchedPairIds.has(tile.pairId)) return;
+      s.flippedKeys.push(key);
+      if(s.flippedKeys.length === 2){
+        s.moves++;
+        const [k1,k2] = s.flippedKeys;
+        const t1 = s.tiles.find(t=>t.key===k1);
+        const t2 = s.tiles.find(t=>t.key===k2);
+        if(t1.pairId === t2.pairId && t1.kind !== t2.kind){
+          s.matchedPairIds.add(t1.pairId);
+          s.flippedKeys = [];
+          renderVocabPanel();
+        }else{
+          s.lock = true;
+          renderVocabPanel();
+          setTimeout(()=>{
+            if(!vocabMemorySession) return;
+            vocabMemorySession.flippedKeys = [];
+            vocabMemorySession.lock = false;
+            renderVocabPanel();
+          }, 800);
+        }
+      }else{
+        renderVocabPanel();
+      }
+    });
+  });
+  const backBtn = document.getElementById('vocabBackToListBtn');
+  if(backBtn) backBtn.addEventListener('click', ()=>{ vocabMemorySession = null; renderVocabPanel(); });
+  const restartBtn = document.getElementById('vocabRestartBtn');
+  if(restartBtn) restartBtn.addEventListener('click', ()=>{ vocabMemorySession = null; startVocabMemory(); });
+}
+
+/* ============================================================
+   遊戲模式 2：⏱ 限時打字挑戰
+   ============================================================ */
+
+function startVocabTyping(){
+  const pool = vocabQuizLevelFilter === 'all' ? vocab : vocab.filter(v=>v.cefr===vocabQuizLevelFilter);
+  if(pool.length === 0 || vocab.length < 2) return;
+  const n = vocabQuizCount === 'all' ? pool.length : Math.min(vocabQuizCount, pool.length);
+  const words = shuffleArr(pool).slice(0, n);
+  vocabShowQuizSetup = false;
+  vocabTypingSession = {
+    words, idx: 0, correctCount: 0, wrongCount: 0,
+    timeLeft: vocabTypingTimeLimit, totalTime: vocabTypingTimeLimit,
+    timerId: null, finished: false, revealed: false, lastCorrect: false
+  };
+  renderVocabPanel();
+  startVocabTypingTimer();
+}
+
+function startVocabTypingTimer(){
+  const s = vocabTypingSession;
+  if(!s || s.timerId) return;
+  s.timerId = setInterval(()=>{
+    if(!vocabTypingSession){ clearInterval(s.timerId); return; }
+    vocabTypingSession.timeLeft--;
+    if(vocabTypingSession.timeLeft <= 0){
+      vocabTypingSession.timeLeft = 0;
+      finishVocabTyping();
+      return;
+    }
+    const timerEl = document.getElementById('typingTimerDisplay');
+    if(timerEl){
+      timerEl.textContent = `⏱ ${vocabTypingSession.timeLeft} 秒`;
+      timerEl.classList.toggle('low', vocabTypingSession.timeLeft <= 10);
+    }
+  }, 1000);
+}
+
+function finishVocabTyping(){
+  const s = vocabTypingSession;
+  if(!s) return;
+  if(s.timerId){ clearInterval(s.timerId); s.timerId = null; }
+  s.finished = true;
+  renderVocabPanel();
+}
+
+function vocabTypingSessionHTML(){
+  const s = vocabTypingSession;
+  const attempted = s.correctCount + s.wrongCount;
+  if(s.finished || s.idx >= s.words.length){
+    if(s.timerId){ clearInterval(s.timerId); s.timerId = null; }
+    return `
+      <div class="flash-wrap">
+        <div class="summary-card">
+          <span class="subject-tag">打字挑戰結果</span>
+          <div class="score">${s.correctCount} <span>/ ${attempted || s.correctCount}</span></div>
+          <p style="color:var(--ink-soft);font-size:13.5px;">答對 ${s.correctCount} 題・答錯 ${s.wrongCount} 題</p>
+          <div class="flash-actions" style="justify-content:center;margin-top:16px;">
+            <button type="button" class="ghost-btn" id="vocabBackToListBtn">回到單字本</button>
+            <button type="button" class="solid-btn" id="vocabRestartBtn">再玩一次</button>
+          </div>
+        </div>
+      </div>`;
+  }
+  const v = s.words[s.idx];
+  const revealed = s.revealed;
+  let resultHtml = '';
+  if(revealed){
+    resultHtml = `
+      <div class="result-banner ${s.lastCorrect?'ok':'no'}">${s.lastCorrect?'✓ 答對了':'✗ 答錯了'}</div>
+      ${!s.lastCorrect ? `<div class="correct-line">正確答案：<b>${escapeHtml(v.word)}</b></div>` : ''}
+    `;
+  }
+  return `
+    <div class="flash-wrap">
+      <div class="typing-timer ${s.timeLeft<=10?'low':''}" id="typingTimerDisplay">⏱ ${s.timeLeft} 秒</div>
+      <div class="flash-progress"><span>第 ${s.idx+1} / ${s.words.length} 題</span><span>答對 ${s.correctCount} 題</span></div>
+      <div class="flash-bar"><div class="fill" style="width:${(s.idx/s.words.length*100)}%"></div></div>
+      <div class="flashcard">
+        <span class="cefr-tag" style="--cefr-color:${CEFR_COLORS[v.cefr]||'var(--brass)'}">${escapeHtml(v.cefr||'—')}</span>
+        <div class="vocab-quiz-prompt">${escapeHtml(v.translation)}</div>
+        <div class="vocab-quiz-hint">看中文，打出正確的英文單字（共 ${(v.word||'').replace(/\s+/g,'').length} 個字母）</div>
+        <input type="text" id="typingAnswerInput" class="vocab-quiz-word-input" autocomplete="off" autocapitalize="off" spellcheck="false" ${revealed?'disabled':''} placeholder="在這裡輸入英文單字…">
+        ${resultHtml}
+        <div class="flash-actions">
+          ${revealed
+            ? `<button type="button" class="solid-btn" id="nextTypingBtn">${s.idx+1>=s.words.length?'查看結果':'下一題'}</button>`
+            : `<button type="button" class="solid-btn" id="submitTypingBtn">送出答案</button>`}
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+function bindVocabTypingEvents(){
+  const input = document.getElementById('typingAnswerInput');
+  if(input){
+    input.focus();
+    input.addEventListener('keydown', (e)=>{
+      if(e.key === 'Enter'){
+        e.preventDefault();
+        if(!vocabTypingSession.revealed) submitVocabTypingAnswer();
+        else document.getElementById('nextTypingBtn')?.click();
+      }
+    });
+  }
+  const submitBtn = document.getElementById('submitTypingBtn');
+  if(submitBtn) submitBtn.addEventListener('click', submitVocabTypingAnswer);
+  const nextBtn = document.getElementById('nextTypingBtn');
+  if(nextBtn) nextBtn.addEventListener('click', ()=>{
+    vocabTypingSession.idx++;
+    vocabTypingSession.revealed = false;
+    renderVocabPanel();
+  });
+  const backBtn = document.getElementById('vocabBackToListBtn');
+  if(backBtn) backBtn.addEventListener('click', ()=>{
+    if(vocabTypingSession && vocabTypingSession.timerId) clearInterval(vocabTypingSession.timerId);
+    vocabTypingSession = null; renderVocabPanel();
+  });
+  const restartBtn = document.getElementById('vocabRestartBtn');
+  if(restartBtn) restartBtn.addEventListener('click', ()=>{
+    if(vocabTypingSession && vocabTypingSession.timerId) clearInterval(vocabTypingSession.timerId);
+    vocabTypingSession = null; startVocabTyping();
+  });
+}
+
+function submitVocabTypingAnswer(){
+  const s = vocabTypingSession;
+  if(!s || s.revealed) return;
+  const input = document.getElementById('typingAnswerInput');
+  const val = input ? input.value : '';
+  const v = s.words[s.idx];
+  const correct = normalizeAnswer(val) === normalizeAnswer(v.word);
+  s.revealed = true;
+  s.lastCorrect = correct;
+  if(correct) s.correctCount++; else s.wrongCount++;
+  renderVocabPanel();
+}
+
+/* ============================================================
+   遊戲模式 3：🔤 字母重組
+   ============================================================ */
+
+function startVocabScramble(){
+  const pool = vocabQuizLevelFilter === 'all' ? vocab : vocab.filter(v=>v.cefr===vocabQuizLevelFilter);
+  const usablePool = pool.filter(v=>/[a-zA-Z]/.test(v.word||''));
+  const source = usablePool.length ? usablePool : pool;
+  if(source.length === 0 || vocab.length < 2) return;
+  const n = vocabQuizCount === 'all' ? source.length : Math.min(vocabQuizCount, source.length);
+  const words = shuffleArr(source).slice(0, n);
+  vocabShowQuizSetup = false;
+  vocabScrambleSession = { words, idx: 0, correctCount: 0, revealed: false, lastCorrect: false };
+  setupScrambleLetters();
+  renderVocabPanel();
+}
+
+function setupScrambleLetters(){
+  const s = vocabScrambleSession;
+  const v = s.words[s.idx];
+  const rawLetters = (v.word||'').replace(/\s+/g,'').split('');
+  let scrambled = rawLetters;
+  let attempts = 0;
+  do {
+    scrambled = shuffleArr(rawLetters);
+    attempts++;
+  } while(scrambled.join('') === rawLetters.join('') && rawLetters.length > 1 && attempts < 20);
+  s.letters = scrambled.map((ch,i)=>({ id:'l'+i, ch, used:false }));
+  s.answer = [];
+}
+
+function vocabScrambleSessionHTML(){
+  const s = vocabScrambleSession;
+  const total = s.words.length;
+  if(s.idx >= total){
+    return `
+      <div class="flash-wrap">
+        <div class="summary-card">
+          <span class="subject-tag">字母重組結果</span>
+          <div class="score">${s.correctCount} <span>/ ${total}</span></div>
+          <p style="color:var(--ink-soft);font-size:13.5px;">答對率 ${total?Math.round(s.correctCount/total*100):0}%</p>
+          <div class="flash-actions" style="justify-content:center;margin-top:16px;">
+            <button type="button" class="ghost-btn" id="vocabBackToListBtn">回到單字本</button>
+            <button type="button" class="solid-btn" id="vocabRestartBtn">再玩一次</button>
+          </div>
+        </div>
+      </div>`;
+  }
+  const v = s.words[s.idx];
+  const revealed = s.revealed;
+  const answerLen = s.letters.length;
+
+  const blanksHtml = Array.from({length: answerLen}).map((_,i)=>{
+    const picked = s.answer[i];
+    const cls = 'scramble-blank' + (picked ? ' filled' : '');
+    return `<div class="${cls}" data-slot="${i}">${picked ? escapeHtml(picked.ch) : ''}</div>`;
+  }).join('');
+
+  const tilesHtml = s.letters.map(l=>`<button type="button" class="scramble-letter ${l.used?'used':''}" data-letterid="${l.id}" ${revealed?'disabled':''}>${escapeHtml(l.ch)}</button>`).join('');
+
+  let resultHtml = '';
+  if(revealed){
+    resultHtml = `
+      <div class="result-banner ${s.lastCorrect?'ok':'no'}">${s.lastCorrect?'✓ 答對了':'✗ 答錯了'}</div>
+      ${!s.lastCorrect ? `<div class="correct-line">正確答案：<b>${escapeHtml(v.word)}</b></div>` : ''}
+    `;
+  }
+
+  return `
+    <div class="flash-wrap">
+      <div class="flash-progress"><span>第 ${s.idx+1} / ${total} 題</span><span>答對 ${s.correctCount} 題</span></div>
+      <div class="flash-bar"><div class="fill" style="width:${(s.idx/total*100)}%"></div></div>
+      <div class="flashcard">
+        <span class="cefr-tag" style="--cefr-color:${CEFR_COLORS[v.cefr]||'var(--brass)'}">${escapeHtml(v.cefr||'—')}</span>
+        <div class="vocab-quiz-prompt" style="font-size:16px;">${escapeHtml(v.translation)}</div>
+        <div class="vocab-quiz-hint">打亂了的英文單字字母，點一點拼回正確順序</div>
+        <div class="scramble-answer-row">${blanksHtml}</div>
+        <div class="scramble-tiles">${tilesHtml}</div>
+        ${resultHtml}
+        <div class="flash-actions" style="justify-content:space-between;">
+          <div>${!revealed ? `<button type="button" class="ghost-btn" id="clearScrambleBtn">清除</button>` : ''}</div>
+          <div style="display:flex;gap:10px;">
+            ${!revealed ? `<button type="button" class="solid-btn" id="submitScrambleBtn" ${s.answer.length!==answerLen?'disabled':''}>送出答案</button>` : ''}
+            ${revealed ? `<button type="button" class="solid-btn" id="nextScrambleBtn">${s.idx+1>=total?'查看結果':'下一題'}</button>` : ''}
+          </div>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+function bindVocabScrambleEvents(){
+  document.querySelectorAll('#vocabPanel .scramble-letter').forEach(el=>{
+    el.addEventListener('click', ()=>{
+      const s = vocabScrambleSession;
+      if(!s || s.revealed) return;
+      const letter = s.letters.find(l=>l.id===el.dataset.letterid);
+      if(!letter || letter.used) return;
+      letter.used = true;
+      s.answer.push(letter);
+      renderVocabPanel();
+    });
+  });
+  document.querySelectorAll('#vocabPanel .scramble-blank').forEach(el=>{
+    el.addEventListener('click', ()=>{
+      const s = vocabScrambleSession;
+      if(!s || s.revealed) return;
+      const slot = parseInt(el.dataset.slot, 10);
+      if(slot >= s.answer.length) return;
+      const removed = s.answer.splice(slot, s.answer.length - slot);
+      removed.forEach(letter=>{ letter.used = false; });
+      renderVocabPanel();
+    });
+  });
+  const clearBtn = document.getElementById('clearScrambleBtn');
+  if(clearBtn) clearBtn.addEventListener('click', ()=>{
+    const s = vocabScrambleSession;
+    if(!s) return;
+    s.answer.forEach(letter=>{ letter.used = false; });
+    s.answer = [];
+    renderVocabPanel();
+  });
+  const submitBtn = document.getElementById('submitScrambleBtn');
+  if(submitBtn) submitBtn.addEventListener('click', ()=>{
+    const s = vocabScrambleSession;
+    if(!s || s.answer.length !== s.letters.length) return;
+    const v = s.words[s.idx];
+    const built = s.answer.map(l=>l.ch).join('');
+    const correct = normalizeAnswer(built) === normalizeAnswer((v.word||'').replace(/\s+/g,''));
+    s.revealed = true;
+    s.lastCorrect = correct;
+    if(correct) s.correctCount++;
+    renderVocabPanel();
+  });
+  const nextBtn = document.getElementById('nextScrambleBtn');
+  if(nextBtn) nextBtn.addEventListener('click', ()=>{
+    const s = vocabScrambleSession;
+    if(!s) return;
+    s.idx++;
+    s.revealed = false;
+    if(s.idx < s.words.length) setupScrambleLetters();
+    renderVocabPanel();
+  });
+  const backBtn = document.getElementById('vocabBackToListBtn');
+  if(backBtn) backBtn.addEventListener('click', ()=>{ vocabScrambleSession = null; renderVocabPanel(); });
+  const restartBtn = document.getElementById('vocabRestartBtn');
+  if(restartBtn) restartBtn.addEventListener('click', ()=>{ vocabScrambleSession = null; startVocabScramble(); });
+}
+
+/* ============================================================
+   遊戲模式 4：🔊 聽力選擇
+   ============================================================ */
+
+function startVocabListening(){
+  const pool = vocabQuizLevelFilter === 'all' ? vocab : vocab.filter(v=>v.cefr===vocabQuizLevelFilter);
+  if(pool.length === 0 || vocab.length < 2) return;
+  const n = vocabQuizCount === 'all' ? pool.length : Math.min(vocabQuizCount, pool.length);
+  const chosen = shuffleArr(pool).slice(0, n);
+  const questions = chosen.map(v=>({ vocabId: v.id, optionIds: buildVocabOptionIds(v, vocab) }));
+  vocabShowQuizSetup = false;
+  vocabListeningSession = { questions, idx: 0, correctCount: 0, picked: null, revealed: false, lastCorrect: false };
+  renderVocabPanel();
+}
+
+function speakVocabWord(word){
+  if(!('speechSynthesis' in window)) return;
+  try{
+    window.speechSynthesis.cancel();
+    const utter = new SpeechSynthesisUtterance(word);
+    utter.lang = 'en-US';
+    utter.rate = 0.9;
+    window.speechSynthesis.speak(utter);
+  }catch(e){ /* 語音合成不可用時靜默忽略，使用者仍可重新點擊喇叭 */ }
+}
+
+function vocabListeningSessionHTML(){
+  const s = vocabListeningSession;
+  const total = s.questions.length;
+  if(s.idx >= total){
+    return `
+      <div class="flash-wrap">
+        <div class="summary-card">
+          <span class="subject-tag">聽力選擇結果</span>
+          <div class="score">${s.correctCount} <span>/ ${total}</span></div>
+          <p style="color:var(--ink-soft);font-size:13.5px;">答對率 ${total?Math.round(s.correctCount/total*100):0}%</p>
+          <div class="flash-actions" style="justify-content:center;margin-top:16px;">
+            <button type="button" class="ghost-btn" id="vocabBackToListBtn">回到單字本</button>
+            <button type="button" class="solid-btn" id="vocabRestartBtn">再測驗一次</button>
+          </div>
+        </div>
+      </div>`;
+  }
+  const q = s.questions[s.idx];
+  const v = vocab.find(x=>x.id===q.vocabId);
+  if(!v){ s.idx++; return vocabListeningSessionHTML(); }
+  const revealed = s.revealed;
+  const optionWords = q.optionIds.map(id=>vocab.find(x=>x.id===id)).filter(Boolean);
+
+  const optionsHtml = optionWords.map((opt,i)=>{
+    const letter = OPTION_LABELS[i];
+    let cls = 'choice-btn';
+    if(revealed){
+      if(opt.id === v.id) cls += ' reveal-correct';
+      else if(opt.id === s.picked) cls += ' reveal-wrong';
+    }else if(opt.id === s.picked) cls += ' picked';
+    return `<button type="button" class="${cls}" data-id="${opt.id}" ${revealed?'disabled':''}><span>${letter}.</span><span>${escapeHtml(opt.translation)}</span></button>`;
+  }).join('');
+
+  let resultHtml = '';
+  if(revealed){
+    resultHtml = `
+      <div class="result-banner ${s.lastCorrect?'ok':'no'}">${s.lastCorrect?'✓ 答對了':'✗ 答錯了'}</div>
+      ${!s.lastCorrect ? `<div class="correct-line">正確答案：<b>${escapeHtml(v.translation)}</b>（${escapeHtml(v.word)}）</div>` : ''}
+    `;
+  }
+
+  return `
+    <div class="flash-wrap">
+      <div class="flash-progress"><span>第 ${s.idx+1} / ${total} 題</span><span>答對 ${s.correctCount} 題</span></div>
+      <div class="flash-bar"><div class="fill" style="width:${(s.idx/total*100)}%"></div></div>
+      <div class="flashcard">
+        <span class="cefr-tag" style="--cefr-color:${CEFR_COLORS[v.cefr]||'var(--brass)'}">${escapeHtml(v.cefr||'—')}</span>
+        <button type="button" class="listen-btn" id="playListeningBtn" title="播放發音">🔊</button>
+        <div class="listen-hint">點喇叭聽發音，選出正確的中文意思${revealed ? `（單字：${escapeHtml(v.word)}）` : ''}</div>
+        <div class="m-opts">${optionsHtml}</div>
+        ${resultHtml}
+        <div class="flash-actions">
+          ${revealed ? `<button type="button" class="solid-btn" id="nextListeningBtn">${s.idx+1>=total?'查看結果':'下一題'}</button>` : ''}
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+function bindVocabListeningEvents(){
+  const playBtn = document.getElementById('playListeningBtn');
+  if(playBtn){
+    playBtn.addEventListener('click', ()=>{
+      const s = vocabListeningSession;
+      const q = s.questions[s.idx];
+      const v = vocab.find(x=>x.id===q.vocabId);
+      if(v) speakVocabWord(v.word);
+    });
+    const s = vocabListeningSession;
+    if(!s.revealed){
+      const q = s.questions[s.idx];
+      const v = vocab.find(x=>x.id===q.vocabId);
+      if(v) speakVocabWord(v.word);
+    }
+  }
+  document.querySelectorAll('#vocabPanel .choice-btn').forEach(el=>{
+    el.addEventListener('click', ()=>{
+      const s = vocabListeningSession;
+      if(s.revealed) return;
+      s.picked = el.dataset.id;
+      revealVocabListeningAnswer();
+    });
+  });
+  const nextBtn = document.getElementById('nextListeningBtn');
+  if(nextBtn) nextBtn.addEventListener('click', ()=>{
+    vocabListeningSession.idx++;
+    vocabListeningSession.revealed = false;
+    vocabListeningSession.picked = null;
+    renderVocabPanel();
+  });
+  const backBtn = document.getElementById('vocabBackToListBtn');
+  if(backBtn) backBtn.addEventListener('click', ()=>{ vocabListeningSession = null; renderVocabPanel(); });
+  const restartBtn = document.getElementById('vocabRestartBtn');
+  if(restartBtn) restartBtn.addEventListener('click', ()=>{ vocabListeningSession = null; startVocabListening(); });
+}
+
+function revealVocabListeningAnswer(){
+  const s = vocabListeningSession;
+  const q = s.questions[s.idx];
+  const correct = s.picked === q.vocabId;
+  s.revealed = true;
+  s.lastCorrect = correct;
+  if(correct) s.correctCount++;
+  renderVocabPanel();
 }
 
 /* ============================================================
@@ -3805,7 +4634,6 @@ document.getElementById('entryForm').addEventListener('submit', async (e)=>{
     if(!entriesByBook[active.id]) entriesByBook[active.id] = [];
     entriesByBook[active.id].push(data);
     render();
-    showExperienceToast(newPages);
     updateDailyProgress();
     const taskProgress = taskProgressForBook(active.id);
     if(taskProgress){
@@ -3882,6 +4710,9 @@ async function init(){
   document.getElementById('closeTodayPagesBtn').addEventListener('click', closeTodayPagesModal);
   document.getElementById('todayPagesOverlay').addEventListener('click', (e)=>{
     if(e.target.id === 'todayPagesOverlay') closeTodayPagesModal();
+  });
+  document.getElementById('vocabDetailOverlay').addEventListener('click', (e)=>{
+    if(e.target.id === 'vocabDetailOverlay') closeVocabDetail();
   });
   document.getElementById('changePwBtn').addEventListener('click', openChangePwModal);
   document.getElementById('cancelPwBtn').addEventListener('click', closeChangePwModal);
