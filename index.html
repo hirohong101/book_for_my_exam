@@ -160,6 +160,18 @@ header.top{
 .overview-bar-fill{ height:100%; background:var(--tab-color, var(--brass)); transition:width .35s ease; }
 .overview-card .no-target{ font-family:'JetBrains Mono',monospace; font-size:12px; color:var(--ink-soft); }
 
+/* 已完成的書本：淡化＋蓋上斜章 */
+.overview-card{ overflow:hidden; }
+.overview-card.completed, .book-tab.completed{ opacity:0.55; filter:grayscale(45%); }
+.overview-card.completed::after, .book-tab.completed::after{
+  content:'完成';
+  position:absolute; top:10px; right:-30px; width:120px;
+  transform:rotate(35deg); text-align:center;
+  background:var(--ledger-green); color:#fff; font-family:'JetBrains Mono',monospace;
+  font-size:11px; font-weight:700; letter-spacing:.15em; padding:3px 0;
+  box-shadow:0 1px 3px rgba(0,0,0,.25); pointer-events:none; z-index:2;
+}
+
 .layout{ display:grid; grid-template-columns:220px 1fr; gap:20px; align-items:start; }
 @media (max-width:720px){ .layout{ grid-template-columns:1fr; } }
 
@@ -176,6 +188,7 @@ header.top{
   background:transparent; border:none; border-left:4px solid var(--tab-color, var(--ledger-green));
   border-radius:3px; padding:9px 10px; cursor:pointer; font-family:'Inter',sans-serif;
   font-size:14px; color:var(--ink); transition:background .12s ease;
+  position:relative; overflow:hidden;
 }
 .book-tab .name{ flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 .book-tab .pct{ font-family:'JetBrains Mono',monospace; font-size:11px; color:var(--ink-soft); }
@@ -599,11 +612,21 @@ table.ledger .del{ background:none; border:none; color:var(--danger); cursor:poi
   background:var(--card); border:1px solid var(--card-border); border-left:4px solid var(--cefr-color, var(--brass));
   border-radius:var(--radius); box-shadow:var(--shadow); padding:14px 16px; display:flex; flex-direction:column; gap:6px;
   cursor:pointer; transition:transform .12s ease, box-shadow .12s ease;
+  position:relative; overflow:hidden;
 }
 .vocab-card:hover{ transform:translateY(-2px); box-shadow:0 4px 10px rgba(0,0,0,.08); }
 .vocab-card .v-top{ display:flex; justify-content:space-between; align-items:flex-start; gap:8px; }
 .vocab-card.selected{ outline:2px solid var(--danger); outline-offset:1px; }
 .vocab-card .v-select-chk{ width:16px; height:16px; flex-shrink:0; cursor:pointer; }
+.vocab-card.mastered{ opacity:0.55; filter:grayscale(45%); }
+.vocab-card.mastered::after{
+  content:'精熟';
+  position:absolute; top:10px; right:-30px; width:120px;
+  transform:rotate(35deg); text-align:center;
+  background:var(--ledger-green); color:#fff; font-family:'JetBrains Mono',monospace;
+  font-size:11px; font-weight:700; letter-spacing:.15em; padding:3px 0;
+  box-shadow:0 1px 3px rgba(0,0,0,.25); pointer-events:none; z-index:2;
+}
 
 .vocab-stats-grid{ display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-bottom:20px; }
 @media (max-width:720px){ .vocab-stats-grid{ grid-template-columns:1fr; } }
@@ -615,6 +638,27 @@ table.ledger .del{ background:none; border:none; color:var(--danger); cursor:poi
 .vocab-pie-legend{ display:flex; flex-direction:column; gap:6px; font-size:12.5px; color:var(--ink-soft); font-family:'JetBrains Mono',monospace; }
 .vocab-pie-legend .legend-item{ display:flex; align-items:center; }
 .legend-dot{ display:inline-block; width:10px; height:10px; border-radius:50%; margin-right:7px; flex-shrink:0; }
+
+/* ---------- 讀書時間 ---------- */
+.study-timer-card{
+  background:var(--ledger-green-soft); border-radius:var(--radius); padding:28px 20px;
+  text-align:center; display:flex; flex-direction:column; align-items:center; gap:10px;
+}
+.study-timer-label{ font-family:'JetBrains Mono',monospace; font-size:12px; color:var(--ink-soft); text-transform:uppercase; letter-spacing:.06em; }
+.study-timer-display{ font-family:'JetBrains Mono',monospace; font-size:42px; font-weight:700; color:var(--ledger-green); letter-spacing:.03em; }
+.study-timer-sub{ font-size:12.5px; color:var(--ink-soft); margin-bottom:6px; }
+.study-stat-num{ font-family:'Fraunces',serif; font-size:26px; font-weight:600; color:var(--ledger-green); }
+.study-list{ display:flex; flex-direction:column; gap:8px; }
+.study-row{
+  background:var(--card); border:1px solid var(--card-border); border-radius:var(--radius);
+  box-shadow:var(--shadow); padding:12px 16px; display:flex; justify-content:space-between; align-items:center;
+  gap:10px; flex-wrap:wrap;
+}
+.study-row-main{ display:flex; flex-direction:column; gap:3px; min-width:0; }
+.study-row-time{ font-family:'JetBrains Mono',monospace; font-size:13px; color:var(--ink); }
+.study-row-note{ font-size:12.5px; color:var(--ink-soft); }
+.study-row-side{ display:flex; align-items:center; gap:14px; flex-shrink:0; }
+.study-row-duration{ font-family:'JetBrains Mono',monospace; font-size:13px; font-weight:700; color:var(--ledger-green); }
 .vocab-card .v-word{ font-family:'Fraunces',serif; font-size:18px; font-weight:600; }
 .cefr-tag{
   font-family:'JetBrains Mono',monospace; font-size:10.5px; font-weight:700; flex-shrink:0;
@@ -821,6 +865,7 @@ table.ledger .del{ background:none; border:none; color:var(--danger); cursor:poi
       <button type="button" class="nav-item" data-section="review" style="--nav-color:#B0812C;"><span class="nav-icon">🧠</span><span>複習</span></button>
       <button type="button" class="nav-item" data-section="daily" style="--nav-color:#4A6FA5;"><span class="nav-icon">📅</span><span>每日紀錄</span></button>
       <button type="button" class="nav-item" data-section="vocab" style="--nav-color:#7A4A6B;"><span class="nav-icon">🔤</span><span>我的單字本</span></button>
+      <button type="button" class="nav-item" data-section="study" style="--nav-color:#3A6B8A;"><span class="nav-icon">⏱️</span><span>讀書時間</span></button>
     </nav>
     <div class="main-content">
       <div id="appPanel"><div class="loading">讀取資料中…</div></div>
@@ -828,6 +873,7 @@ table.ledger .del{ background:none; border:none; color:var(--danger); cursor:poi
       <div id="reviewPanel" class="hidden"><div class="loading">讀取資料中…</div></div>
       <div id="dailyPanel" class="hidden"><div class="loading">讀取資料中…</div></div>
       <div id="vocabPanel" class="hidden"><div class="loading">讀取資料中…</div></div>
+      <div id="studyPanel" class="hidden"><div class="loading">讀取資料中…</div></div>
     </div>
   </div>
 </div>
@@ -1161,6 +1207,13 @@ const VOCAB_SAMPLE_WORDS = [
   { word:'ubiquitous',   translation:'無所不在的',  cefr:'C2' }
 ];
 
+/* ---------------- 讀書時間：全域狀態 ---------------- */
+let studySessions = [];         // [{id, start_time, end_time, duration_seconds, note}]，end_time為null代表正在計時中
+let studyActiveSession = null;  // {id, start_time} 目前正在跑的計時（跨頁面/重新整理都會恢復）
+let studyTimerIntervalId = null;
+let studyShowManualForm = false;
+let studyManualError = '';
+
 function todayStr(){ return new Date().toISOString().slice(0,10); }
 function escapeHtml(s){
   return String(s).replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -1393,14 +1446,56 @@ async function recordBonusBadge(){
 }
 
 /* ---------------- 完成每日任務的經驗值／等級 ---------------- */
-// EXP 完全來自「每日任務徽章」與「加碼任務徽章」的累積筆數，不會因為改寫紀錄而變動，
-// 也不會重複計算（同一輪 / 同一天只會各記一次徽章，見 recordEarnedBadge / recordBonusBadge）。
+// EXP 有兩種來源：
+// 1. 「每日任務徽章」與「加碼任務徽章」的累積筆數（見 recordEarnedBadge / recordBonusBadge）。
+// 2. 單字本「測驗」與「好玩模式」答對題數所累積的 quiz_exp 紀錄（見 awardQuizExp）。
 const DAILY_TASK_EXP = 50;
 const BONUS_TASK_EXP = 20;
+const VOCAB_ACTIVITY_EXP = 5; // 測驗／好玩模式每答對一題（或配對成功一組）獲得的 EXP
 const LEVEL_EXP_BASE = 100;
 
+let quizExpEvents = []; // [{amount, source, created_at}]，從 Supabase 的 quiz_exp 表讀回
+
+async function loadQuizExp(){
+  quizExpEvents = [];
+  if(!currentUser) return;
+  const { data, error } = await db.from('quiz_exp').select('*');
+  if(error){ console.error('讀取測驗EXP失敗', error); return; }
+  quizExpEvents = data || [];
+}
+
+function quizExpTotal(){
+  return quizExpEvents.reduce((sum, e)=> sum + (Number(e.amount) || 0), 0);
+}
+
+function quizExpSourceLabel(source){
+  const labels = {
+    quiz: '單字測驗',
+    match: '記憶配對',
+    typing: '限時打字挑戰',
+    scramble: '字母重組',
+    listen: '聽力選擇'
+  };
+  return labels[source] || '單字練習';
+}
+
+// 測驗／好玩模式答完一輪後呼叫：依答對題數（或配對組數）計算 EXP，樂觀更新畫面後再寫回 Supabase。
+// 每個 session 只會呼叫一次（呼叫端會用 rewarded/finished 旗標防止重複觸發）。
+async function awardQuizExp(amount, source){
+  if(!amount || amount <= 0 || !currentUser) return;
+  const levelBefore = experienceStats().level;
+  quizExpEvents.push({ amount, source });
+  showDailyToast({ icon:'✨', title:`+${amount} EXP`, body:`${quizExpSourceLabel(source)}完成，獲得經驗值！` });
+  const levelAfter = experienceStats().level;
+  if(levelAfter > levelBefore){
+    showDailyToast({ icon:'🆙', title:'升級了！', body:`恭喜升上 Lv. ${levelAfter}！` });
+  }
+  const { error } = await db.from('quiz_exp').insert({ user_id: currentUser.id, amount, source });
+  if(error) console.error('紀錄測驗EXP失敗', error);
+}
+
 function experienceStats(){
-  const totalExp = earnedBadges.length * DAILY_TASK_EXP + earnedBonusBadges.length * BONUS_TASK_EXP;
+  const totalExp = earnedBadges.length * DAILY_TASK_EXP + earnedBonusBadges.length * BONUS_TASK_EXP + quizExpTotal();
   let level = 1;
   let spent = 0;
   let nextLevelExp = LEVEL_EXP_BASE;
@@ -2145,6 +2240,8 @@ async function loadAllData(){
   await loadStreak();
   await loadMistakes();
   await loadVocab();
+  await loadQuizExp();
+  await loadStudySessions();
 }
 
 /* ============================================================
@@ -2383,8 +2480,9 @@ B1" rows="3"></textarea>
 function vocabCardHTML(v){
   const color = CEFR_COLORS[v.cefr] || 'var(--brass)';
   const checked = vocabSelectedIds.has(v.id);
+  const mastered = !!v.mastered;
   return `
-    <div class="vocab-card ${checked?'selected':''}" style="--cefr-color:${color}" data-id="${v.id}">
+    <div class="vocab-card ${checked?'selected':''} ${mastered?'mastered':''}" style="--cefr-color:${color}" data-id="${v.id}">
       <div class="v-top">
         <div style="display:flex;align-items:center;gap:8px;min-width:0;">
           ${vocabSelectMode ? `<input type="checkbox" class="v-select-chk" data-id="${v.id}" ${checked?'checked':''}>` : ''}
@@ -2477,6 +2575,23 @@ function bindVocabPanelEvents(){
 function vocabWordExists(word, excludeId){
   const key = normalizeAnswer(word);
   return vocab.some(v => v.id !== excludeId && normalizeAnswer(v.word) === key);
+}
+
+// 「精熟」判定：在測驗／好玩模式（配對除外，因為配對沒有針對單一單字的對錯）裡連續答對達到
+// VOCAB_MASTER_STREAK 次就標記為精熟；答錯會重置連續次數，但已經精熟過的單字不會被打回原形。
+const VOCAB_MASTER_STREAK = 3;
+
+async function recordVocabAnswer(vocabId, correct){
+  const v = vocab.find(x=>x.id===vocabId);
+  if(!v || !currentUser) return;
+  v.correct_streak = correct ? (Number(v.correct_streak)||0) + 1 : 0;
+  if(!v.mastered && v.correct_streak >= VOCAB_MASTER_STREAK){
+    v.mastered = true;
+  }
+  const { error } = await db.from('vocab')
+    .update({ correct_streak: v.correct_streak, mastered: v.mastered })
+    .eq('id', vocabId);
+  if(error) console.error('更新單字精熟狀態失敗', error);
 }
 
 function openVocabDetail(id){
@@ -3018,6 +3133,9 @@ function bindVocabQuizEvents(){
   const nextBtn = document.getElementById('nextVocabCardBtn');
   if(nextBtn) nextBtn.addEventListener('click', ()=>{
     vocabQuizSession.idx++; vocabQuizSession.revealed = false; vocabQuizSession.picked = null;
+    if(vocabQuizSession.idx >= vocabQuizSession.questions.length){
+      awardQuizExp(vocabQuizSession.correctCount * VOCAB_ACTIVITY_EXP, 'quiz');
+    }
     renderVocabPanel();
   });
   const backBtn = document.getElementById('vocabBackToListBtn');
@@ -3032,6 +3150,7 @@ function revealVocabAnswer(){
   vocabQuizSession.revealed = true;
   vocabQuizSession.lastCorrect = correct;
   if(correct) vocabQuizSession.correctCount++;
+  recordVocabAnswer(q.vocabId, correct);
   renderVocabPanel();
 }
 
@@ -3055,7 +3174,7 @@ function startVocabMemory(){
   });
   tiles = shuffleArr(tiles);
   vocabShowQuizSetup = false;
-  vocabMemorySession = { tiles, flippedKeys: [], matchedPairIds: new Set(), moves: 0, lock:false, totalPairs: n };
+  vocabMemorySession = { tiles, flippedKeys: [], matchedPairIds: new Set(), moves: 0, lock:false, totalPairs: n, rewarded:false };
   renderVocabPanel();
 }
 
@@ -3122,6 +3241,10 @@ function bindVocabMemoryEvents(){
         if(t1.pairId === t2.pairId && t1.kind !== t2.kind){
           s.matchedPairIds.add(t1.pairId);
           s.flippedKeys = [];
+          if(s.matchedPairIds.size >= s.totalPairs && !s.rewarded){
+            s.rewarded = true;
+            awardQuizExp(s.totalPairs * VOCAB_ACTIVITY_EXP, 'match');
+          }
           renderVocabPanel();
         }else{
           s.lock = true;
@@ -3184,9 +3307,10 @@ function startVocabTypingTimer(){
 
 function finishVocabTyping(){
   const s = vocabTypingSession;
-  if(!s) return;
+  if(!s || s.finished) return;
   if(s.timerId){ clearInterval(s.timerId); s.timerId = null; }
   s.finished = true;
+  awardQuizExp(s.correctCount * VOCAB_ACTIVITY_EXP, 'typing');
   renderVocabPanel();
 }
 
@@ -3256,7 +3380,11 @@ function bindVocabTypingEvents(){
   if(nextBtn) nextBtn.addEventListener('click', ()=>{
     vocabTypingSession.idx++;
     vocabTypingSession.revealed = false;
-    renderVocabPanel();
+    if(vocabTypingSession.idx >= vocabTypingSession.words.length){
+      finishVocabTyping();
+    }else{
+      renderVocabPanel();
+    }
   });
   const backBtn = document.getElementById('vocabBackToListBtn');
   if(backBtn) backBtn.addEventListener('click', ()=>{
@@ -3280,6 +3408,7 @@ function submitVocabTypingAnswer(){
   s.revealed = true;
   s.lastCorrect = correct;
   if(correct) s.correctCount++; else s.wrongCount++;
+  recordVocabAnswer(v.id, correct);
   renderVocabPanel();
 }
 
@@ -3415,6 +3544,7 @@ function bindVocabScrambleEvents(){
     s.revealed = true;
     s.lastCorrect = correct;
     if(correct) s.correctCount++;
+    recordVocabAnswer(v.id, correct);
     renderVocabPanel();
   });
   const nextBtn = document.getElementById('nextScrambleBtn');
@@ -3423,7 +3553,11 @@ function bindVocabScrambleEvents(){
     if(!s) return;
     s.idx++;
     s.revealed = false;
-    if(s.idx < s.words.length) setupScrambleLetters();
+    if(s.idx < s.words.length){
+      setupScrambleLetters();
+    }else{
+      awardQuizExp(s.correctCount * VOCAB_ACTIVITY_EXP, 'scramble');
+    }
     renderVocabPanel();
   });
   const backBtn = document.getElementById('vocabBackToListBtn');
@@ -3546,6 +3680,9 @@ function bindVocabListeningEvents(){
     vocabListeningSession.idx++;
     vocabListeningSession.revealed = false;
     vocabListeningSession.picked = null;
+    if(vocabListeningSession.idx >= vocabListeningSession.questions.length){
+      awardQuizExp(vocabListeningSession.correctCount * VOCAB_ACTIVITY_EXP, 'listen');
+    }
     renderVocabPanel();
   });
   const backBtn = document.getElementById('vocabBackToListBtn');
@@ -3561,8 +3698,277 @@ function revealVocabListeningAnswer(){
   s.revealed = true;
   s.lastCorrect = correct;
   if(correct) s.correctCount++;
+  recordVocabAnswer(q.vocabId, correct);
   renderVocabPanel();
 }
+
+/* ============================================================
+   讀書時間：登記開始/結束時間，計算總時間
+   ============================================================ */
+
+async function loadStudySessions(){
+  studySessions = [];
+  studyActiveSession = null;
+  if(!currentUser) return;
+  const { data, error } = await db
+    .from('study_sessions').select('*').order('start_time', { ascending:false });
+  if(error){ console.error('讀取讀書時間紀錄失敗', error); return; }
+  studySessions = data || [];
+  // 如果有一筆還沒填 end_time，代表上次計時到一半就離開／重新整理了，恢復計時
+  const running = studySessions.find(s=>!s.end_time);
+  if(running){
+    studyActiveSession = { id: running.id, start_time: running.start_time };
+    startStudyTimerInterval();
+  }
+}
+
+function formatStudyDuration(totalSeconds){
+  const sec = Math.max(0, Math.round(totalSeconds || 0));
+  const h = Math.floor(sec / 3600);
+  const m = Math.floor((sec % 3600) / 60);
+  const s = sec % 60;
+  if(h > 0) return `${h} 小時 ${m} 分`;
+  if(m > 0) return `${m} 分 ${s} 秒`;
+  return `${s} 秒`;
+}
+
+function formatStudyDateTime(iso){
+  if(!iso) return '—';
+  const d = new Date(iso);
+  if(isNaN(d.getTime())) return '—';
+  return d.toLocaleString('zh-TW', { month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit', hour12:false });
+}
+
+function studyDateInputValue(iso){
+  // 轉成 <input type="datetime-local"> 需要的格式（本地時間、無時區）
+  const d = iso ? new Date(iso) : new Date();
+  const pad = n=>String(n).padStart(2,'0');
+  return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
+function studySessionSeconds(s){
+  if(s.duration_seconds != null) return s.duration_seconds;
+  if(!s.end_time) return 0;
+  return Math.max(0, (new Date(s.end_time) - new Date(s.start_time)) / 1000);
+}
+
+function studyStatsToday(){
+  const today = todayStr();
+  return studySessions
+    .filter(s=> s.end_time && (s.start_time||'').slice(0,10) === today)
+    .reduce((sum,s)=> sum + studySessionSeconds(s), 0);
+}
+
+function studyStatsTotal(){
+  return studySessions
+    .filter(s=>s.end_time)
+    .reduce((sum,s)=> sum + studySessionSeconds(s), 0);
+}
+
+function renderStudyPanel(){
+  const panel = document.getElementById('studyPanel');
+  const finished = studySessions.filter(s=>s.end_time).slice(0, 200);
+
+  panel.innerHTML = `
+    <div class="panel">
+      <div class="section-head">
+        <h2>讀書時間</h2>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;">
+          ${!studyActiveSession ? `<button type="button" class="ghost-btn" id="toggleStudyManualBtn">${studyShowManualForm ? '－ 收起手動新增' : '＋ 手動新增紀錄'}</button>` : ''}
+        </div>
+      </div>
+
+      <div class="study-timer-card">
+        ${studyActiveSession ? `
+          <div class="study-timer-label">正在讀書中…</div>
+          <div class="study-timer-display" id="studyTimerDisplay">00:00:00</div>
+          <div class="study-timer-sub">開始於 ${formatStudyDateTime(studyActiveSession.start_time)}</div>
+          <button type="button" class="solid-btn" id="stopStudyBtn" style="background:var(--danger);">⏹ 結束讀書</button>
+        ` : `
+          <div class="study-timer-label">還沒開始計時</div>
+          <button type="button" class="solid-btn" id="startStudyBtn">▶️ 開始讀書</button>
+        `}
+      </div>
+
+      ${studyShowManualForm && !studyActiveSession ? studyManualFormHTML() : ''}
+
+      <div class="vocab-stats-grid" style="margin-top:20px;">
+        <div class="vocab-chart-card" style="text-align:center;">
+          <h3>今天讀書時間</h3>
+          <div class="study-stat-num">${formatStudyDuration(studyStatsToday())}</div>
+        </div>
+        <div class="vocab-chart-card" style="text-align:center;">
+          <h3>累計讀書時間</h3>
+          <div class="study-stat-num">${formatStudyDuration(studyStatsTotal())}</div>
+        </div>
+      </div>
+
+      <h3 style="font-family:'Fraunces',serif;font-size:15px;margin:22px 0 10px;">紀錄</h3>
+      ${finished.length === 0 ? `
+        <div class="empty"><h2>還沒有讀書紀錄</h2><p>按上面「開始讀書」開始計時，或手動新增一筆過去的紀錄。</p></div>
+      ` : `
+        <div class="study-list">
+          ${finished.map(studySessionRowHTML).join('')}
+        </div>
+      `}
+    </div>
+  `;
+  bindStudyPanelEvents();
+}
+
+function studySessionRowHTML(s){
+  return `
+    <div class="study-row">
+      <div class="study-row-main">
+        <span class="study-row-time">${formatStudyDateTime(s.start_time)} → ${formatStudyDateTime(s.end_time)}</span>
+        ${s.note ? `<span class="study-row-note">${escapeHtml(s.note)}</span>` : ''}
+      </div>
+      <div class="study-row-side">
+        <span class="study-row-duration">${formatStudyDuration(studySessionSeconds(s))}</span>
+        <button type="button" class="v-del" data-id="${s.id}">刪除</button>
+      </div>
+    </div>
+  `;
+}
+
+function studyManualFormHTML(){
+  const now = studyDateInputValue();
+  return `
+    <form class="vocab-form" id="studyManualForm" style="margin-top:16px;">
+      ${studyManualError ? `<div class="vocab-form-error">${escapeHtml(studyManualError)}</div>` : ''}
+      <div class="row3">
+        <div class="field">
+          <label>開始時間</label>
+          <input type="datetime-local" id="studyStartInput" value="${now}">
+        </div>
+        <div class="field">
+          <label>結束時間</label>
+          <input type="datetime-local" id="studyEndInput" value="${now}">
+        </div>
+        <div class="field">
+          <label>備註（選填）</label>
+          <input type="text" id="studyNoteInput" placeholder="例如：數學講義第3章">
+        </div>
+      </div>
+      <div class="vocab-form-actions">
+        <button type="button" class="ghost-btn" id="cancelStudyManualBtn">取消</button>
+        <button type="submit" class="solid-btn">新增紀錄</button>
+      </div>
+    </form>
+  `;
+}
+
+function bindStudyPanelEvents(){
+  const startBtn = document.getElementById('startStudyBtn');
+  if(startBtn) startBtn.addEventListener('click', startStudySession);
+  const stopBtn = document.getElementById('stopStudyBtn');
+  if(stopBtn) stopBtn.addEventListener('click', stopStudySession);
+  const toggleBtn = document.getElementById('toggleStudyManualBtn');
+  if(toggleBtn) toggleBtn.addEventListener('click', ()=>{
+    studyShowManualForm = !studyShowManualForm;
+    studyManualError = '';
+    renderStudyPanel();
+  });
+  const cancelBtn = document.getElementById('cancelStudyManualBtn');
+  if(cancelBtn) cancelBtn.addEventListener('click', ()=>{
+    studyShowManualForm = false;
+    studyManualError = '';
+    renderStudyPanel();
+  });
+  const form = document.getElementById('studyManualForm');
+  if(form) form.addEventListener('submit', submitStudyManualForm);
+  document.querySelectorAll('#studyPanel .v-del').forEach(el=>{
+    el.addEventListener('click', async ()=>{
+      if(!confirm('確定要刪除這筆讀書紀錄嗎？')) return;
+      const { error } = await db.from('study_sessions').delete().eq('id', el.dataset.id);
+      if(error){ alert('刪除失敗：' + error.message); return; }
+      studySessions = studySessions.filter(s=>s.id !== el.dataset.id);
+      renderStudyPanel();
+    });
+  });
+  if(studyActiveSession) updateStudyTimerDisplay();
+}
+
+async function startStudySession(){
+  if(studyActiveSession || !currentUser) return;
+  const startIso = new Date().toISOString();
+  const { data, error } = await db.from('study_sessions')
+    .insert({ user_id: currentUser.id, start_time: startIso, end_time: null, duration_seconds: null, note: '' })
+    .select().single();
+  if(error){ alert('開始計時失敗：' + error.message); return; }
+  const id = data && data.id ? data.id : ('local-' + Date.now());
+  studyActiveSession = { id, start_time: startIso };
+  studySessions.unshift({ id, user_id: currentUser.id, start_time: startIso, end_time: null, duration_seconds: null, note: '' });
+  startStudyTimerInterval();
+  renderStudyPanel();
+}
+
+function startStudyTimerInterval(){
+  if(studyTimerIntervalId) clearInterval(studyTimerIntervalId);
+  studyTimerIntervalId = setInterval(updateStudyTimerDisplay, 1000);
+}
+
+function updateStudyTimerDisplay(){
+  if(!studyActiveSession) return;
+  const el = document.getElementById('studyTimerDisplay');
+  if(!el) return;
+  const secs = Math.max(0, Math.floor((Date.now() - new Date(studyActiveSession.start_time).getTime()) / 1000));
+  const h = String(Math.floor(secs/3600)).padStart(2,'0');
+  const m = String(Math.floor((secs%3600)/60)).padStart(2,'0');
+  const s = String(secs%60).padStart(2,'0');
+  el.textContent = `${h}:${m}:${s}`;
+}
+
+async function stopStudySession(){
+  if(!studyActiveSession) return;
+  const endIso = new Date().toISOString();
+  const durationSeconds = Math.max(0, Math.round((new Date(endIso) - new Date(studyActiveSession.start_time)) / 1000));
+  if(studyTimerIntervalId){ clearInterval(studyTimerIntervalId); studyTimerIntervalId = null; }
+  const { error } = await db.from('study_sessions')
+    .update({ end_time: endIso, duration_seconds: durationSeconds })
+    .eq('id', studyActiveSession.id);
+  if(error){ alert('結束計時失敗：' + error.message); return; }
+  const row = studySessions.find(s=>s.id === studyActiveSession.id);
+  if(row){ row.end_time = endIso; row.duration_seconds = durationSeconds; }
+  studyActiveSession = null;
+  renderStudyPanel();
+}
+
+async function submitStudyManualForm(e){
+  e.preventDefault();
+  const startVal = document.getElementById('studyStartInput').value;
+  const endVal = document.getElementById('studyEndInput').value;
+  const note = document.getElementById('studyNoteInput').value.trim();
+  if(!startVal || !endVal){
+    studyManualError = '請輸入開始與結束時間';
+    renderStudyPanel();
+    return;
+  }
+  const startDate = new Date(startVal);
+  const endDate = new Date(endVal);
+  if(isNaN(startDate.getTime()) || isNaN(endDate.getTime()) || endDate <= startDate){
+    studyManualError = '結束時間必須晚於開始時間';
+    renderStudyPanel();
+    return;
+  }
+  const durationSeconds = Math.round((endDate - startDate) / 1000);
+  const { data, error } = await db.from('study_sessions')
+    .insert({
+      user_id: currentUser.id,
+      start_time: startDate.toISOString(),
+      end_time: endDate.toISOString(),
+      duration_seconds: durationSeconds,
+      note
+    }).select().single();
+  if(error){ studyManualError = '新增失敗：' + error.message; renderStudyPanel(); return; }
+  studySessions.unshift(data);
+  studySessions.sort((a,b)=> new Date(b.start_time) - new Date(a.start_time));
+  studyShowManualForm = false;
+  studyManualError = '';
+  renderStudyPanel();
+}
+
+
 
 /* ============================================================
    每日紀錄（熱力圖）：最近 365 天每天寫了多少頁、各科分別多少
@@ -3732,10 +4138,12 @@ function switchSection(section){
   document.getElementById('reviewPanel').classList.toggle('hidden', section !== 'review');
   document.getElementById('dailyPanel').classList.toggle('hidden', section !== 'daily');
   document.getElementById('vocabPanel').classList.toggle('hidden', section !== 'vocab');
+  document.getElementById('studyPanel').classList.toggle('hidden', section !== 'study');
   if(section === 'mistakes'){ mistakeShowForm = false; renderMistakesPanel(); }
   if(section === 'review'){ reviewSession = null; renderReviewPanel(); }
   if(section === 'daily'){ renderDailyPanel(); }
   if(section === 'vocab'){ vocabShowForm = false; vocabShowQuizSetup = false; vocabQuizSession = null; vocabSelectMode = false; vocabSelectedIds = new Set(); renderVocabPanel(); }
+  if(section === 'study'){ studyShowManualForm = false; studyManualError = ''; renderStudyPanel(); }
 }
 
 /* ---------------- 錯題本：整理 ---------------- */
@@ -4486,7 +4894,8 @@ function render(){
         }).sort((x,y)=> y.pExact - x.pExact).map(({b,i,t,tg,pExact})=>{
           const p = Math.round(pExact);
           const color = PALETTE[i % PALETTE.length];
-          return `<button class="overview-card ${b.id===active.id?'active':''}" style="--tab-color:${color}" data-id="${b.id}">
+          const isCompleted = tg>0 && pExact >= 100;
+          return `<button class="overview-card ${b.id===active.id?'active':''} ${isCompleted?'completed':''}" style="--tab-color:${color}" data-id="${b.id}">
             <span class="name">${escapeHtml(b.name)}${isBookPaused(b.id) ? '<span class="paused-tag">⏸ 暫停排程</span>' : ''}</span>
             ${tg>0 ? `
               <span class="num">已寫 <b>${t}</b> / ${tg} 頁</span>
@@ -4505,7 +4914,8 @@ function render(){
           const p = tg>0 ? Math.min(100, Math.round((t/tg)*100)) : 0;
           const color = PALETTE[i % PALETTE.length];
           const paused = isBookPaused(b.id);
-          return `<button class="book-tab ${b.id===active.id?'active':''} ${paused?'paused':''}" style="--tab-color:${color}" data-id="${b.id}">
+          const isCompleted = tg>0 && t >= tg;
+          return `<button class="book-tab ${b.id===active.id?'active':''} ${paused?'paused':''} ${isCompleted?'completed':''}" style="--tab-color:${color}" data-id="${b.id}">
             <span class="name">${escapeHtml(b.name)}</span>
             <span class="pct">${paused ? '⏸ 暫停' : (tg>0 ? p+'%' : t+'頁')}</span>
           </button>`;
