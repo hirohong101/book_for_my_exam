@@ -639,6 +639,59 @@ table.ledger .del{ background:none; border:none; color:var(--danger); cursor:poi
 .vocab-pie-legend .legend-item{ display:flex; align-items:center; }
 .legend-dot{ display:inline-block; width:10px; height:10px; border-radius:50%; margin-right:7px; flex-shrink:0; }
 
+/* ---------- 單字本：展開式圖表／複習進度／排序分組 ---------- */
+.vocab-fold{
+  background:var(--card); border:1px solid var(--card-border); border-radius:var(--radius);
+  box-shadow:var(--shadow); margin-bottom:14px; overflow:hidden;
+}
+.vocab-fold > summary{
+  cursor:pointer; list-style:none; padding:12px 16px; font-family:'Fraunces',serif; font-weight:600; font-size:14.5px;
+  display:flex; align-items:center; justify-content:space-between; gap:10px; user-select:none;
+}
+.vocab-fold > summary::-webkit-details-marker{ display:none; }
+.vocab-fold > summary::after{ content:'▸'; color:var(--ink-soft); transition:transform .15s ease; }
+.vocab-fold[open] > summary::after{ transform:rotate(90deg); }
+.vocab-fold > summary:hover{ background:var(--ledger-green-soft); }
+.vocab-fold .fold-body{ padding:4px 16px 16px; }
+.vocab-fold .fold-sub{ font-family:'JetBrains Mono',monospace; font-size:11.5px; font-weight:400; color:var(--ink-soft); margin-left:auto; margin-right:8px; }
+.vocab-fold .vocab-stats-grid{ margin-bottom:0; }
+
+.review-stack{ display:flex; height:16px; border-radius:999px; overflow:hidden; border:1px solid var(--card-border); background:#fff; margin:6px 0 10px; }
+.review-stack span{ display:block; height:100%; }
+.review-legend{ display:flex; flex-wrap:wrap; gap:6px 16px; font-family:'JetBrains Mono',monospace; font-size:12px; color:var(--ink-soft); margin-bottom:12px; }
+.review-legend .legend-item{ display:flex; align-items:center; }
+.review-note{ font-size:12px; color:var(--ink-soft); line-height:1.6; margin:8px 0 12px; }
+.review-steps{ display:flex; gap:6px; flex-wrap:wrap; margin-bottom:12px; }
+.review-step{
+  font-family:'JetBrains Mono',monospace; font-size:11px; padding:3px 9px; border-radius:999px;
+  background:var(--brass-soft); color:#72530f; border:1px solid var(--brass);
+}
+
+.vocab-toolbar{ display:flex; gap:14px; flex-wrap:wrap; align-items:center; margin:0 0 14px; }
+.vocab-toolbar label{ display:flex; align-items:center; gap:6px; font-family:'JetBrains Mono',monospace; font-size:11.5px; color:var(--ink-soft); }
+.vocab-toolbar select{
+  font-family:'Inter',sans-serif; font-size:13px; padding:6px 10px; border:1px solid var(--card-border);
+  border-radius:6px; background:#fff; cursor:pointer; color:var(--ink);
+}
+
+.vocab-group{ margin-bottom:12px; }
+.vocab-group > summary{
+  cursor:pointer; list-style:none; display:flex; align-items:center; gap:8px; padding:8px 4px; margin-bottom:8px;
+  font-family:'Fraunces',serif; font-weight:600; font-size:15px; border-bottom:1px dashed var(--card-border); user-select:none;
+}
+.vocab-group > summary::-webkit-details-marker{ display:none; }
+.vocab-group > summary::before{ content:'▸'; color:var(--ink-soft); font-size:12px; transition:transform .15s ease; }
+.vocab-group[open] > summary::before{ transform:rotate(90deg); }
+.vocab-group .g-count{ margin-left:auto; font-family:'JetBrains Mono',monospace; font-size:11.5px; font-weight:400; color:var(--ink-soft); }
+
+.vocab-card .v-actions{ align-items:center; gap:12px; }
+.v-speak{ background:none; border:1px solid var(--card-border); border-radius:999px; cursor:pointer; font-size:13px; padding:2px 9px; line-height:1.4; }
+.v-speak:hover{ background:var(--ledger-green-soft); border-color:var(--ledger-green); }
+.v-review{ display:flex; align-items:center; gap:8px; margin-top:2px; }
+.v-review-bar{ flex:1; height:6px; border-radius:99px; background:var(--paper-line); overflow:hidden; }
+.v-review-bar > span{ display:block; height:100%; border-radius:inherit; transition:width .25s ease; }
+.v-review-txt{ font-family:'JetBrains Mono',monospace; font-size:10.5px; color:var(--ink-soft); white-space:nowrap; }
+
 /* ---------- 讀書時間 ---------- */
 .study-timer-card{
   background:var(--ledger-green-soft); border-radius:var(--radius); padding:28px 20px;
@@ -1173,6 +1226,46 @@ let vocabQuizType = 'zh2en'; // 'zh2en'（看中文選英文） | 'en2zh'（看�
 let vocabQuizCount = 10;
 let vocabDetailId = null;
 let vocabDetailEditing = false;
+
+/* ---- 單字本：排序／分組／展開狀態 ---- */
+let vocabSortId = 'date-desc';     // 排序方式，見 VOCAB_SORT_OPTIONS
+let vocabGroupBy = 'none';         // 'none' | 'date' | 'review' | 'level'
+let vocabStatsOpen = false;        // 圖表統計是否展開
+let vocabReviewOpen = true;        // 複習進度是否展開
+let vocabGroupClosed = new Set();  // 被收起的分組（key 格式：模式:分組值）
+let vocabQuizSmart = false;        // 遊戲出題時，是否依遺忘曲線優先考快忘掉的字
+
+const VOCAB_SORT_OPTIONS = [
+  { id:'date-desc',   label:'日期：新 → 舊' },
+  { id:'date-asc',    label:'日期：舊 → 新' },
+  { id:'review-asc',  label:'複習進度：最該複習的優先' },
+  { id:'review-desc', label:'複習進度：記得最牢的優先' },
+  { id:'level-asc',   label:'難度：低 → 高（A1→C2）' },
+  { id:'level-desc',  label:'難度：高 → 低（C2→A1）' },
+  { id:'alpha-asc',   label:'字母：A → Z' }
+];
+const VOCAB_GROUP_OPTIONS = [
+  { id:'none',   label:'不分組' },
+  { id:'date',   label:'依日期' },
+  { id:'review', label:'依複習進度' },
+  { id:'level',  label:'依難度（CEFR）' }
+];
+
+/* ---- 遺忘曲線（艾賓浩斯）複習排程 ----
+   每個單字有一個「複習階段」0~6，對應下次複習間隔（天）。
+   記憶保留率 R = e^(-t/S)，其中 t 是距離上次複習的天數，
+   S（記憶穩定度）依間隔決定，讓 R 剛好在「到期日」降到 90%。
+   答對 → 升一階（間隔拉長）；答錯 → 退兩階（重新加強）。
+   複習紀錄存在本機 localStorage（不需要更動 Supabase 資料表）。 */
+const REVIEW_INTERVALS = [1, 2, 4, 7, 15, 30, 60]; // 天
+const REVIEW_MAX_STAGE = REVIEW_INTERVALS.length - 1;
+const REVIEW_BUCKETS = [
+  { id:'forgot', label:'快忘光了', color:'#A03A2E', max:0.5 },
+  { id:'weak',   label:'需要複習', color:'#C2692B', max:0.75 },
+  { id:'ok',     label:'還記得',   color:'#B0812C', max:0.9 },
+  { id:'strong', label:'記得很牢', color:'#2F5D50', max:Infinity }
+];
+let vocabReviewState = null; // { [vocabId]: { stage, last } }
 
 let vocabGameMode = 'mc';        // 'mc' | 'memory' | 'typing' | 'scramble' | 'listening'
 let vocabShowGameMenu = false;
@@ -2269,6 +2362,7 @@ function isMastered(m){ return (m.streak||0) >= MASTER_STREAK; }
 
 async function loadVocab(){
   vocab = [];
+  vocabReviewState = null; // 換帳號／重新登入時，重新讀取該使用者的複習紀錄
   if(!currentUser) return;
   const { data, error } = await db
     .from('vocab').select('*').order('created_at', { ascending:false });
@@ -2343,22 +2437,93 @@ function vocabStatsHTML(){
   if(vocab.length === 0) return '';
   const data = cefrDataForChart().filter(d=>d.count>0);
   return `
-    <div class="vocab-stats-grid">
-      <div class="vocab-chart-card">
-        <h3>各等級單字數量（長條圖）</h3>
-        ${vocabBarChartSVG()}
-      </div>
-      <div class="vocab-chart-card">
-        <h3>各等級比例（圓餅圖）</h3>
-        <div style="display:flex;align-items:center;gap:20px;flex-wrap:wrap;justify-content:center;">
-          ${vocabPieChartSVG()}
-          <div class="vocab-pie-legend">
-            ${data.map(d=>`<div class="legend-item"><span class="legend-dot" style="background:${d.color}"></span>${d.level} · ${d.count} 個（${Math.round(d.count/vocab.length*100)}%）</div>`).join('')}
+    <details class="vocab-fold" id="vocabStatsFold" ${vocabStatsOpen ? 'open' : ''}>
+      <summary>📊 圖表統計<span class="fold-sub">長條圖／圓餅圖</span></summary>
+      <div class="fold-body">
+        <div class="vocab-stats-grid">
+          <div class="vocab-chart-card">
+            <h3>各等級單字數量（長條圖）</h3>
+            ${vocabBarChartSVG()}
+          </div>
+          <div class="vocab-chart-card">
+            <h3>各等級比例（圓餅圖）</h3>
+            <div style="display:flex;align-items:center;gap:20px;flex-wrap:wrap;justify-content:center;">
+              ${vocabPieChartSVG()}
+              <div class="vocab-pie-legend">
+                ${data.map(d=>`<div class="legend-item"><span class="legend-dot" style="background:${d.color}"></span>${d.level} · ${d.count} 個（${Math.round(d.count/vocab.length*100)}%）</div>`).join('')}
+              </div>
+            </div>
           </div>
         </div>
       </div>
+    </details>
+  `;
+}
+
+// 複習進度（遺忘曲線）：整體記憶保留率、四種狀態的分布條、今天該複習的單字數
+function vocabReviewOverviewHTML(){
+  if(vocab.length === 0) return '';
+  const infos = vocab.map(vocabRetentionInfo);
+  const avg = Math.round(infos.reduce((s,i)=>s+i.ret, 0) / infos.length * 100);
+  const due = infos.filter(i=>i.due).length;
+  const counts = {};
+  REVIEW_BUCKETS.forEach(b=> counts[b.id] = 0);
+  infos.forEach(i=> counts[i.bucket.id]++);
+  const stack = REVIEW_BUCKETS.filter(b=>counts[b.id]>0).map(b=>
+    `<span style="width:${counts[b.id]/vocab.length*100}%;background:${b.color}" title="${b.label}：${counts[b.id]} 個"></span>`
+  ).join('');
+  const legend = REVIEW_BUCKETS.map(b=>
+    `<div class="legend-item"><span class="legend-dot" style="background:${b.color}"></span>${b.label} · ${counts[b.id]} 個</div>`
+  ).join('');
+  const steps = REVIEW_INTERVALS.map((d,i)=>`<span class="review-step">Lv${i}：${d} 天後</span>`).join('');
+  return `
+    <details class="vocab-fold" id="vocabReviewFold" ${vocabReviewOpen ? 'open' : ''}>
+      <summary>🧠 複習進度（遺忘曲線）<span class="fold-sub">${due > 0 ? `今天該複習 ${due} 個` : '目前沒有需要複習的字 🎉'}</span></summary>
+      <div class="fold-body">
+        <div style="font-family:'JetBrains Mono',monospace;font-size:12.5px;color:var(--ink-soft);">整體記憶保留率 <b style="color:var(--ink);font-size:15px;">${avg}%</b>（共 ${vocab.length} 個單字）</div>
+        <div class="review-stack">${stack}</div>
+        <div class="review-legend">${legend}</div>
+        <div class="review-note">
+          依艾賓浩斯遺忘曲線，記憶會隨時間呈指數下降（R = e<sup>−t/S</sup>）。每次答對，複習間隔就拉長一階；答錯則退回兩階重新加強。保留率低於 90% 的單字視為「該複習」。
+        </div>
+        <div class="review-steps">${steps}</div>
+        ${vocab.length >= 2 ? `<button type="button" class="ghost-btn" id="reviewNowBtn">🧠 用遺忘曲線出題（優先考快忘掉的字）</button>` : ''}
+      </div>
+    </details>
+  `;
+}
+
+function vocabToolbarHTML(){
+  return `
+    <div class="vocab-toolbar">
+      <label>排序
+        <select id="vocabSortSelect">
+          ${VOCAB_SORT_OPTIONS.map(o=>`<option value="${o.id}" ${vocabSortId===o.id?'selected':''}>${o.label}</option>`).join('')}
+        </select>
+      </label>
+      <label><input type="checkbox" id="vocabSoundFxChk" ${soundFxOn?'checked':''}>🔔 答題音效</label>
+      <label><input type="checkbox" id="vocabAutoSpeakChk" ${autoSpeakOn?'checked':''}>🗣 自動唸單字</label>
+      <label>分組
+        <select id="vocabGroupSelect">
+          ${VOCAB_GROUP_OPTIONS.map(o=>`<option value="${o.id}" ${vocabGroupBy===o.id?'selected':''}>${o.label}</option>`).join('')}
+        </select>
+      </label>
     </div>
   `;
+}
+
+function vocabListHTML(list){
+  return vocabGroupedList(list).map(g=>{
+    const cards = `<div class="vocab-grid">${g.items.map(vocabCardHTML).join('')}</div>`;
+    if(g.label === null) return cards;
+    const gk = `${vocabGroupBy}:${g.key}`;
+    const dot = g.color ? `<span class="legend-dot" style="background:${g.color};margin-right:0;"></span>` : '';
+    return `
+      <details class="vocab-group" data-gkey="${escapeHtml(gk)}" ${vocabGroupClosed.has(gk) ? '' : 'open'}>
+        <summary>${dot}${escapeHtml(g.label)}<span class="g-count">${g.items.length} 個</span></summary>
+        ${cards}
+      </details>`;
+  }).join('');
 }
 
 function renderVocabPanel(){
@@ -2425,7 +2590,9 @@ function renderVocabPanel(){
         <button type="button" class="chip ${vocabCefrFilter==='all'?'active':''}" data-cefr="all">全部 (${vocab.length})</button>
         ${CEFR_LEVELS.map(l=>`<button type="button" class="chip ${vocabCefrFilter===l?'active':''}" data-cefr="${l}">${l} (${counts[l]})</button>`).join('')}
       </div>
+      ${vocabReviewOverviewHTML()}
       ${vocabStatsHTML()}
+      ${vocab.length ? vocabToolbarHTML() : ''}
       ${vocab.length === 0 ? `
         <div class="empty">
           <h2>單字本還是空的</h2>
@@ -2434,7 +2601,7 @@ function renderVocabPanel(){
         </div>
       ` : (filtered.length === 0 ? `
         <div class="empty"><h2>這個等級還沒有單字</h2><p>切換篩選條件，或新增屬於這個等級的單字。</p></div>
-      ` : `<div class="vocab-grid">${filtered.map(vocabCardHTML).join('')}</div>`)}
+      ` : vocabListHTML(filtered))}
     </div>
   `;
   bindVocabPanelEvents();
@@ -2481,6 +2648,7 @@ function vocabCardHTML(v){
   const color = CEFR_COLORS[v.cefr] || 'var(--brass)';
   const checked = vocabSelectedIds.has(v.id);
   const mastered = !!v.mastered;
+  const rv = vocabRetentionInfo(v);
   return `
     <div class="vocab-card ${checked?'selected':''} ${mastered?'mastered':''}" style="--cefr-color:${color}" data-id="${v.id}">
       <div class="v-top">
@@ -2491,8 +2659,14 @@ function vocabCardHTML(v){
         <span class="cefr-tag">${escapeHtml(v.cefr||'—')}</span>
       </div>
       <div class="v-translation">${escapeHtml(v.translation)}</div>
+      <div class="v-date" style="font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--ink-soft);">📅 ${formatVocabDate(v.created_at)}</div>
+      <div class="v-review" title="${rv.bucket.label}・記憶保留率 ${rv.pct}%${rv.due ? '・該複習了' : '・距離下次複習約 ' + Math.max(0, Math.ceil(rv.daysToDue)) + ' 天'}">
+        <div class="v-review-bar"><span style="width:${Math.max(3, rv.pct)}%;background:${rv.bucket.color}"></span></div>
+        <span class="v-review-txt">${rv.pct}% · Lv${rv.stage}/${REVIEW_MAX_STAGE}${rv.due ? ' · 該複習' : ''}</span>
+      </div>
       ${!vocabSelectMode ? `
       <div class="v-actions">
+        <button type="button" class="v-speak" data-id="${v.id}" title="播放發音">🔊</button>
         <button type="button" class="v-del" data-id="${v.id}">刪除</button>
       </div>` : ''}
     </div>
@@ -2533,7 +2707,7 @@ function bindVocabPanelEvents(){
   });
   document.querySelectorAll('#vocabPanel .vocab-card').forEach(el=>{
     el.addEventListener('click', (e)=>{
-      if(e.target.closest('.v-del')) return;
+      if(e.target.closest('.v-del') || e.target.closest('.v-speak')) return;
       if(vocabSelectMode){
         const chk = el.querySelector('.v-select-chk');
         if(chk && e.target !== chk){ chk.checked = !chk.checked; chk.dispatchEvent(new Event('change')); }
@@ -2569,6 +2743,45 @@ function bindVocabPanelEvents(){
   const deleteAllBtn = document.getElementById('deleteAllVocabBtn');
   if(deleteAllBtn) deleteAllBtn.addEventListener('click', deleteAllVocab);
 
+  // 展開式區塊：記住展開／收起狀態，重新繪製後不會被重置
+  const statsFold = document.getElementById('vocabStatsFold');
+  if(statsFold) statsFold.addEventListener('toggle', ()=>{ vocabStatsOpen = statsFold.open; });
+  const reviewFold = document.getElementById('vocabReviewFold');
+  if(reviewFold) reviewFold.addEventListener('toggle', ()=>{ vocabReviewOpen = reviewFold.open; });
+  document.querySelectorAll('#vocabPanel .vocab-group').forEach(el=>{
+    el.addEventListener('toggle', ()=>{
+      if(el.open) vocabGroupClosed.delete(el.dataset.gkey); else vocabGroupClosed.add(el.dataset.gkey);
+    });
+  });
+  const sortSel = document.getElementById('vocabSortSelect');
+  if(sortSel) sortSel.addEventListener('change', ()=>{ vocabSortId = sortSel.value; renderVocabPanel(); });
+  document.querySelectorAll('#vocabPanel .v-speak').forEach(el=>{
+    el.addEventListener('click', (e)=>{
+      e.stopPropagation();
+      const item = vocab.find(x=>x.id === el.dataset.id);
+      if(item) speakVocabWord(item.word);
+    });
+  });
+  const fxChk = document.getElementById('vocabSoundFxChk');
+  if(fxChk) fxChk.addEventListener('change', ()=>{
+    soundFxOn = fxChk.checked;
+    localStorage.setItem('vocabSoundFx', soundFxOn ? '1' : '0');
+    if(soundFxOn) playAnswerSound(true); // 開啟時示範一下
+  });
+  const speakChk = document.getElementById('vocabAutoSpeakChk');
+  if(speakChk) speakChk.addEventListener('change', ()=>{
+    autoSpeakOn = speakChk.checked;
+    localStorage.setItem('vocabAutoSpeak', autoSpeakOn ? '1' : '0');
+  });
+  const groupSel = document.getElementById('vocabGroupSelect');
+  if(groupSel) groupSel.addEventListener('change', ()=>{ vocabGroupBy = groupSel.value; renderVocabPanel(); });
+  const reviewNowBtn = document.getElementById('reviewNowBtn');
+  if(reviewNowBtn) reviewNowBtn.addEventListener('click', ()=>{
+    vocabQuizSmart = true;
+    vocabShowGameMenu = true;
+    renderVocabPanel();
+  });
+
   bindVocabQuickInput();
 }
 
@@ -2584,7 +2797,21 @@ const VOCAB_MASTER_STREAK = 3;
 async function recordVocabAnswer(vocabId, correct){
   const v = vocab.find(x=>x.id===vocabId);
   if(!v || !currentUser) return;
-  v.correct_streak = correct ? (Number(v.correct_streak)||0) + 1 : 0;
+  playAnswerSound(correct);
+  if(autoSpeakOn) setTimeout(()=>speakVocabWord(v.word), correct ? 380 : 200);
+  // 遺忘曲線：答對升一階、答錯退兩階，並把「最後複習時間」更新為現在
+  const cur = getVocabReview(v);
+  vocabReviewState[v.id] = {
+    stage: correct ? Math.min(REVIEW_MAX_STAGE, cur.stage + 1) : Math.max(0, cur.stage - 2),
+    last: new Date().toISOString()
+  };
+  saveVocabReviewState(); // 本機備份
+  v.review_stage = vocabReviewState[v.id].stage;
+  v.last_reviewed = vocabReviewState[v.id].last;
+  // 同步到雲端；欄位還沒建立時會失敗，但不影響下面的精熟紀錄與本機備份
+  db.from('vocab').update({ review_stage: v.review_stage, last_reviewed: v.last_reviewed }).eq('id', vocabId)
+    .then(res=>{ if(res && res.error) console.warn('複習進度未同步到雲端（請確認已新增 review_stage / last_reviewed 欄位）', res.error.message); });
+  v.correct_streak =correct ? (Number(v.correct_streak)||0) + 1 : 0;
   if(!v.mastered && v.correct_streak >= VOCAB_MASTER_STREAK){
     v.mastered = true;
   }
@@ -2607,11 +2834,128 @@ function closeVocabDetail(){
   vocabDetailEditing = false;
 }
 
+// 單字加入日期：統一顯示成 YYYYMMDD（以本機時區的「放入單字本那天」為準）。
+// 如果這個單字沒有日期資料，一律顯示 20261018。
+const VOCAB_DEFAULT_DATE = '20261018';
 function formatVocabDate(iso){
-  if(!iso) return '—';
+  if(!iso) return VOCAB_DEFAULT_DATE;
   const d = new Date(iso);
-  if(isNaN(d.getTime())) return '—';
-  return d.toLocaleDateString('zh-TW', { year:'numeric', month:'2-digit', day:'2-digit' });
+  if(isNaN(d.getTime())) return VOCAB_DEFAULT_DATE;
+  const pad = n=>String(n).padStart(2,'0');
+  return `${d.getFullYear()}${pad(d.getMonth()+1)}${pad(d.getDate())}`;
+}
+
+// 單字加入時間（毫秒）；沒有日期資料的單字視為 2026/10/18
+function vocabDateTs(v){
+  const t = v && v.created_at ? new Date(v.created_at).getTime() : NaN;
+  return isNaN(t) ? new Date(2026, 9, 18).getTime() : t;
+}
+
+function vocabReviewKey(){
+  return `vocabReview:${currentUser ? currentUser.id : 'guest'}`;
+}
+function loadVocabReviewState(){
+  try{ vocabReviewState = JSON.parse(localStorage.getItem(vocabReviewKey()) || '{}') || {}; }
+  catch{ vocabReviewState = {}; }
+}
+function saveVocabReviewState(){
+  try{ localStorage.setItem(vocabReviewKey(), JSON.stringify(vocabReviewState)); }
+  catch(err){ console.error('儲存複習進度失敗', err); }
+}
+function getVocabReview(v){
+  // 優先使用雲端（資料表欄位 review_stage / last_reviewed），沒有再用本機備份
+  if(v.last_reviewed){
+    return { stage: Math.min(REVIEW_MAX_STAGE, Math.max(0, Number(v.review_stage)||0)), last: v.last_reviewed, reviewed: true };
+  }
+  if(!vocabReviewState) loadVocabReviewState();
+  const s = vocabReviewState[v.id];
+  if(s) return { stage: Math.min(REVIEW_MAX_STAGE, Math.max(0, Number(s.stage)||0)), last: s.last, reviewed: true };
+  // 還沒複習過：從「加入單字本」那天開始算起
+  return { stage: 0, last: new Date(vocabDateTs(v)).toISOString(), reviewed: false };
+}
+
+// 依遺忘曲線算出單字目前的記憶保留率與狀態
+function vocabRetentionInfo(v){
+  const r = getVocabReview(v);
+  const interval = REVIEW_INTERVALS[r.stage];
+  const lastTs = new Date(r.last).getTime();
+  const elapsed = Math.max(0, (Date.now() - (isNaN(lastTs) ? Date.now() : lastTs)) / 86400000);
+  const S = interval / -Math.log(0.9);
+  const ret = Math.exp(-elapsed / S);
+  const bucket = REVIEW_BUCKETS.find(b=>ret < b.max) || REVIEW_BUCKETS[REVIEW_BUCKETS.length-1];
+  return { stage: r.stage, reviewed: r.reviewed, ret, pct: Math.round(ret * 100), bucket, due: ret < 0.9, daysToDue: interval - elapsed };
+}
+
+function vocabDueCount(){
+  return vocab.filter(v=>vocabRetentionInfo(v).due).length;
+}
+
+// 遊戲出題：開啟「依遺忘曲線出題」時，優先挑記憶保留率最低的字；否則隨機
+function pickVocabForQuiz(pool, n){
+  if(vocabQuizSmart){
+    const sorted = pool.slice().sort((a,b)=> vocabRetentionInfo(a).ret - vocabRetentionInfo(b).ret);
+    return shuffleArr(sorted.slice(0, n));
+  }
+  return shuffleArr(pool).slice(0, n);
+}
+
+function vocabCompare(sortId){
+  const [key, dir] = sortId.split('-');
+  const sign = dir === 'desc' ? -1 : 1;
+  return (a,b)=>{
+    let d = 0;
+    if(key === 'date') d = vocabDateTs(a) - vocabDateTs(b);
+    else if(key === 'review') d = vocabRetentionInfo(a).ret - vocabRetentionInfo(b).ret;
+    else if(key === 'level') d = CEFR_LEVELS.indexOf(a.cefr) - CEFR_LEVELS.indexOf(b.cefr);
+    else d = String(a.word).localeCompare(String(b.word));
+    return (d * sign) || String(a.word).localeCompare(String(b.word));
+  };
+}
+
+function vocabGroupKey(v, mode){
+  if(mode === 'date') return formatVocabDate(v.created_at);
+  if(mode === 'review') return vocabRetentionInfo(v).bucket.id;
+  if(mode === 'level') return v.cefr || '—';
+  return 'all';
+}
+function vocabGroupLabel(mode, key){
+  if(mode === 'date') return `📅 ${key}${key === formatVocabDate(new Date().toISOString()) ? '（今天）' : ''}`;
+  if(mode === 'review'){
+    const b = REVIEW_BUCKETS.find(x=>x.id===key);
+    return b ? `${b.label}` : key;
+  }
+  if(mode === 'level') return `難度 ${key}`;
+  return '';
+}
+
+// 把單字清單依「排序＋分組」整理成 [{key,label,color,items}]
+function vocabGroupedList(list){
+  const sorted = list.slice().sort(vocabCompare(vocabSortId));
+  if(vocabGroupBy === 'none') return [{ key:'all', label:null, items:sorted }];
+  const map = new Map();
+  sorted.forEach(v=>{
+    const k = vocabGroupKey(v, vocabGroupBy);
+    if(!map.has(k)) map.set(k, []);
+    map.get(k).push(v);
+  });
+  let groups = Array.from(map.entries()).map(([key, items])=>({
+    key, items, label: vocabGroupLabel(vocabGroupBy, key),
+    color: vocabGroupBy==='review' ? (REVIEW_BUCKETS.find(b=>b.id===key)||{}).color
+         : vocabGroupBy==='level' ? CEFR_COLORS[key] : null
+  }));
+  const rank = (k)=>{
+    if(vocabGroupBy === 'review') return REVIEW_BUCKETS.findIndex(b=>b.id===k);
+    if(vocabGroupBy === 'level'){ const i = CEFR_LEVELS.indexOf(k); return i < 0 ? 99 : i; }
+    return 0;
+  };
+  if(vocabGroupBy === 'date'){
+    const asc = vocabSortId === 'date-asc';
+    groups.sort((a,b)=> asc ? a.key.localeCompare(b.key) : b.key.localeCompare(a.key));
+  }else{
+    const reverse = vocabSortId === 'review-desc' || vocabSortId === 'level-desc';
+    groups.sort((a,b)=> (rank(a.key) - rank(b.key)) * (reverse ? -1 : 1));
+  }
+  return groups;
 }
 
 function renderVocabDetailModal(){
@@ -2661,11 +3005,13 @@ function renderVocabDetailModal(){
     </div>
     <div class="modal-actions">
       <button type="button" class="cancel-btn" id="closeVocabDetailBtn">關閉</button>
+      <button type="button" class="ghost-btn" id="speakVocabDetailBtn">🔊 發音</button>
       <button type="button" class="ghost-btn" id="editVocabDetailBtn">✏️ 編輯</button>
       <button type="button" class="ghost-btn" id="deleteVocabDetailBtn" style="color:var(--danger);border-color:var(--danger);">🗑 刪除</button>
     </div>
   `;
   document.getElementById('closeVocabDetailBtn').addEventListener('click', closeVocabDetail);
+  document.getElementById('speakVocabDetailBtn').addEventListener('click', ()=> speakVocabWord(v.word));
   document.getElementById('editVocabDetailBtn').addEventListener('click', ()=>{
     vocabDetailEditing = true;
     renderVocabDetailModal();
@@ -2704,7 +3050,7 @@ async function copySelectedVocab(){
   const ids = Array.from(vocabSelectedIds);
   const items = vocab.filter(v => ids.includes(v.id));
   if(items.length === 0) return;
-  const text = items.map(v => `${v.word}\t${v.translation}\t${v.cefr || ''}`).join('\n');
+  const text = items.map(v => `${v.word}\t${v.translation}\t${v.cefr || ''}\t${formatVocabDate(v.created_at)}`).join('\n');
   const done = ()=> alert(`已複製 ${items.length} 個單字的中英文到剪貼簿。`);
   try{
     if(navigator.clipboard && navigator.clipboard.writeText){
@@ -2981,6 +3327,11 @@ function vocabQuizSetupHTML(){
         </select>
       </div>
 
+      <div class="review-toggle">
+        <input type="checkbox" id="vocabQuizSmartChk" ${vocabQuizSmart?'checked':''}>
+        <label for="vocabQuizSmartChk">🧠 依遺忘曲線出題（優先考快忘掉的字，目前 ${vocabDueCount()} 個該複習）</label>
+      </div>
+
       <div style="margin-top:14px;font-size:12px;color:var(--ink-soft);font-family:'JetBrains Mono',monospace;text-transform:uppercase;letter-spacing:.05em;">${mode === 'memory' ? '配對組數' : '題數'}</div>
       <div style="display:flex;justify-content:center;margin-top:6px;">
         <select id="vocabQuizCountSelect" class="vocab-quiz-select">
@@ -3014,6 +3365,8 @@ function bindVocabQuizSetupEvents(){
     vocabQuizLevelFilter = levelSelect.value;
     renderVocabPanel();
   });
+  const smartChk = document.getElementById('vocabQuizSmartChk');
+  if(smartChk) smartChk.addEventListener('change', ()=>{ vocabQuizSmart = smartChk.checked; renderVocabPanel(); });
   const countSelect = document.getElementById('vocabQuizCountSelect');
   if(countSelect) countSelect.addEventListener('change', ()=>{
     vocabQuizCount = countSelect.value === 'all' ? 'all' : parseInt(countSelect.value, 10);
@@ -3050,7 +3403,7 @@ function startVocabQuiz(){
   const pool = vocabQuizLevelFilter === 'all' ? vocab : vocab.filter(v=>v.cefr===vocabQuizLevelFilter);
   if(pool.length === 0 || vocab.length < 2) return;
   const n = vocabQuizCount === 'all' ? pool.length : Math.min(vocabQuizCount, pool.length);
-  const chosen = shuffleArr(pool).slice(0, n);
+  const chosen = pickVocabForQuiz(pool, n);
   const questions = chosen.map(v=>{
     const qType = vocabQuizType === 'mixed' ? (Math.random() < 0.5 ? 'zh2en' : 'en2zh') : vocabQuizType;
     return { vocabId: v.id, optionIds: buildVocabOptionIds(v, vocab), type: qType };
@@ -3166,7 +3519,7 @@ function startVocabMemory(){
   const pool = vocabQuizLevelFilter === 'all' ? vocab : vocab.filter(v=>v.cefr===vocabQuizLevelFilter);
   if(pool.length < 2) return;
   const n = MEMORY_PAIR_OPTIONS.includes(vocabQuizCount) ? Math.min(vocabQuizCount, pool.length) : Math.min(MEMORY_PAIR_OPTIONS[0], pool.length);
-  const chosen = shuffleArr(pool).slice(0, n);
+  const chosen = pickVocabForQuiz(pool, n);
   let tiles = [];
   chosen.forEach(v=>{
     tiles.push({ key: v.id+'-w', pairId: v.id, kind:'word', text: v.word });
@@ -3233,6 +3586,7 @@ function bindVocabMemoryEvents(){
       const tile = s.tiles.find(t=>t.key===key);
       if(!tile || s.matchedPairIds.has(tile.pairId)) return;
       s.flippedKeys.push(key);
+      if(tile.kind === 'word' && autoSpeakOn) speakVocabWord(tile.text);
       if(s.flippedKeys.length === 2){
         s.moves++;
         const [k1,k2] = s.flippedKeys;
@@ -3240,6 +3594,7 @@ function bindVocabMemoryEvents(){
         const t2 = s.tiles.find(t=>t.key===k2);
         if(t1.pairId === t2.pairId && t1.kind !== t2.kind){
           s.matchedPairIds.add(t1.pairId);
+          playAnswerSound(true);
           s.flippedKeys = [];
           if(s.matchedPairIds.size >= s.totalPairs && !s.rewarded){
             s.rewarded = true;
@@ -3248,6 +3603,7 @@ function bindVocabMemoryEvents(){
           renderVocabPanel();
         }else{
           s.lock = true;
+          playAnswerSound(false);
           renderVocabPanel();
           setTimeout(()=>{
             if(!vocabMemorySession) return;
@@ -3275,7 +3631,7 @@ function startVocabTyping(){
   const pool = vocabQuizLevelFilter === 'all' ? vocab : vocab.filter(v=>v.cefr===vocabQuizLevelFilter);
   if(pool.length === 0 || vocab.length < 2) return;
   const n = vocabQuizCount === 'all' ? pool.length : Math.min(vocabQuizCount, pool.length);
-  const words = shuffleArr(pool).slice(0, n);
+  const words = pickVocabForQuiz(pool, n);
   vocabShowQuizSetup = false;
   vocabTypingSession = {
     words, idx: 0, correctCount: 0, wrongCount: 0,
@@ -3422,7 +3778,7 @@ function startVocabScramble(){
   const source = usablePool.length ? usablePool : pool;
   if(source.length === 0 || vocab.length < 2) return;
   const n = vocabQuizCount === 'all' ? source.length : Math.min(vocabQuizCount, source.length);
-  const words = shuffleArr(source).slice(0, n);
+  const words = pickVocabForQuiz(source, n);
   vocabShowQuizSetup = false;
   vocabScrambleSession = { words, idx: 0, correctCount: 0, revealed: false, lastCorrect: false };
   setupScrambleLetters();
@@ -3574,7 +3930,7 @@ function startVocabListening(){
   const pool = vocabQuizLevelFilter === 'all' ? vocab : vocab.filter(v=>v.cefr===vocabQuizLevelFilter);
   if(pool.length === 0 || vocab.length < 2) return;
   const n = vocabQuizCount === 'all' ? pool.length : Math.min(vocabQuizCount, pool.length);
-  const chosen = shuffleArr(pool).slice(0, n);
+  const chosen = pickVocabForQuiz(pool, n);
   const questions = chosen.map(v=>({ vocabId: v.id, optionIds: buildVocabOptionIds(v, vocab) }));
   vocabShowQuizSetup = false;
   vocabListeningSession = { questions, idx: 0, correctCount: 0, picked: null, revealed: false, lastCorrect: false };
@@ -3588,8 +3944,49 @@ function speakVocabWord(word){
     const utter = new SpeechSynthesisUtterance(word);
     utter.lang = 'en-US';
     utter.rate = 0.9;
+    // 盡量挑英文（美式）語音，找不到就用瀏覽器預設
+    const voices = window.speechSynthesis.getVoices ? window.speechSynthesis.getVoices() : [];
+    const voice = voices.find(x=>x.lang === 'en-US') || voices.find(x=>(x.lang||'').startsWith('en'));
+    if(voice) utter.voice = voice;
     window.speechSynthesis.speak(utter);
   }catch(e){ /* 語音合成不可用時靜默忽略，使用者仍可重新點擊喇叭 */ }
+}
+
+/* ---- 音效與自動發音（設定存在 localStorage） ---- */
+let soundFxOn = localStorage.getItem('vocabSoundFx') !== '0';       // 答題音效
+let autoSpeakOn = localStorage.getItem('vocabAutoSpeak') !== '0';   // 自動唸出單字
+let audioCtx = null;
+
+function playTone(freq, startOffset, duration, type, volume){
+  const ctx = audioCtx;
+  const osc = ctx.createOscillator();
+  const gain = ctx.createGain();
+  osc.type = type || 'sine';
+  osc.frequency.value = freq;
+  const t0 = ctx.currentTime + startOffset;
+  gain.gain.setValueAtTime(0.0001, t0);
+  gain.gain.exponentialRampToValueAtTime(volume || 0.15, t0 + 0.02);
+  gain.gain.exponentialRampToValueAtTime(0.0001, t0 + duration);
+  osc.connect(gain); gain.connect(ctx.destination);
+  osc.start(t0); osc.stop(t0 + duration + 0.05);
+}
+
+// 答對：清脆的兩聲上行；答錯：低沉的兩聲下行
+function playAnswerSound(correct){
+  if(!soundFxOn) return;
+  try{
+    const AC = window.AudioContext || window.webkitAudioContext;
+    if(!AC) return;
+    if(!audioCtx) audioCtx = new AC();
+    if(audioCtx.state === 'suspended') audioCtx.resume();
+    if(correct){
+      playTone(660, 0, 0.14, 'sine', 0.16);
+      playTone(990, 0.11, 0.22, 'sine', 0.16);
+    }else{
+      playTone(220, 0, 0.18, 'triangle', 0.2);
+      playTone(165, 0.15, 0.28, 'triangle', 0.2);
+    }
+  }catch(e){ /* 音效不可用時靜默忽略 */ }
 }
 
 function vocabListeningSessionHTML(){
