@@ -3,32 +3,38 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>自我紀錄講義! Ledger</title>
+<title>複習島嶼 · Review Island</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
 <style>
 :root{
-  --paper: #E9E4D8;
-  --paper-line: #d9d2bf;
-  --card: #FCFAF5;
-  --card-border: #DAD3C1;
-  --ink: #2B2A26;
-  --ink-soft: #6b6659;
-  --ledger-green: #2F5D50;
-  --ledger-green-soft: #E4ECE9;
-  --brass: #B0812C;
-  --brass-soft: #F3E6C8;
-  --danger: #A03A2E;
-  --radius: 6px;
-  --shadow: 0 1px 2px rgba(43,42,38,0.06), 0 4px 10px rgba(43,42,38,0.05);
+  --paper: #E8F4F0;
+  --paper-line: #c5e0d6;
+  --card: #FFFef8;
+  --card-border: #D4E8DF;
+  --ink: #1E3A34;
+  --ink-soft: #5A7A70;
+  --ledger-green: #2A7B6B;
+  --ledger-green-soft: #E0F2EC;
+  --brass: #D4A017;
+  --brass-soft: #FBF0D0;
+  --danger: #C45C4A;
+  --ocean: #3A8FBF;
+  --sand: #F5E6C8;
+  --coral: #E07A5F;
+  --palm: #3D8B6E;
+  --radius: 10px;
+  --shadow: 0 2px 6px rgba(30,58,52,0.07), 0 6px 16px rgba(30,58,52,0.06);
 }
 *{box-sizing:border-box;}
 html,body{margin:0;padding:0;}
 body{
   background:
-    repeating-linear-gradient(180deg, transparent, transparent 27px, var(--paper-line) 28px),
-    var(--paper);
+    radial-gradient(ellipse 120% 80% at 50% -20%, #B8E0D8 0%, transparent 55%),
+    radial-gradient(ellipse 80% 50% at 90% 100%, #F5E6C8 0%, transparent 40%),
+    radial-gradient(ellipse 60% 40% at 10% 90%, #A8D4C8 0%, transparent 35%),
+    linear-gradient(180deg, #E8F4F0 0%, #F0F7F4 40%, #F8F4E8 100%);
   color:var(--ink);
   font-family:'Inter', sans-serif;
   min-height:100vh;
@@ -44,10 +50,15 @@ header.top{
   display:flex; justify-content:space-between; align-items:flex-end;
   gap:16px; margin-bottom:24px; flex-wrap:wrap;
 }
+.title-block{
+  display:flex; flex-direction:column; align-items:flex-start; gap:6px;
+}
 .title-block h1{
   font-family:'Fraunces', serif; font-weight:600; font-size:clamp(28px,4vw,38px);
   margin:0 0 4px; letter-spacing:-0.01em;
 }
+body.in-place .title-block h1{ font-size:clamp(22px,3.2vw,30px); }
+
 .title-block .stamp{
   font-family:'JetBrains Mono', monospace; font-size:12px; color:var(--ink-soft);
   letter-spacing:0.04em; text-transform:uppercase;
@@ -481,24 +492,580 @@ table.ledger .del{ background:none; border:none; color:var(--danger); cursor:poi
 @keyframes toast-out{ from{ opacity:1; transform:translateX(0); } to{ opacity:0; transform:translateX(16px); } }
 
 /* ============================================================
-   主選單（講義紀錄 / 錯題本 / 複習）
+   主選單（複習島嶼 · 俯瞰島嶼地圖）
    ============================================================ */
 .app-shell{ display:block; }
 
-.main-nav{
-  display:flex; gap:8px; margin-bottom:20px; flex-wrap:wrap;
+/* 首頁：全螢幕島嶼；進入場所後顯示內容 + 頂部列 */
+.app-shell.mode-island .main-content{ display:none; }
+.app-shell.mode-island .island-map-wrap{ display:flex; }
+.app-shell.mode-place .island-map-wrap{ display:none; }
+.app-shell.mode-place .main-content{ display:block; }
+
+/* 島嶼首頁：隱藏頂部 header，讓島嶼佔滿畫面 */
+body.on-island header.top,
+#mainView:has(.app-shell.mode-island) > header.top{
+  display:none !important;
 }
-.nav-item{
-  display:flex; align-items:center; gap:8px;
-  background:var(--card); border:1px solid var(--card-border); border-bottom:3px solid var(--nav-color, var(--ledger-green));
-  border-radius:var(--radius) var(--radius) 3px 3px; box-shadow:var(--shadow);
-  padding:10px 18px; cursor:pointer; font-family:'Inter',sans-serif;
-  font-size:14.5px; font-weight:600; color:var(--ink-soft); transition:background .12s ease, color .12s ease;
+body.on-island #mainView.wrap,
+#mainView:has(.app-shell.mode-island){
+  max-width:none !important;
+  margin:0 !important;
+  padding:0 !important;
+}
+body.on-island,
+body:has(.app-shell.mode-island){
+  padding:0 !important;
+  overflow:hidden;
+  background:#1a6fa8 !important;
+}
+body.on-island .app-shell,
+.app-shell.mode-island{
+  min-height:100vh;
+  min-height:100dvh;
+}
+body.in-place .back-to-island-btn{ display:inline-flex; }
+
+/* 進入場所後：隱藏頂部帳號/任務列，改由冒險者資訊與主線任務操作 */
+body.in-place header.top .header-actions{ display:none !important; }
+body.in-place .adventurer-fab{ display:inline-flex !important; }
+
+
+/* 島嶼右上角：冒險者資訊 */
+
+/* ---------- 主線任務公佈欄 / 左側按鈕 / 徽章動畫 ---------- */
+.sr-only{ position:absolute; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden; clip:rect(0,0,0,0); border:0; }
+.mission-fab{
+  position:fixed; left:18px; top:50%; transform:translateY(-50%);
+  z-index:40; display:none; flex-direction:row; align-items:center; gap:8px;
+  background:linear-gradient(180deg, #8B5A2B 0%, #6B4226 100%);
+  color:#F5E6C8; border:2px solid #C4A574; border-radius:999px;
+  padding:10px 16px; cursor:pointer; box-shadow:0 6px 18px rgba(0,0,0,.28);
+  font-family:'Fraunces',serif; font-weight:600; font-size:14px;
+  letter-spacing:0.06em;
+  transition:transform .15s ease, box-shadow .15s ease;
+}
+.mission-fab:hover{ transform:translateY(-50%) scale(1.04); box-shadow:0 8px 22px rgba(0,0,0,.34); }
+.mission-fab-icon{ font-size:18px; line-height:1; }
+.mission-fab-text{ white-space:nowrap; }
+.mission-fab-dot{
+  position:absolute; top:4px; right:4px; width:10px; height:10px;
+  border-radius:50%; background:var(--danger); border:2px solid #F5E6C8;
+}
+body.on-island .mission-fab,
+body:has(.app-shell.mode-island) .mission-fab{ display:inline-flex; }
+body.in-place .mission-fab{ display:inline-flex; top:auto; bottom:80px; transform:none; }
+body.in-place .mission-fab:hover{ transform:scale(1.04); }
+
+.mission-overlay.daily-overlay{
+  background:rgba(20,16,12,.62);
+  backdrop-filter:blur(3px);
+}
+.mission-board-wrap{
+  display:flex; flex-direction:column; align-items:center; gap:12px;
+  width:min(95vw, 95vh * 1024 / 572);
+  max-width:95vw;
+  max-height:95vh;
+}
+.mission-board{
+  width:100%;
+  aspect-ratio:1024/572;
+  max-height:calc(95vh - 56px);
+  background-size:100% 100%;
+  background-repeat:no-repeat;
+  background-position:center;
+  position:relative;
+  filter:drop-shadow(0 16px 40px rgba(0,0,0,.4));
+}
+/* 木板中央內容區（透明，任務各自一張紙） */
+.mission-paper{
+  position:absolute;
+  left:10%; right:10%;
+  top:18%; bottom:9%;
+  background:transparent;
+  border:none;
+  box-shadow:none;
+  overflow:auto;
+}
+.mission-board-content{
+  position:relative;
+  inset:auto;
+  display:flex; flex-direction:column; gap:8px;
+  overflow:visible;
+  color:#3A2A1A;
+  font-family:'Fraunces',serif;
+  padding:6px 4px 8px;
+  box-sizing:border-box;
+  min-height:100%;
+}
+/* 每一張任務紙 */
+.mission-board-content .task-sheet{
+  background-image:url('paper.jpg');
+  background-size:cover;
+  background-position:center;
+  border-radius:3px;
+  padding:12px 16px 11px;
+  box-shadow:0 3px 10px rgba(0,0,0,.28);
+  border:1px solid rgba(80,50,20,.2);
+  color:#3A2A1A;
+}
+.mission-board-content .task-sheet.progress-sheet{
+  padding:8px 14px;
+  text-align:center;
+}
+.mission-board-content .task-sheet .task-main{
+  display:block;
+  font-size:15px;
+  line-height:1.4;
+}
+.mission-board-content .task-sheet .task-main b{
+  color:#4A3018;
+}
+.mission-board-content .task-sheet .task-progress{
+  display:block;
+  margin-top:4px;
+  font-size:12px;
+  color:#7A5A3A;
+}
+.mission-board-content .task-sheet.bonus-sheet{
+  border-color:rgba(180,120,40,.35);
+}
+
+.mission-board-content .daily-date{
+  font-family:'Fraunces',serif; font-size:12px; color:#6B4E32; text-align:center;
+  text-shadow:0 1px 0 rgba(255,248,230,.4);
+}
+.mission-board-content .daily-deadline-row{
+  display:flex; align-items:center; justify-content:center; gap:8px; flex-wrap:wrap;
+}
+.mission-board-content .daily-deadline{
+  font-family:'Fraunces',serif; font-size:12px; color:#5C3D24; font-weight:600;
+}
+.mission-board-content .daily-reshuffle-btn{
+  font-family:'Fraunces',serif; font-size:12px;
+  background:rgba(245,230,200,.85); color:#5C3D24;
+  border:1px solid rgba(107,66,38,.35); border-radius:999px;
+  padding:4px 10px;
+}
+.mission-board-content .daily-task-list{
+  flex:1; margin:0; padding:0;
+  background:transparent;
+  border:none;
+  text-align:left;
+  overflow:visible;
+  box-shadow:none;
+  display:flex;
+  flex-direction:column;
+  gap:8px;
+}
+.mission-board-content .daily-task-list p,
+.mission-board-content .task-row{
+  color:#3A2A1A; font-size:14.5px; font-family:'Fraunces',serif;
+  line-height:1.45;
+}
+.mission-board-content .task-row{
+  display:flex; justify-content:space-between; gap:10px;
+  padding:5px 0; border-bottom:1px dashed rgba(107,66,38,.18);
+}
+.mission-board-content .task-row:last-child{ border-bottom:none; }
+.mission-board-content .task-main b{ color:#4A3018; font-weight:700; }
+.mission-board-content .task-progress{
+  font-family:'Fraunces',serif; font-size:12px; color:#7A5A3A; white-space:nowrap;
+}
+.mission-board-content .task-progress-total{
+  margin:0 0 6px; font-size:14px; color:#5C3D24;
+}
+.mission-board-content .task-progress-total b{ color:#8B4513; font-size:16px; }
+.mission-board-content .bonus-row p{ font-size:13.5px; }
+.mission-board-content .bonus-reshuffle-btn{
+  font-family:'Fraunces',serif; font-size:12px;
+  background:rgba(245,230,200,.85); color:#5C3D24;
+  border:1px solid rgba(107,66,38,.35); border-radius:999px;
+  padding:3px 10px;
+}
+.mission-badge-area{
+  text-align:center; margin-top:2px;
+}
+.mission-badge-area .daily-badge-label{
+  font-family:'Fraunces',serif;
+  font-size:12px; color:#6B4E32; letter-spacing:.1em;
+}
+.mission-badge-area .daily-badge{
+  font-family:'Fraunces',serif; font-size:20px; color:#3D2914; margin:4px 0;
+  text-shadow:0 1px 0 rgba(255,248,230,.5);
+}
+.mission-badge-area .daily-badge-note{
+  margin:0; font-size:12px; color:#6B4E32; font-family:'Fraunces',serif;
+}
+.mission-close-btn{
+  width:auto; min-width:180px; padding:11px 22px;
+  background:#6B4226;
+  font-family:'Fraunces',serif;
+}
+.mission-close-btn:hover{ background:#5A3620; }
+
+/* 徽章獲得動畫 */
+.badge-anim-overlay{
+  position:fixed; inset:0; z-index:1300;
+  display:flex; align-items:center; justify-content:center;
+  background:rgba(15,12,8,.55);
+  backdrop-filter:blur(4px);
+}
+.badge-anim-card{
+  position:relative;
+  text-align:center;
+  padding:36px 40px 28px;
+  background:linear-gradient(180deg, #FFF8E8 0%, #F5E6C8 100%);
+  border:3px solid #C4A574;
+  border-radius:20px;
+  box-shadow:0 20px 50px rgba(0,0,0,.35);
+  animation:badgePop .45s cubic-bezier(.2,1.2,.4,1);
+  max-width:min(360px, 90vw);
+}
+@keyframes badgePop{
+  0%{ opacity:0; transform:scale(.6) translateY(20px); }
+  100%{ opacity:1; transform:scale(1) translateY(0); }
+}
+.badge-anim-rays{
+  position:absolute; inset:-30%;
+  background:conic-gradient(from 0deg, transparent, rgba(212,160,23,.25), transparent 30%, rgba(212,160,23,.2), transparent 60%, rgba(212,160,23,.25), transparent);
+  animation:raysSpin 8s linear infinite;
+  z-index:0; pointer-events:none;
+}
+@keyframes raysSpin{ to{ transform:rotate(360deg); } }
+.badge-anim-icon{
+  position:relative; z-index:1;
+  font-size:64px; line-height:1;
+  animation:badgeBounce 1s ease infinite alternate;
+  filter:drop-shadow(0 4px 8px rgba(0,0,0,.2));
+}
+@keyframes badgeBounce{
+  from{ transform:translateY(0) scale(1); }
+  to{ transform:translateY(-8px) scale(1.08); }
+}
+.badge-anim-title{
+  position:relative; z-index:1;
+  font-family:'Fraunces',serif; font-size:22px; font-weight:700;
+  color:#6B4226; margin:12px 0 6px;
+}
+.badge-anim-name{
+  position:relative; z-index:1;
+  font-family:'Fraunces',serif; font-size:20px;
+  color:#2A7B6B; margin-bottom:18px;
+}
+.badge-anim-card .daily-btn{ position:relative; z-index:1; width:100%; background:#6B4226; }
+.badge-anim-card .daily-btn:hover{ background:#5A3620; }
+
+.fullscreen-fab{
+  position:fixed;
+  top:18px;
+  left:18px;
+  z-index:40;
+  display:none;
+  align-items:center;
+  justify-content:center;
+  gap:6px;
+  background:#fff;
+  border:1.5px solid var(--card-border);
+  border-radius:999px;
+  padding:8px 14px;
+  cursor:pointer;
+  font-family:'Inter',sans-serif;
+  font-weight:600;
+  font-size:13.5px;
+  color:var(--ink);
+  box-shadow:var(--shadow);
+  transition:transform .12s ease, box-shadow .12s ease;
+}
+.fullscreen-fab:hover{ transform:translateY(-1px); box-shadow:0 6px 16px rgba(30,58,52,0.12); }
+body.on-island .fullscreen-fab,
+body:has(.app-shell.mode-island) .fullscreen-fab{ display:inline-flex; }
+body.in-place .fullscreen-fab{ display:inline-flex; top:auto; bottom:18px; right:18px; left:auto; }
+
+/* 全螢幕：只有「島嶼首頁」才把地圖鋪滿；進入場所維持一般版面 */
+:fullscreen body.on-island,
+:-webkit-full-screen body.on-island,
+:fullscreen body:has(.app-shell.mode-island),
+:-webkit-full-screen body:has(.app-shell.mode-island){
+  background:#0d4a6e !important;
+}
+:fullscreen body.on-island .island-map-wrap,
+:-webkit-full-screen body.on-island .island-map-wrap,
+:fullscreen body:has(.app-shell.mode-island) .island-map-wrap,
+:-webkit-full-screen body:has(.app-shell.mode-island) .island-map-wrap{
+  padding:0 !important;
+  gap:0 !important;
+  background:#0d4a6e !important;
+}
+:fullscreen body.on-island .island-home-title,
+:-webkit-full-screen body.on-island .island-home-title,
+:fullscreen body.on-island .island-hint,
+:-webkit-full-screen body.on-island .island-hint,
+:fullscreen body:has(.app-shell.mode-island) .island-home-title,
+:-webkit-full-screen body:has(.app-shell.mode-island) .island-home-title,
+:fullscreen body:has(.app-shell.mode-island) .island-hint,
+:-webkit-full-screen body:has(.app-shell.mode-island) .island-hint{
+  display:none !important;
+}
+:fullscreen body.on-island .island-map-stage,
+:-webkit-full-screen body.on-island .island-map-stage,
+:fullscreen body:has(.app-shell.mode-island) .island-map-stage,
+:-webkit-full-screen body:has(.app-shell.mode-island) .island-map-stage{
+  width:100vw !important;
+  height:100vh !important;
+  height:100dvh !important;
+  max-width:none !important;
+  aspect-ratio:auto !important;
+  border-radius:0 !important;
+  border:none !important;
+  box-shadow:none !important;
+}
+:fullscreen body.on-island .island-map-img,
+:-webkit-full-screen body.on-island .island-map-img,
+:fullscreen body:has(.app-shell.mode-island) .island-map-img,
+:-webkit-full-screen body:has(.app-shell.mode-island) .island-map-img{
+  width:100%;
+  height:100%;
+  object-fit:cover;
+  object-position:center center;
+}
+
+/* 場所頁全螢幕：維持原本紙張/內容風格，不要整頁變深藍 */
+:fullscreen body.in-place,
+:-webkit-full-screen body.in-place{
+  background:var(--bg) !important;
+  overflow:auto !important;
+  padding:28px 16px 80px !important;
+}
+:fullscreen body.in-place #mainView.wrap,
+:-webkit-full-screen body.in-place #mainView.wrap{
+  max-width:1100px !important;
+  margin:0 auto !important;
+  padding:0 !important;
+}
+:fullscreen .fullscreen-fab,
+:-webkit-full-screen .fullscreen-fab{
+  background:rgba(255,255,255,0.95);
+}
+:fullscreen .adventurer-fab,
+:-webkit-full-screen .adventurer-fab{
+  background:rgba(255,255,255,0.95);
+}
+
+
+.adventurer-fab{
+  position:fixed;
+  top:18px;
+  right:18px;
+  z-index:40;
+  display:none;
+  align-items:center;
+  gap:8px;
+  background:#fff;
+  border:1.5px solid var(--card-border);
+  border-radius:999px;
+  padding:8px 14px 8px 10px;
+  cursor:pointer;
+  font-family:'Inter',sans-serif;
+  font-weight:600;
+  font-size:13.5px;
+  color:var(--ink);
+  box-shadow:var(--shadow);
+  transition:transform .12s ease, box-shadow .12s ease;
+}
+.adventurer-fab:hover{ transform:translateY(-1px); box-shadow:0 6px 16px rgba(30,58,52,0.12); }
+.adventurer-fab .fab-avatar{
+  width:28px; height:28px; border-radius:50%;
+  background:var(--ledger-green); color:#fff;
+  display:flex; align-items:center; justify-content:center;
+  font-family:'Fraunces',serif; font-weight:600; font-size:13px;
+}
+body.on-island .adventurer-fab,
+body:has(.app-shell.mode-island) .adventurer-fab{ display:inline-flex; }
+
+.adventurer-menu{
+  position:fixed;
+  top:58px;
+  right:18px;
+  z-index:45;
+  width:min(300px, calc(100vw - 32px));
+  background:var(--card);
+  border:1px solid var(--card-border);
+  border-radius:14px;
+  box-shadow:0 12px 32px rgba(30,58,52,0.16);
+  padding:14px;
+  display:none;
+}
+.adventurer-menu.open{ display:block; }
+.adventurer-menu .adv-head{
+  display:flex; align-items:center; gap:10px;
+  margin-bottom:12px; padding-bottom:12px;
+  border-bottom:1px dashed var(--card-border);
+}
+.adventurer-menu .adv-avatar{
+  width:42px; height:42px; border-radius:50%;
+  background:var(--ledger-green); color:#fff;
+  display:flex; align-items:center; justify-content:center;
+  font-family:'Fraunces',serif; font-weight:600; font-size:18px;
+  flex-shrink:0;
+}
+.adventurer-menu .adv-name{
+  font-family:'Fraunces',serif; font-weight:600; font-size:14px;
+  word-break:break-all; margin:0 0 2px;
+}
+.adventurer-menu .adv-sub{
+  margin:0; font-size:11.5px; color:var(--ink-soft);
+  font-family:'JetBrains Mono',monospace;
+}
+.adventurer-menu .adv-actions{ display:flex; flex-direction:column; gap:6px; }
+.adventurer-menu .adv-actions button{
+  width:100%; text-align:left;
+  font-family:'Inter',sans-serif; font-weight:600; font-size:13.5px;
+  padding:10px 12px; border-radius:8px; cursor:pointer;
+  border:1px solid var(--card-border); background:#fff; color:var(--ink);
+}
+.adventurer-menu .adv-actions button:hover{ background:var(--ledger-green-soft); border-color:var(--ledger-green); }
+.adventurer-menu .adv-actions button.danger{ color:var(--danger); }
+.adventurer-menu .adv-actions button.danger:hover{ background:#f7e3e0; border-color:var(--danger); }
+
+
+.back-to-island-btn{
+  font-family:'Inter',sans-serif; font-weight:600; font-size:13.5px;
+  border:1px solid var(--ledger-green); border-radius:999px;
+  background:#fff; color:var(--ledger-green);
+  padding:8px 14px; cursor:pointer;
+  display:none; align-items:center; gap:6px;
+  box-shadow:var(--shadow); transition:transform .12s ease, background .12s ease;
   white-space:nowrap;
 }
-.nav-item .nav-icon{ font-size:16px; line-height:1; flex-shrink:0; }
-.nav-item:hover{ background:var(--ledger-green-soft); color:var(--ink); }
-.nav-item.active{ background:var(--nav-color, var(--ledger-green)); border-color:var(--nav-color, var(--ledger-green)); color:#fff; }
+.back-to-island-btn:hover{ background:var(--ledger-green-soft); transform:translateY(-1px); }
+
+.island-map-wrap{
+  position:relative;
+  width:100%;
+  min-height:100vh;
+  min-height:100dvh;
+  margin:0;
+  border-radius:0;
+  overflow:hidden;
+  box-shadow:none;
+  background:#1a6fa8;
+  display:flex;
+  flex-direction:column;
+  align-items:stretch;
+  justify-content:stretch;
+  gap:0;
+  padding:0;
+  box-sizing:border-box;
+}
+.island-map-stage{
+  position:absolute;
+  inset:0;
+  width:100%;
+  height:100%;
+  aspect-ratio:auto;
+  border-radius:0;
+  overflow:hidden;
+  box-shadow:none;
+  border:none;
+  background:#1a6fa8;
+  flex-shrink:0;
+}
+.island-map-img{
+  display:block;
+  width:100%;
+  height:100%;
+  object-fit:cover;
+  object-position:center center;
+  user-select:none;
+  pointer-events:none;
+}
+/* HTML 熱點標記（疊在地圖圖上） */
+.island-spot{
+  position:absolute;
+  transform:translate(-50%, -50%);
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  gap:5px;
+  cursor:pointer;
+  border:none;
+  background:transparent;
+  padding:0;
+  z-index:2;
+  transition:transform .18s ease;
+}
+.island-spot:hover{ transform:translate(-50%, -50%) scale(1.1); z-index:3; }
+.island-spot .spot-icon-bg{
+  width:42px; height:42px; border-radius:50%;
+  background:#FFFef8;
+  border:2.5px solid var(--nav-color, #2A7B6B);
+  display:flex; align-items:center; justify-content:center;
+  font-size:19px;
+  box-shadow:0 4px 12px rgba(0,0,0,.22);
+  transition:box-shadow .18s ease;
+}
+.island-spot:hover .spot-icon-bg{
+  box-shadow:0 6px 18px rgba(0,0,0,.3);
+}
+.island-spot .spot-label-bg{
+  background:rgba(255,254,248,0.95);
+  border-radius:10px;
+  padding:5px 10px 4px;
+  text-align:center;
+  box-shadow:0 2px 8px rgba(0,0,0,.15);
+  min-width:78px;
+}
+.island-spot .spot-label{
+  display:block;
+  font-family:'Fraunces',serif;
+  font-size:12px;
+  font-weight:600;
+  color:#1E3A34;
+  line-height:1.25;
+}
+.island-spot .spot-sub{
+  display:block;
+  font-family:'JetBrains Mono',monospace;
+  font-size:9px;
+  color:#5A7A70;
+  margin-top:1px;
+}
+.island-spot.active .spot-icon-bg{
+  border-width:3px;
+  box-shadow:0 0 0 3px #fff, 0 4px 14px rgba(0,0,0,.28);
+}
+.island-hint{
+  position:absolute;
+  left:50%;
+  bottom:18px;
+  transform:translateX(-50%);
+  text-align:center;
+  font-family:'JetBrains Mono',monospace;
+  font-size:12.5px;
+  color:rgba(255,255,255,0.9);
+  margin:0;
+  letter-spacing:0.04em;
+  text-shadow:0 1px 4px rgba(0,0,0,.4);
+  pointer-events:none;
+  white-space:nowrap;
+  z-index:3;
+}
+.island-home-title{
+  position:absolute;
+  top:18px;
+  left:50%;
+  transform:translateX(-50%);
+  font-family:'Fraunces',serif;
+  font-weight:600;
+  font-size:clamp(24px,4vw,34px);
+  color:#fff;
+  margin:0;
+  text-shadow:0 2px 10px rgba(0,0,0,.45);
+  pointer-events:none;
+  white-space:nowrap;
+  z-index:3;
+}
 
 .main-content{ min-width:0; }
 .hidden{ display:none !important; }
@@ -839,22 +1406,48 @@ table.ledger .del{ background:none; border:none; color:var(--danger); cursor:poi
 </head>
 <body>
 
-<!-- 每日任務：登入後每次進入主畫面都會顯示 -->
-<div id="dailyOverlay" class="daily-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="dailyTitle">
-  <div class="daily-card">
-    <h2 id="dailyTitle">📅 今日任務</h2>
-    <div class="daily-date" id="dailyDate"></div>
-    <div class="daily-deadline-row">
-      <div class="daily-deadline" id="dailyDeadline"></div>
-      <button type="button" class="daily-reshuffle-btn" id="dailyReshuffleBtn" title="用最新的資料重新安排今天的任務">🔀 重排</button>
+<!-- 主線任務公佈欄：點左側按鈕才開啟，不再自動跳出 -->
+<div id="dailyOverlay" class="daily-overlay mission-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="dailyTitle">
+  <div class="mission-board-wrap">
+    <div class="mission-board" style="background-image:url('mission.jpg')">
+      <div class="mission-paper">
+        <div class="mission-board-content">
+          <h2 id="dailyTitle" class="sr-only">主線任務</h2>
+          <div class="daily-date" id="dailyDate"></div>
+          <div class="daily-deadline-row">
+            <div class="daily-deadline" id="dailyDeadline"></div>
+            <button type="button" class="daily-reshuffle-btn" id="dailyReshuffleBtn" title="用最新的資料重新安排今天的任務">🔀 重排</button>
+          </div>
+          <div class="daily-task-list" id="dailyTask"></div>
+          <div class="mission-badge-area">
+            <div class="daily-badge-label">🏅 今日徽章</div>
+            <div class="daily-badge" id="dailyBadge"></div>
+            <p class="daily-badge-note">完成主線任務即可獲得！</p>
+          </div>
+        </div>
+      </div>
     </div>
-    <div class="daily-task-list" id="dailyTask"></div>
-    <div class="daily-badge-label">🏅 今日徽章</div>
-    <div class="daily-badge" id="dailyBadge"></div>
-    <p class="daily-badge-note">完成今天的任務即可獲得！</p>
-    <button type="button" class="daily-btn" id="dailyClose">開始挑戰 🚀</button>
+    <button type="button" class="daily-btn mission-close-btn" id="dailyClose">收起主線任務</button>
   </div>
 </div>
+
+<!-- 徽章獲得動畫 -->
+<div id="badgeAnimOverlay" class="badge-anim-overlay hidden" aria-live="polite">
+  <div class="badge-anim-card">
+    <div class="badge-anim-rays"></div>
+    <div class="badge-anim-icon" id="badgeAnimIcon">🏅</div>
+    <div class="badge-anim-title" id="badgeAnimTitle">獲得徽章！</div>
+    <div class="badge-anim-name" id="badgeAnimName"></div>
+    <button type="button" class="daily-btn" id="badgeAnimClose">太棒了！</button>
+  </div>
+</div>
+
+<!-- 左側主線任務按鈕 -->
+<button type="button" class="mission-fab" id="missionFab" title="查看主線任務">
+  <span class="mission-fab-icon">📜</span>
+  <span class="mission-fab-text">主線任務</span>
+  <span class="mission-fab-dot hidden" id="missionFabDot"></span>
+</button>
 
 <!-- 完成通知 Toast 容器 -->
 <div class="daily-toast-wrap" id="dailyToastWrap"></div>
@@ -863,7 +1456,7 @@ table.ledger .del{ background:none; border:none; color:var(--danger); cursor:poi
 <div id="authView" class="auth-wrap">
   <div class="auth-card">
     <h1 id="authTitle">登入</h1>
-    <div class="sub">自我紀錄.讓寫好的講義躍然"網"上</div>
+    <div class="sub">🏝️ 歡迎來到複習島嶼 · 在島上留下你的學習足跡</div>
     <form id="authForm">
       <div class="auth-field">
         <label>Email</label>
@@ -887,14 +1480,39 @@ table.ledger .del{ background:none; border:none; color:var(--danger); cursor:poi
 
 <!-- 主應用程式畫面 -->
 <div id="mainView" class="wrap hidden">
+  <!-- 全螢幕按鈕 -->
+  <button type="button" class="fullscreen-fab" id="fullscreenBtn" title="全螢幕顯示">⛶ 全螢幕</button>
+  <!-- 島嶼首頁右上角：冒險者資訊 -->
+  <button type="button" class="adventurer-fab" id="adventurerFab" title="冒險者資訊">
+    <span class="fab-avatar" id="fabAvatar">?</span>
+    <span>冒險者資訊</span>
+  </button>
+  <div class="adventurer-menu" id="adventurerMenu">
+    <div class="adv-head">
+      <div class="adv-avatar" id="advMenuAvatar">?</div>
+      <div>
+        <p class="adv-name" id="advMenuName">—</p>
+        <p class="adv-sub" id="advMenuSub">島上冒險者</p>
+      </div>
+    </div>
+    <div class="adv-actions">
+      <button type="button" id="advProfileBtn">🏅 查看徽章與等級</button>
+      <button type="button" id="advTodayPagesBtn">📖 今日各書頁數</button>
+      <button type="button" id="advDailyBtn">📅 今日任務</button>
+      <button type="button" id="advChangePwBtn">🔑 修改密碼</button>
+      <button type="button" class="danger" id="advLogoutBtn">登出</button>
+    </div>
+  </div>
+
   <header class="top">
     <div class="title-block">
-      <h1>自我講義複習紀錄!</h1>
+      <button type="button" class="back-to-island-btn" id="backToIslandBtn">← 回到島嶼</button>
+      <h1>🏝️ 複習島嶼</h1>
       <div class="stamp" id="todayStamp"></div>
     </div>
     <div class="header-actions">
-      <button type="button" class="daily-open-btn" id="openDailyBtn" title="隨時查看今日任務">
-        <span class="dot" id="openDailyDot"></span>📅 今日任務
+      <button type="button" class="daily-open-btn" id="openDailyBtn" title="隨時查看今日島上任務">
+        <span class="dot" id="openDailyDot"></span>🏝️ 今日任務
       </button>
       <span class="daily-progress hidden" id="dailyProgress"></span>
       <button type="button" class="avatar-btn" id="avatarBtn" title="查看我的進度與徽章">
@@ -911,15 +1529,39 @@ table.ledger .del{ background:none; border:none; color:var(--danger); cursor:poi
     </div>
   </header>
 
-  <div class="app-shell">
-    <nav class="main-nav" id="mainNav">
-      <button type="button" class="nav-item active" data-section="ledger" style="--nav-color:#2F5D50;"><span class="nav-icon">📚</span><span>講義紀錄</span></button>
-      <button type="button" class="nav-item" data-section="mistakes" style="--nav-color:#A03A2E;"><span class="nav-icon">✏️</span><span>錯題本</span></button>
-      <button type="button" class="nav-item" data-section="review" style="--nav-color:#B0812C;"><span class="nav-icon">🧠</span><span>複習</span></button>
-      <button type="button" class="nav-item" data-section="daily" style="--nav-color:#4A6FA5;"><span class="nav-icon">📅</span><span>每日紀錄</span></button>
-      <button type="button" class="nav-item" data-section="vocab" style="--nav-color:#7A4A6B;"><span class="nav-icon">🔤</span><span>我的單字本</span></button>
-      <button type="button" class="nav-item" data-section="study" style="--nav-color:#3A6B8A;"><span class="nav-icon">⏱️</span><span>讀書時間</span></button>
-    </nav>
+  <div class="app-shell mode-island" id="appShell">
+    <div class="island-map-wrap" id="mainNav">
+      <h1 class="island-home-title">🏝️ 複習島嶼</h1>
+      <div class="island-map-stage">
+        <img class="island-map-img" src="island-map.jpg" alt="複習島嶼地圖" draggable="false">
+        <!-- 熱點位置依地圖大致區域：火山=試煉、湖邊=圖書館、椰林=單字、沙灘=時光、工坊=左下、鐘樓=中央偏右 -->
+        <button type="button" class="island-spot" data-section="review" style="--nav-color:#D4A017; left:48%; top:28%;">
+          <span class="spot-icon-bg">🗼</span>
+          <span class="spot-label-bg"><span class="spot-label">試煉之塔</span><span class="spot-sub">複習</span></span>
+        </button>
+        <button type="button" class="island-spot" data-section="ledger" style="--nav-color:#2A7B6B; left:32%; top:48%;">
+          <span class="spot-icon-bg">📚</span>
+          <span class="spot-label-bg"><span class="spot-label">知識圖書館</span><span class="spot-sub">講義紀錄</span></span>
+        </button>
+        <button type="button" class="island-spot" data-section="mistakes" style="--nav-color:#C45C4A; left:22%; top:62%;">
+          <span class="spot-icon-bg">🛠️</span>
+          <span class="spot-label-bg"><span class="spot-label">訂正工坊</span><span class="spot-sub">錯題本</span></span>
+        </button>
+        <button type="button" class="island-spot" data-section="study" style="--nav-color:#3A6B8A; left:55%; top:52%;">
+          <span class="spot-icon-bg">🕰️</span>
+          <span class="spot-label-bg"><span class="spot-label">專注鐘樓</span><span class="spot-sub">讀書時間</span></span>
+        </button>
+        <button type="button" class="island-spot" data-section="vocab" style="--nav-color:#8B5A8C; left:68%; top:42%;">
+          <span class="spot-icon-bg">🌺</span>
+          <span class="spot-label-bg"><span class="spot-label">單字花園</span><span class="spot-sub">我的單字本</span></span>
+        </button>
+        <button type="button" class="island-spot" data-section="daily" style="--nav-color:#3A8FBF; left:50%; top:72%;">
+          <span class="spot-icon-bg">🏝️</span>
+          <span class="spot-label-bg"><span class="spot-label">時光沙灘</span><span class="spot-sub">每日紀錄</span></span>
+        </button>
+      </div>
+      <p class="island-hint">點選島上的場所開始探索 ✦</p>
+    </div>
     <div class="main-content">
       <div id="appPanel"><div class="loading">讀取資料中…</div></div>
       <div id="mistakesPanel" class="hidden"><div class="loading">讀取資料中…</div></div>
@@ -1194,7 +1836,7 @@ let currentStreak = { count: 0, lastDate: null }; // 連續完成天數，登入
 let currentDailyPlan = null; // 今天的任務排程 { date, tasks, bonus, notified, bonusNotified }，存在 Supabase
 
 /* ---------------- 錯題本 / 複習：全域狀態 ---------------- */
-let currentSection = 'ledger'; // 'ledger' | 'mistakes' | 'review'
+let currentSection = 'island'; // 'island' | 'ledger' | 'mistakes' | 'review' | 'daily' | 'vocab' | 'study'
 let mistakes = [];             // [{id,subject,question,type,options,my_answer,correct_answer,review_count,streak,created_at}]
 const MASTER_STREAK = 2;       // 連續答對幾次算「已熟練」
 const OPTION_LABELS = ['A','B','C','D','E'];
@@ -2040,6 +2682,8 @@ async function notifyDailyComplete(){
   await checkAchievements();
   const title = isReroll ? '加場任務也完成了！🎉' : '今日任務已完成！🎉';
   const body = (isReroll ? '重排後的新一輪任務也全部寫完，一樣拿到今天的徽章！' : '恭喜你完成今天的所有任務，記得看看獲得的徽章～') + ` +${DAILY_TASK_EXP} EXP`;
+  const badgeText = dailyBadges[(dailyIndex() + dailyRoundNumber() - 1) % dailyBadges.length];
+  playBadgeAnimation(badgeText);
   showDailyToast({ icon: '🏅', title, body });
   sendBrowserNotification(title, body);
   const levelAfter = experienceStats().level;
@@ -2095,6 +2739,24 @@ async function updateDailyProgress(){
   updateReshuffleButtonState();
 }
 
+async function prepareDailyTask(){
+  const plan = await getDailyTaskPlan();
+  activeDailyTasks = plan.tasks || [];
+  activeBonusTask = plan.bonus || null;
+  await updateDailyProgress();
+  await checkAchievements();
+  updateMissionFabDot();
+}
+
+function updateMissionFabDot(){
+  const dot = document.getElementById('missionFabDot');
+  if(!dot) return;
+  const pct = dailyCompletionPct(activeDailyTasks || []);
+  const hasTasks = (activeDailyTasks && activeDailyTasks.length > 0) || !!activeBonusTask;
+  const pending = hasTasks && pct < 100;
+  dot.classList.toggle('hidden', !pending);
+}
+
 async function showDailyTask(){
   const index = dailyIndex();
   const now = new Date();
@@ -2104,29 +2766,30 @@ async function showDailyTask(){
   const badgeEl = document.getElementById('dailyBadge');
   if(!dateEl || !taskEl || !badgeEl) return;
 
-  if(titleEl) titleEl.textContent = '\u{1F4C5} \u4ECA\u65E5\u4EFB\u52D9';
-  document.querySelector('.daily-badge-label').textContent = '\u{1F3C5} \u4ECA\u65E5\u5FBD\u7AE0';
-  document.querySelector('.daily-badge-note').textContent = '\u5B8C\u6210\u4ECA\u5929\u7684\u4EFB\u52D9\u5373\u53EF\u7372\u5F97\uFF01';
-  document.getElementById('dailyClose').textContent = '\u958B\u59CB\u6311\u6230 \u{1F680}';
   dateEl.textContent = now.toLocaleDateString('zh-TW', { year:'numeric', month:'long', day:'numeric', weekday:'long' });
   const deadlineEl = document.getElementById('dailyDeadline');
-  if(deadlineEl) deadlineEl.textContent = `\u{1F3AF} \u76EE\u6A19\uFF1A11/15 \u524D\u8B80\u5B8C\u6240\u6709\u66F8\uFF08\u9084\u5269 ${daysUntilYearEnd()} \u5929\uFF09`;
+  if(deadlineEl) deadlineEl.textContent = `🎯 目標：11/15 前讀完所有書（還剩 ${daysUntilYearEnd()} 天）`;
   const plan = await getDailyTaskPlan();
   activeDailyTasks = plan.tasks;
   activeBonusTask = plan.bonus;
   const round = dailyRoundNumber(plan);
-  if(titleEl) titleEl.textContent = `📅 今日任務 · 第 ${round} 輪`;
-  document.querySelector('.daily-badge-label').textContent = `🏅 第 ${round} 輪徽章`;
-  document.querySelector('.daily-badge-note').textContent = `完成第 ${round} 輪可獲得徽章；單次寫越多頁，獲得的 EXP 越多！`;
+  if(titleEl) titleEl.textContent = `主線任務 · 第 ${round} 輪`;
+  const labelEl = document.querySelector('.daily-badge-label');
+  const noteEl = document.querySelector('.daily-badge-note');
+  if(labelEl) labelEl.textContent = `🏅 第 ${round} 輪徽章`;
+  if(noteEl) noteEl.textContent = `完成主線任務可獲得徽章；寫越多頁 EXP 越多！`;
+  const closeBtn = document.getElementById('dailyClose');
+  if(closeBtn) closeBtn.textContent = '收起主線任務';
 
   let bonusHtml = '';
   if(activeBonusTask){
     const bt = activeBonusTask;
     const pages = bt.start === bt.end ? `${bt.start}` : `${bt.start}～${bt.end}`;
     const done = isBonusTaskDone();
-    bonusHtml = `<div class="bonus-row">
-      <p>${done ? '✅' : '🎁'} <b>加碼任務：${escapeHtml(bt.bookName)}</b>：第 ${pages} 頁 <span class="task-progress">${done ? '已完成，賺到！' : '寫少少也給獎勵～'}</span></p>
-      <button type="button" class="bonus-reshuffle-btn" id="bonusReshuffleBtn" title="不想寫這本？換一個加碼任務試試">🔀 換一個</button>
+    bonusHtml = `<div class="task-sheet bonus-sheet">
+      <span class="task-main">${done ? '✅' : '🎁'} <b>加碼任務：${escapeHtml(bt.bookName)}</b>：第 ${pages} 頁</span>
+      <span class="task-progress">${done ? '已完成，賺到！' : '寫少少也給獎勵～'}</span>
+      <button type="button" class="bonus-reshuffle-btn" id="bonusReshuffleBtn" title="不想寫這本？換一個加碼任務試試" style="margin-top:6px">🔀 換一個</button>
     </div>`;
   }
 
@@ -2141,11 +2804,11 @@ async function showDailyTask(){
       const bookTarget = book ? Number(book.target) || 0 : 0;
       const sharePct = bookTarget > 0 ? Math.round((taskTotal / bookTarget) * 100) : null;
       const shareLabel = sharePct === null ? '未設定目標' : `佔本書 ${sharePct}%`;
-      return `<div class="task-row"><span class="task-main"><b>${i + 1}. ${escapeHtml(task.bookName)}</b>：第 ${pages} 頁</span><span class="task-progress">${shareLabel}</span></div>`;
+      return `<div class="task-sheet"><span class="task-main"><b>${i + 1}. ${escapeHtml(task.bookName)}</b>：第 ${pages} 頁</span><span class="task-progress">${shareLabel}</span></div>`;
     }).join('');
-    taskEl.innerHTML = `<p class="task-progress-total">今日總進度：<b>${overallPct}%</b>（${donePages} / ${totalPages} 頁）</p>${rows}${bonusHtml}`;
+    taskEl.innerHTML = `<div class="task-sheet progress-sheet"><span class="task-progress-total">今日總進度：<b>${overallPct}%</b>（${donePages} / ${totalPages} 頁）</span></div>${rows}${bonusHtml}`;
   }else{
-    taskEl.innerHTML = `<p>先新增講義與目標頁數，明天就會自動安排任務。</p>${bonusHtml}`;
+    taskEl.innerHTML = `<div class="task-sheet"><p style="margin:0">先新增講義與目標頁數，明天就會自動安排任務。</p></div>${bonusHtml}`;
   }
   badgeEl.textContent = dailyBadges[(index + round - 1) % dailyBadges.length];
   updateReshuffleButtonState();
@@ -2153,7 +2816,18 @@ async function showDailyTask(){
   if(bonusBtn) bonusBtn.addEventListener('click', reshuffleBonusTask);
   await updateDailyProgress();
   await checkAchievements();
+  updateMissionFabDot();
   document.getElementById('dailyOverlay').classList.remove('hidden');
+}
+
+function playBadgeAnimation(badgeText){
+  const overlay = document.getElementById('badgeAnimOverlay');
+  const nameEl = document.getElementById('badgeAnimName');
+  const iconEl = document.getElementById('badgeAnimIcon');
+  if(!overlay || !nameEl) return;
+  nameEl.textContent = badgeText || '神秘徽章';
+  if(iconEl) iconEl.textContent = (badgeText && badgeText.trim().split(/\s+/)[0]) || '🏅';
+  overlay.classList.remove('hidden');
 }
 
 function closeDailyTask(){
@@ -2162,11 +2836,11 @@ function closeDailyTask(){
 
 function formatStamp(){
   const d = new Date();
-  const weekdays = ['\u65E5', '\u4E00', '\u4E8C', '\u4E09', '\u56DB', '\u4E94', '\u516D'];
+  const weekdays = ['日', '一', '二', '三', '四', '五', '六'];
   const el = document.getElementById('todayStamp');
   if(el){
     const date = `${d.getFullYear()}.${String(d.getMonth()+1).padStart(2,'0')}.${String(d.getDate()).padStart(2,'0')}`;
-    el.textContent = `\u4ECA\u5929 ${date} (${weekdays[d.getDay()]})`;
+    el.textContent = `🏝️ 今天 ${date}（週${weekdays[d.getDay()]}）· 島上的一天`;
   }
 }
 
@@ -2503,6 +3177,7 @@ function vocabToolbarHTML(){
       </label>
       <label><input type="checkbox" id="vocabSoundFxChk" ${soundFxOn?'checked':''}>🔔 答題音效</label>
       <label><input type="checkbox" id="vocabAutoSpeakChk" ${autoSpeakOn?'checked':''}>🗣 自動唸單字</label>
+      <label><input type="checkbox" id="vocabAutoNextChk" ${autoNextOn?'checked':''}>⏭ 答對自動下一題</label>
       <label>分組
         <select id="vocabGroupSelect">
           ${VOCAB_GROUP_OPTIONS.map(o=>`<option value="${o.id}" ${vocabGroupBy===o.id?'selected':''}>${o.label}</option>`).join('')}
@@ -2772,6 +3447,11 @@ function bindVocabPanelEvents(){
   if(speakChk) speakChk.addEventListener('change', ()=>{
     autoSpeakOn = speakChk.checked;
     localStorage.setItem('vocabAutoSpeak', autoSpeakOn ? '1' : '0');
+  });
+  const nextChk = document.getElementById('vocabAutoNextChk');
+  if(nextChk) nextChk.addEventListener('change', ()=>{
+    autoNextOn = nextChk.checked;
+    localStorage.setItem('vocabAutoNext', autoNextOn ? '1' : '0');
   });
   const groupSel = document.getElementById('vocabGroupSelect');
   if(groupSel) groupSel.addEventListener('change', ()=>{ vocabGroupBy = groupSel.value; renderVocabPanel(); });
@@ -3332,6 +4012,12 @@ function vocabQuizSetupHTML(){
         <label for="vocabQuizSmartChk">🧠 依遺忘曲線出題（優先考快忘掉的字，目前 ${vocabDueCount()} 個該複習）</label>
       </div>
 
+      ${mode !== 'memory' ? `
+      <div class="review-toggle" style="margin-top:0;">
+        <input type="checkbox" id="vocabQuizAutoNextChk" ${autoNextOn?'checked':''}>
+        <label for="vocabQuizAutoNextChk">⏭ 答對自動換下一題</label>
+      </div>` : ''}
+
       <div style="margin-top:14px;font-size:12px;color:var(--ink-soft);font-family:'JetBrains Mono',monospace;text-transform:uppercase;letter-spacing:.05em;">${mode === 'memory' ? '配對組數' : '題數'}</div>
       <div style="display:flex;justify-content:center;margin-top:6px;">
         <select id="vocabQuizCountSelect" class="vocab-quiz-select">
@@ -3364,6 +4050,11 @@ function bindVocabQuizSetupEvents(){
   if(levelSelect) levelSelect.addEventListener('change', ()=>{
     vocabQuizLevelFilter = levelSelect.value;
     renderVocabPanel();
+  });
+  const autoNextChk = document.getElementById('vocabQuizAutoNextChk');
+  if(autoNextChk) autoNextChk.addEventListener('change', ()=>{
+    autoNextOn = autoNextChk.checked;
+    localStorage.setItem('vocabAutoNext', autoNextOn ? '1' : '0');
   });
   const smartChk = document.getElementById('vocabQuizSmartChk');
   if(smartChk) smartChk.addEventListener('change', ()=>{ vocabQuizSmart = smartChk.checked; renderVocabPanel(); });
@@ -3505,6 +4196,7 @@ function revealVocabAnswer(){
   if(correct) vocabQuizSession.correctCount++;
   recordVocabAnswer(q.vocabId, correct);
   renderVocabPanel();
+  if(correct) autoNextAfterCorrect(vocabQuizSession, ()=>vocabQuizSession, 'nextVocabCardBtn');
 }
 
 function normalizeAnswer(s){
@@ -3766,6 +4458,7 @@ function submitVocabTypingAnswer(){
   if(correct) s.correctCount++; else s.wrongCount++;
   recordVocabAnswer(v.id, correct);
   renderVocabPanel();
+  if(correct) autoNextAfterCorrect(s, ()=>vocabTypingSession, 'nextTypingBtn');
 }
 
 /* ============================================================
@@ -3902,6 +4595,7 @@ function bindVocabScrambleEvents(){
     if(correct) s.correctCount++;
     recordVocabAnswer(v.id, correct);
     renderVocabPanel();
+    if(correct) autoNextAfterCorrect(s, ()=>vocabScrambleSession, 'nextScrambleBtn');
   });
   const nextBtn = document.getElementById('nextScrambleBtn');
   if(nextBtn) nextBtn.addEventListener('click', ()=>{
@@ -3955,7 +4649,20 @@ function speakVocabWord(word){
 /* ---- 音效與自動發音（設定存在 localStorage） ---- */
 let soundFxOn = localStorage.getItem('vocabSoundFx') !== '0';       // 答題音效
 let autoSpeakOn = localStorage.getItem('vocabAutoSpeak') !== '0';   // 自動唸出單字
+let autoNextOn = localStorage.getItem('vocabAutoNext') !== '0';     // 答對自動換下一題
 let audioCtx = null;
+
+// 答對後稍等一下（讓音效與發音播完）再自動按「下一題」。
+// 只有在還停留在同一題、同一場遊戲時才會跳，避免使用者已經手動換題後又被多跳一次。
+function autoNextAfterCorrect(session, getActive, nextBtnId){
+  if(!autoNextOn || !session) return;
+  const idx = session.idx;
+  setTimeout(()=>{
+    if(getActive() !== session || session.idx !== idx) return;
+    const btn = document.getElementById(nextBtnId);
+    if(btn) btn.click();
+  }, 1400);
+}
 
 function playTone(freq, startOffset, duration, type, volume){
   const ctx = audioCtx;
@@ -4097,6 +4804,7 @@ function revealVocabListeningAnswer(){
   if(correct) s.correctCount++;
   recordVocabAnswer(q.vocabId, correct);
   renderVocabPanel();
+  if(correct) autoNextAfterCorrect(s, ()=>vocabListeningSession, 'nextListeningBtn');
 }
 
 /* ============================================================
@@ -4525,9 +5233,35 @@ function bindDailyPanelEvents(agg){
 }
 
 
+function showIslandHome(){
+  currentSection = 'island';
+  const shell = document.getElementById('appShell');
+  if(shell){
+    shell.classList.remove('mode-place');
+    shell.classList.add('mode-island');
+  }
+  document.body.classList.remove('in-place');
+  document.body.classList.add('on-island');
+  document.querySelectorAll('.nav-item, .island-spot').forEach(el=>{
+    el.classList.remove('active');
+  });
+}
+
 function switchSection(section){
+  if(!section || section === 'island'){
+    showIslandHome();
+    return;
+  }
   currentSection = section;
-  document.querySelectorAll('.nav-item').forEach(el=>{
+  const shell = document.getElementById('appShell');
+  if(shell){
+    shell.classList.remove('mode-island');
+    shell.classList.add('mode-place');
+  }
+  document.body.classList.add('in-place');
+  document.body.classList.remove('on-island');
+  document.getElementById('adventurerMenu')?.classList.remove('open');
+  document.querySelectorAll('.nav-item, .island-spot').forEach(el=>{
     el.classList.toggle('active', el.dataset.section === section);
   });
   document.getElementById('appPanel').classList.toggle('hidden', section !== 'ledger');
@@ -5489,18 +6223,32 @@ function bindAddBook(){
 function showAuthView(){
   document.getElementById('authView').classList.remove('hidden');
   document.getElementById('mainView').classList.add('hidden');
+  document.body.classList.remove('on-island', 'in-place');
 }
 async function showMainView(){
   document.getElementById('authView').classList.add('hidden');
   document.getElementById('mainView').classList.remove('hidden');
   document.getElementById('userBadge').textContent = isGuestMode ? '' : currentUser.email;
-  document.getElementById('avatarInitial').textContent = isGuestMode ? '訪' : avatarInitial(currentUser.email);
+  const initial = isGuestMode ? '訪' : avatarInitial(currentUser.email);
+  document.getElementById('avatarInitial').textContent = initial;
   document.getElementById('guestBadge').classList.toggle('hidden', !isGuestMode);
   document.getElementById('changePwBtn').classList.toggle('hidden', isGuestMode);
+  const fabAv = document.getElementById('fabAvatar');
+  const advAv = document.getElementById('advMenuAvatar');
+  const advName = document.getElementById('advMenuName');
+  const advSub = document.getElementById('advMenuSub');
+  if(fabAv) fabAv.textContent = initial;
+  if(advAv) advAv.textContent = initial;
+  if(advName) advName.textContent = isGuestMode ? '訪客冒險者' : (currentUser.email || '冒險者');
+  if(advSub) advSub.textContent = isGuestMode ? '本機資料・未登入' : '島上冒險者';
+  const advPw = document.getElementById('advChangePwBtn');
+  if(advPw) advPw.style.display = isGuestMode ? 'none' : '';
   document.getElementById('appPanel').innerHTML = '<div class="loading">讀取資料中…</div>';
   await loadAllData();
   render();
-  await showDailyTask();
+  showIslandHome();
+  // 主線任務改為手動點左側按鈕查看，不再自動跳出
+  try{ await prepareDailyTask(); }catch(e){ console.warn(e); }
 }
 
 /* ---------------- Init ---------------- */
@@ -5528,9 +6276,19 @@ async function init(){
     requestNotifyPermission();
     closeDailyTask();
   });
-  document.getElementById('openDailyBtn').addEventListener('click', async ()=>{
+  document.getElementById('openDailyBtn')?.addEventListener('click', async ()=>{
     requestNotifyPermission();
     await showDailyTask();
+  });
+  document.getElementById('missionFab')?.addEventListener('click', async ()=>{
+    requestNotifyPermission();
+    await showDailyTask();
+  });
+  document.getElementById('badgeAnimClose')?.addEventListener('click', ()=>{
+    document.getElementById('badgeAnimOverlay')?.classList.add('hidden');
+  });
+  document.getElementById('badgeAnimOverlay')?.addEventListener('click', (e)=>{
+    if(e.target.id === 'badgeAnimOverlay') e.target.classList.add('hidden');
   });
   document.getElementById('dailyReshuffleBtn').addEventListener('click', async ()=>{
     const plan = await getDailyTaskPlan();
@@ -5556,10 +6314,63 @@ async function init(){
   document.getElementById('changePwOverlay').addEventListener('click', (e)=>{
     if(e.target.id === 'changePwOverlay') closeChangePwModal();
   });
-  document.querySelectorAll('.nav-item').forEach(el=>{
+  document.querySelectorAll('.nav-item, .island-spot').forEach(el=>{
     el.addEventListener('click', ()=> switchSection(el.dataset.section));
   });
+  const backBtn = document.getElementById('backToIslandBtn');
+  if(backBtn) backBtn.addEventListener('click', showIslandHome);
+
+  // 全螢幕（類似 YouTube）
+  const fsBtn = document.getElementById('fullscreenBtn');
+  function updateFsBtn(){
+    if(!fsBtn) return;
+    const on = !!(document.fullscreenElement || document.webkitFullscreenElement);
+    fsBtn.textContent = on ? '⛶ 離開全螢幕' : '⛶ 全螢幕';
+    fsBtn.title = on ? '離開全螢幕' : '全螢幕顯示';
+  }
+  async function toggleFullscreen(){
+    try{
+      const on = !!(document.fullscreenElement || document.webkitFullscreenElement);
+      if(!on){
+        const el = document.documentElement;
+        if(el.requestFullscreen) await el.requestFullscreen();
+        else if(el.webkitRequestFullscreen) el.webkitRequestFullscreen();
+      }else{
+        if(document.exitFullscreen) await document.exitFullscreen();
+        else if(document.webkitExitFullscreen) document.webkitExitFullscreen();
+      }
+    }catch(err){
+      console.warn('全螢幕失敗', err);
+      alert('此瀏覽器無法進入全螢幕，或需要你允許權限。');
+    }
+    updateFsBtn();
+  }
+  if(fsBtn){
+    fsBtn.addEventListener('click', toggleFullscreen);
+    document.addEventListener('fullscreenchange', updateFsBtn);
+    document.addEventListener('webkitfullscreenchange', updateFsBtn);
+  }
   document.getElementById('avatarBtn').addEventListener('click', openProfileModal);
+
+  // 冒險者資訊選單
+  const fab = document.getElementById('adventurerFab');
+  const menu = document.getElementById('adventurerMenu');
+  if(fab && menu){
+    fab.addEventListener('click', (e)=>{
+      e.stopPropagation();
+      menu.classList.toggle('open');
+    });
+    document.addEventListener('click', (e)=>{
+      if(!menu.contains(e.target) && e.target !== fab && !fab.contains(e.target)){
+        menu.classList.remove('open');
+      }
+    });
+    document.getElementById('advProfileBtn')?.addEventListener('click', ()=>{ menu.classList.remove('open'); openProfileModal(); });
+    document.getElementById('advTodayPagesBtn')?.addEventListener('click', ()=>{ menu.classList.remove('open'); openTodayPagesModal(); });
+    document.getElementById('advDailyBtn')?.addEventListener('click', async ()=>{ menu.classList.remove('open'); await showDailyTask(); });
+    document.getElementById('advChangePwBtn')?.addEventListener('click', ()=>{ menu.classList.remove('open'); openChangePwModal(); });
+    document.getElementById('advLogoutBtn')?.addEventListener('click', ()=>{ menu.classList.remove('open'); handleLogout(); });
+  }
   document.getElementById('closeProfileBtn').addEventListener('click', closeProfileModal);
   document.getElementById('profileOverlay').addEventListener('click', (e)=>{
     if(e.target.id === 'profileOverlay') closeProfileModal();
