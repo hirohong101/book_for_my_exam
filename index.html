@@ -537,7 +537,8 @@ body.in-place .adventurer-fab{ display:inline-flex !important; }
 .sr-only{ position:absolute; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden; clip:rect(0,0,0,0); border:0; }
 .mission-fab{
   position:fixed; left:18px; top:50%; transform:translateY(-50%);
-  z-index:40; display:none; flex-direction:row; align-items:center; gap:8px;
+  z-index:500; display:none; flex-direction:row; align-items:center; gap:8px;
+  pointer-events:auto;
   background:linear-gradient(180deg, #8B5A2B 0%, #6B4226 100%);
   color:#F5E6C8; border:2px solid #C4A574; border-radius:999px;
   padding:10px 16px; cursor:pointer; box-shadow:0 6px 18px rgba(0,0,0,.28);
@@ -560,6 +561,15 @@ body.in-place .mission-fab:hover{ transform:scale(1.04); }
 .mission-overlay.daily-overlay{
   background:rgba(20,16,12,.62);
   backdrop-filter:blur(3px);
+  z-index:1000;
+  pointer-events:auto;
+}
+.mission-overlay .mission-board-wrap,
+.mission-overlay .mission-board,
+.mission-overlay .mission-close-btn{
+  pointer-events:auto;
+  position:relative;
+  z-index:2;
 }
 .mission-board-wrap{
   display:flex; flex-direction:column; align-items:center; gap:12px;
@@ -577,59 +587,206 @@ body.in-place .mission-fab:hover{ transform:scale(1.04); }
   position:relative;
   filter:drop-shadow(0 16px 40px rgba(0,0,0,.4));
 }
-/* 木板中央內容區（透明，任務各自一張紙） */
+/* 木板中央書寫區：嚴格限制在木框內，不碰到石牆／燈籠外圍 */
 .mission-paper{
   position:absolute;
-  left:10%; right:10%;
-  top:18%; bottom:9%;
+  left:14%;
+  right:14%;
+  top:28%;
+  bottom:12%;
   background:transparent;
   border:none;
   box-shadow:none;
-  overflow:auto;
+  overflow:hidden; /* 裁切，不讓紙張溢出木板 */
 }
 .mission-board-content{
   position:relative;
   inset:auto;
-  display:flex; flex-direction:column; gap:8px;
-  overflow:visible;
+  display:flex; flex-direction:column; gap:6px;
+  overflow:hidden; /* 不出現捲軸 */
   color:#3A2A1A;
   font-family:'Fraunces',serif;
-  padding:6px 4px 8px;
+  padding:4px 6px 6px;
   box-sizing:border-box;
-  min-height:100%;
+  height:100%;
+  max-height:100%;
 }
-/* 每一張任務紙 */
+/* 隱藏可能出現的捲軸（含 WebKit / Firefox） */
+.mission-paper,
+.mission-board-content,
+.mission-board-content .daily-task-list,
+.mission-board-content .right-sheets{
+  scrollbar-width:none;
+  -ms-overflow-style:none;
+}
+.mission-paper::-webkit-scrollbar,
+.mission-board-content::-webkit-scrollbar,
+.mission-board-content .daily-task-list::-webkit-scrollbar,
+.mission-board-content .right-sheets::-webkit-scrollbar{
+  display:none;
+  width:0;
+  height:0;
+}
+/* 佈告欄：左大紙 + 右側網格，紙張加底色不透明好讀 */
+.mission-board-content .daily-date,
+.mission-board-content .daily-deadline-row,
+.mission-board-content .mission-badge-area{
+  flex-shrink:0;
+}
+.mission-board-content .daily-task-list{
+  display:grid !important;
+  grid-template-columns: 31% 1fr;
+  gap:10px 12px !important;
+  align-items:stretch;
+  flex:1 1 auto !important;
+  min-height:0;
+  height:100%;
+  margin:0 !important;
+  padding:4px 2px !important;
+  overflow:hidden !important;
+  background:transparent !important;
+  border:none !important;
+}
 .mission-board-content .task-sheet{
-  background-image:url('paper.jpg');
-  background-size:cover;
+  position:relative;
+  background-color:transparent;
+  background-image:url('paper.png');
+  background-size:100% 100%;
   background-position:center;
-  border-radius:3px;
-  padding:12px 16px 11px;
+  background-repeat:no-repeat;
+  border-radius:2px;
+  padding:18px 20px 16px;
   box-shadow:0 3px 10px rgba(0,0,0,.28);
-  border:1px solid rgba(80,50,20,.2);
-  color:#3A2A1A;
+  border:none;
+  color:#2B1C10;
+  box-sizing:border-box;
+  transform:rotate(var(--tilt, 0deg));
+  transition:transform .15s ease, box-shadow .15s ease;
+  z-index:1;
+  /* 讓紙張隨文字變大，四周留足邊距避免字跑出紙外 */
+  min-width:0;
+}
+.mission-board-content .task-sheet:hover{
+  transform:rotate(0deg) scale(1.02);
+  z-index:5;
+  box-shadow:0 6px 16px rgba(0,0,0,.4);
 }
 .mission-board-content .task-sheet.progress-sheet{
-  padding:8px 14px;
+  grid-column:1;
+  grid-row:1 / span 6;
+  padding:24px 20px;
   text-align:center;
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  justify-content:center;
+  gap:10px;
+  min-height:100%;
+  --tilt:-1.2deg;
 }
-.mission-board-content .task-sheet .task-main{
-  display:block;
+.mission-board-content .task-sheet.progress-sheet .task-progress-total{
   font-size:15px;
-  line-height:1.4;
+  line-height:1.55;
+  margin:0;
+  color:#2B1C10;
 }
-.mission-board-content .task-sheet .task-main b{
-  color:#4A3018;
-}
-.mission-board-content .task-sheet .task-progress{
+.mission-board-content .task-sheet.progress-sheet .task-deadline-line{
   display:block;
   margin-top:4px;
   font-size:12px;
-  color:#7A5A3A;
+  line-height:1.45;
+  color:#5C3D24;
+  font-family:'Fraunces',serif;
+}
+.mission-board-content .task-sheet.progress-sheet .mission-reshuffle-inpaper{
+  margin-top:6px;
+  font-family:'Fraunces',serif;
+  font-size:12px;
+  background:rgba(255,248,230,.95);
+  color:#5C3D24;
+  border:1px solid rgba(107,66,38,.45);
+  border-radius:999px;
+  padding:5px 14px;
+  cursor:pointer;
+}
+.mission-board-content .task-sheet.progress-sheet .mission-reshuffle-inpaper:hover{
+  background:#fff8e6;
+}
+.mission-board-content .right-sheets{
+  grid-column:2;
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:12px;
+  align-content:start;
+  min-height:0;
+}
+.mission-board-content .task-sheet.task-item{
+  width:auto;
+  min-height:96px;
+  padding:20px 22px 18px;
+}
+.mission-board-content .task-sheet .task-main{
+  display:block;
+  font-size:13.5px;
+  line-height:1.45;
+  word-break:break-word;
+  overflow-wrap:anywhere;
+  color:#2B1C10;
+}
+.mission-board-content .task-sheet .task-main b{
+  color:#3D2414;
+  font-size:14px;
+}
+.mission-board-content .task-sheet .task-progress{
+  display:block;
+  margin-top:5px;
+  font-size:11.5px;
+  color:#6B4E32;
+  word-break:break-word;
 }
 .mission-board-content .task-sheet.bonus-sheet{
-  border-color:rgba(180,120,40,.35);
+  outline:1px dashed rgba(140,90,30,.5);
+  outline-offset:-4px;
 }
+.mission-board-content .task-sheet .bonus-reshuffle-btn{
+  font-size:11px !important;
+  padding:3px 9px !important;
+  margin-top:6px !important;
+  background:rgba(255,248,230,.95) !important;
+  border:1px solid rgba(107,66,38,.4) !important;
+  border-radius:999px !important;
+  color:#5C3D24 !important;
+  cursor:pointer;
+}
+.mission-board-content .task-sheet.reward-sheet{
+  min-height:96px;
+  text-align:center;
+  padding:20px 18px 18px;
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  justify-content:center;
+  gap:6px;
+}
+.mission-board-content .task-sheet.reward-sheet .reward-label{
+  font-size:12px;
+  letter-spacing:0.08em;
+  color:#6B4E32;
+  font-family:'Fraunces',serif;
+}
+.mission-board-content .task-sheet.reward-sheet .reward-badge{
+  font-family:'Fraunces',serif;
+  font-size:17px;
+  color:#2B1C10;
+  line-height:1.3;
+}
+.mission-board-content .task-sheet.reward-sheet .reward-note{
+  font-size:11px;
+  color:#6B4E32;
+  margin:0;
+}
+
+
 
 .mission-board-content .daily-date{
   font-family:'Fraunces',serif; font-size:12px; color:#6B4E32; text-align:center;
@@ -647,17 +804,8 @@ body.in-place .mission-fab:hover{ transform:scale(1.04); }
   border:1px solid rgba(107,66,38,.35); border-radius:999px;
   padding:4px 10px;
 }
-.mission-board-content .daily-task-list{
-  flex:1; margin:0; padding:0;
-  background:transparent;
-  border:none;
-  text-align:left;
-  overflow:visible;
-  box-shadow:none;
-  display:flex;
-  flex-direction:column;
-  gap:8px;
-}
+/* removed conflicting daily-task-list override */
+
 .mission-board-content .daily-task-list p,
 .mission-board-content .task-row{
   color:#3A2A1A; font-size:14.5px; font-family:'Fraunces',serif;
@@ -760,7 +908,7 @@ body.in-place .mission-fab:hover{ transform:scale(1.04); }
   position:fixed;
   top:18px;
   left:18px;
-  z-index:40;
+  z-index:500;
   display:none;
   align-items:center;
   justify-content:center;
@@ -783,19 +931,13 @@ body:has(.app-shell.mode-island) .fullscreen-fab{ display:inline-flex; }
 body.in-place .fullscreen-fab{ display:inline-flex; top:auto; bottom:18px; right:18px; left:auto; }
 
 /* 全螢幕：只有「島嶼首頁」才把地圖鋪滿；進入場所維持一般版面 */
-:fullscreen body.on-island,
-:-webkit-full-screen body.on-island,
-:fullscreen body:has(.app-shell.mode-island),
-:-webkit-full-screen body:has(.app-shell.mode-island){
-  background:#0d4a6e !important;
-}
 :fullscreen body.on-island .island-map-wrap,
 :-webkit-full-screen body.on-island .island-map-wrap,
 :fullscreen body:has(.app-shell.mode-island) .island-map-wrap,
 :-webkit-full-screen body:has(.app-shell.mode-island) .island-map-wrap{
   padding:0 !important;
   gap:0 !important;
-  background:#0d4a6e !important;
+  background:#1a6fa8 !important;
 }
 :fullscreen body.on-island .island-home-title,
 :-webkit-full-screen body.on-island .island-home-title,
@@ -830,18 +972,29 @@ body.in-place .fullscreen-fab{ display:inline-flex; top:auto; bottom:18px; right
   object-position:center center;
 }
 
-/* 場所頁全螢幕：維持原本紙張/內容風格，不要整頁變深藍 */
+/* 場所頁全螢幕：背景與一般模式完全相同（原本紙張漸層） */
 :fullscreen body.in-place,
 :-webkit-full-screen body.in-place{
-  background:var(--bg) !important;
+  background:
+    radial-gradient(ellipse 120% 80% at 50% -20%, #B8E0D8 0%, transparent 55%),
+    radial-gradient(ellipse 80% 50% at 90% 100%, #F5E6C8 0%, transparent 40%),
+    radial-gradient(ellipse 60% 40% at 10% 90%, #A8D4C8 0%, transparent 35%),
+    linear-gradient(180deg, #E8F4F0 0%, #F0F7F4 40%, #F8F4E8 100%) !important;
   overflow:auto !important;
-  padding:28px 16px 80px !important;
+  padding:28px 20px 60px !important;
 }
 :fullscreen body.in-place #mainView.wrap,
 :-webkit-full-screen body.in-place #mainView.wrap{
-  max-width:1100px !important;
+  max-width:980px !important;
   margin:0 auto !important;
   padding:0 !important;
+}
+/* 島嶼首頁全螢幕：與非全螢幕相同，用地圖鋪滿，不要換成別的底色 */
+:fullscreen body.on-island,
+:-webkit-full-screen body.on-island,
+:fullscreen body:has(.app-shell.mode-island),
+:-webkit-full-screen body:has(.app-shell.mode-island){
+  background:#1a6fa8 !important;
 }
 :fullscreen .fullscreen-fab,
 :-webkit-full-screen .fullscreen-fab{
@@ -857,7 +1010,7 @@ body.in-place .fullscreen-fab{ display:inline-flex; top:auto; bottom:18px; right
   position:fixed;
   top:18px;
   right:18px;
-  z-index:40;
+  z-index:500;
   display:none;
   align-items:center;
   gap:8px;
@@ -970,7 +1123,9 @@ body:has(.app-shell.mode-island) .adventurer-fab{ display:inline-flex; }
   border:none;
   background:#1a6fa8;
   flex-shrink:0;
+  z-index:1;
 }
+.island-map-stage .island-spot{ pointer-events:auto; z-index:2; }
 .island-map-img{
   display:block;
   width:100%;
@@ -1362,6 +1517,446 @@ body:has(.app-shell.mode-island) .adventurer-fab{ display:inline-flex; }
 .listen-btn:hover{ transform:scale(1.06); }
 .listen-hint{ text-align:center; font-size:12px; color:var(--ink-soft); margin:-8px 0 16px; }
 
+/* ---------- 火山試煉塔 ---------- */
+.volcano-lobby{
+  position:relative;
+  background:
+    linear-gradient(180deg, rgba(20,10,6,.72) 0%, rgba(30,14,8,.78) 45%, rgba(12,8,6,.82) 100%),
+    url('volcano.jpg') center center / cover no-repeat;
+  color:#F5E6C8; border:1px solid #6B4226; border-radius:14px;
+  padding:22px 20px 20px; box-shadow:var(--shadow);
+  overflow:hidden;
+  min-height:min(70vh, 640px);
+}
+.volcano-lobby h2{
+  position:relative; z-index:1;
+  font-family:'Fraunces',serif; font-size:24px; margin:0 0 4px;
+  color:#FFD28A; text-align:center;
+  text-shadow:0 2px 8px rgba(0,0,0,.55);
+}
+.volcano-lobby .vl-sub{
+  text-align:center; color:#C4A574; font-size:13px; margin:0 0 18px;
+}
+.volcano-floors{ display:flex; flex-direction:column; gap:10px; margin-bottom:16px; }
+.volcano-floor{
+  position:relative; z-index:1;
+  display:flex; align-items:center; gap:12px; flex-wrap:wrap;
+  background:rgba(20,10,6,.55); border:1px solid rgba(196,165,116,.45);
+  border-radius:12px; padding:12px 14px; cursor:pointer;
+  transition:transform .12s ease, background .12s ease, border-color .12s ease;
+  backdrop-filter:blur(2px);
+}
+.volcano-floor:hover{ transform:translateY(-1px); background:rgba(255,248,230,.14); }
+.volcano-floor.disabled{ opacity:.45; cursor:not-allowed; }
+.volcano-floor.disabled:hover{ transform:none; }
+.volcano-floor .fl-icon{ font-size:28px; line-height:1; width:36px; text-align:center; }
+.volcano-floor .fl-info{ flex:1; min-width:140px; }
+.volcano-floor .fl-name{ font-family:'Fraunces',serif; font-weight:600; font-size:16px; color:#FFE2A8; }
+.volcano-floor .fl-desc{ font-size:12px; color:#C4A574; margin-top:2px; }
+.volcano-floor .fl-count{
+  font-family:'JetBrains Mono',monospace; font-size:12px;
+  background:rgba(0,0,0,.25); border-radius:999px; padding:4px 10px; color:#F5E6C8;
+}
+.volcano-floor .fl-heat{
+  height:8px; flex:1; min-width:80px; max-width:140px;
+  background:rgba(0,0,0,.3); border-radius:99px; overflow:hidden;
+}
+.volcano-floor .fl-heat > i{
+  display:block; height:100%; border-radius:99px;
+  background:linear-gradient(90deg, #D4A017, #E07A5F, #C45C4A);
+}
+.volcano-floor[data-floor="4"] .fl-heat > i{ background:linear-gradient(90deg,#fff,#FFE08A,#FF6B3D); }
+.volcano-floor[data-floor="3"] .fl-heat > i{ background:linear-gradient(90deg,#E07A5F,#C45C4A); }
+.volcano-floor[data-floor="2"] .fl-heat > i{ background:linear-gradient(90deg,#D4A017,#E07A5F); }
+.volcano-floor[data-floor="1"] .fl-heat > i{ background:linear-gradient(90deg,#8B6914,#C4A574); }
+.volcano-actions{ display:flex; flex-wrap:wrap; gap:10px; justify-content:center; margin-top:8px; }
+.volcano-actions .solid-btn{
+  background:linear-gradient(180deg,#C45C4A,#8B3A2A); border:none;
+}
+.volcano-actions .solid-btn:hover{ filter:brightness(1.08); }
+.volcano-chip-row{ justify-content:center; margin-bottom:12px; }
+.volcano-chip-row .chip{
+  background:rgba(255,248,230,.1); color:#F5E6C8; border-color:rgba(196,165,116,.4);
+}
+.volcano-chip-row .chip.active{
+  background:#C45C4A; border-color:#C45C4A; color:#fff;
+}
+.volcano-lobby .review-toggle{ color:#C4A574; justify-content:center; }
+.volcano-lobby .review-toggle label{ color:#C4A574; }
+.flash-wrap .heat-tag{
+  display:inline-block; font-size:11px; font-family:'JetBrains Mono',monospace;
+  padding:2px 8px; border-radius:999px; margin-left:6px;
+  background:#FBF0D0; color:#8B3A2A; vertical-align:middle;
+}
+.flash-wrap .floor-banner{
+  text-align:center; font-family:'Fraunces',serif; font-size:13px;
+  color:#8B3A2A; margin-bottom:6px;
+}
+.flash-wrap.lava-mode{
+  position:relative;
+  background:
+    linear-gradient(180deg, rgba(25,12,10,.82) 0%, rgba(18,12,14,.88) 100%),
+    url('Frog.jpg') center/cover no-repeat;
+  border-radius:14px; padding:16px 14px 18px;
+  border:1px solid rgba(224,122,95,.35);
+  overflow:hidden;
+}
+.flash-wrap.lava-mode::before{
+  content:'';
+  position:absolute; inset:0;
+  background:url('Frog.jpg') center/cover no-repeat;
+  opacity:0.28;
+  z-index:0;
+  pointer-events:none;
+}
+.flash-wrap.lava-mode > *{
+  position:relative;
+  z-index:1;
+}
+.flash-wrap.lava-mode .flashcard{
+  background:rgba(255,248,230,.96);
+}
+.flash-wrap.lava-mode .floor-banner{ color:#FFD28A; }
+.flash-wrap.lava-mode .flash-progress{ color:#F5E6C8; }
+.lava-timer-row{
+  display:flex; align-items:center; gap:10px; margin:6px 0 12px;
+}
+.lava-timer-label{
+  font-family:'JetBrains Mono',monospace; font-size:12px; color:#FFB070;
+  white-space:nowrap; min-width:64px;
+}
+.lava-timer-track{
+  flex:1; height:12px; border-radius:999px; overflow:hidden;
+  background:rgba(0,0,0,.35); border:1px solid rgba(224,122,95,.4);
+}
+.lava-timer-fill{
+  height:100%; width:100%;
+  background:linear-gradient(90deg, #D4A017, #E07A5F, #C45C4A);
+  transform-origin:left center;
+  transition:width .2s linear;
+}
+.lava-timer-fill.urgent{
+  background:linear-gradient(90deg, #FF6B3D, #C41E1E);
+  animation:lavaPulse .5s ease infinite alternate;
+}
+@keyframes lavaPulse{
+  from{ filter:brightness(1); }
+  to{ filter:brightness(1.25); }
+}
+.lava-timer-fill.frozen{ transition:none; }
+.flash-wrap.lava-mode .summary-card{
+  background:rgba(255,248,230,.96);
+}
+/* 動態火山剖面 */
+.volcano-stage{
+  position:relative; z-index:1;
+  display:flex; gap:16px; align-items:stretch;
+  margin:12px 0 14px; flex-wrap:wrap;
+}
+.volcano-visual{
+  position:relative;
+  width:min(200px, 38%);
+  min-width:150px;
+  min-height:280px;
+  border-radius:16px;
+  background:
+    radial-gradient(ellipse 80% 40% at 50% 8%, rgba(255,120,40,.55), transparent 70%),
+    linear-gradient(180deg, #3a1810 0%, #5a2818 35%, #2a1810 100%);
+  border:1px solid rgba(255,160,80,.35);
+  overflow:hidden;
+  box-shadow:inset 0 -30px 40px rgba(0,0,0,.35);
+}
+.volcano-visual::before{
+  content:'';
+  position:absolute; left:50%; top:0; transform:translateX(-50%);
+  width:0; height:0;
+  border-left:70px solid transparent;
+  border-right:70px solid transparent;
+  border-bottom:120px solid rgba(80,40,28,.9);
+  filter:drop-shadow(0 0 12px rgba(255,100,30,.4));
+  z-index:0;
+}
+.volcano-visual.dormant{
+  background:linear-gradient(180deg, #1a2830 0%, #243840 40%, #152028 100%);
+  border-color:rgba(140,200,220,.35);
+}
+.volcano-visual.dormant::before{
+  border-bottom-color:rgba(60,90,100,.9);
+  filter:drop-shadow(0 0 10px rgba(120,200,255,.35));
+}
+.volcano-status-badge{
+  position:absolute; top:8px; left:50%; transform:translateX(-50%);
+  z-index:3;
+  font-family:'Fraunces',serif; font-size:12px;
+  padding:4px 10px; border-radius:999px;
+  background:rgba(0,0,0,.45); color:#FFE2A8;
+  border:1px solid rgba(255,200,120,.4);
+  white-space:nowrap;
+}
+.volcano-visual.dormant .volcano-status-badge{
+  color:#C8F0FF; border-color:rgba(140,200,230,.5);
+}
+.volcano-layers{
+  position:absolute; left:10px; right:10px; bottom:10px; top:48px;
+  display:flex; flex-direction:column; gap:6px; z-index:2;
+}
+.volcano-layer-btn{
+  flex:1;
+  display:flex; align-items:center; justify-content:space-between;
+  gap:6px; padding:6px 10px;
+  border-radius:10px; border:1px solid rgba(255,200,120,.25);
+  background:rgba(0,0,0,.28); color:#F5E6C8;
+  cursor:pointer; font-family:'Fraunces',serif; font-size:12px;
+  transition:transform .12s ease, background .12s ease;
+}
+.volcano-layer-btn:hover:not(:disabled){ transform:translateY(-1px); background:rgba(255,140,60,.22); }
+.volcano-layer-btn:disabled{ opacity:.4; cursor:not-allowed; }
+.volcano-layer-btn .vl-n{ font-weight:700; color:#FFD28A; }
+.volcano-layer-btn .vl-c{ font-family:'JetBrains Mono',monospace; font-size:11px; color:#C4A574; }
+.volcano-layer-btn[data-floor="4"]{ border-color:rgba(255,240,180,.45); }
+.volcano-layer-btn[data-floor="3"]{ border-color:rgba(255,120,60,.4); }
+.volcano-layer-btn[data-floor="2"]{ border-color:rgba(220,80,60,.4); }
+.volcano-layer-btn[data-floor="1"]{ border-color:rgba(160,120,80,.4); }
+.volcano-side{
+  flex:1; min-width:200px;
+  display:flex; flex-direction:column; gap:8px;
+}
+.volcano-stat-line{
+  font-size:12.5px; color:#C4A574; line-height:1.5;
+}
+.volcano-stat-line b{ color:#FFE2A8; }
+.combo-banner{
+  text-align:center; font-family:'Fraunces',serif;
+  font-size:18px; color:#9BD7FF; margin:6px 0 4px;
+  text-shadow:0 0 12px rgba(120,200,255,.55);
+  animation:comboPop .35s ease;
+}
+@keyframes comboPop{
+  from{ transform:scale(.7); opacity:0; }
+  to{ transform:scale(1); opacity:1; }
+}
+.cool-flash{
+  animation:coolFlash .7s ease;
+}
+@keyframes coolFlash{
+  0%{ box-shadow:0 0 0 rgba(120,200,255,0); }
+  40%{ box-shadow:0 0 28px rgba(120,200,255,.55); }
+  100%{ box-shadow:0 0 0 rgba(120,200,255,0); }
+}
+.result-banner.cool{
+  background:linear-gradient(90deg,#d8f0ff,#e8f8ff);
+  color:#1a5a7a; border:1px solid #8ec8e8;
+}
+
+
+/* BOSS 戰 UI：對方／我方分開 */
+.boss-arena{
+  display:flex; flex-direction:row; gap:10px;
+  margin-bottom:12px;
+  align-items:stretch;
+}
+.battle-side{
+  flex:1;
+  min-width:0;
+  border-radius:12px;
+  padding:12px 14px;
+  border:1px solid rgba(255,255,255,.12);
+}
+@media (max-width:560px){
+  .boss-arena{ flex-direction:column; }
+}
+.battle-side.enemy{
+  background:linear-gradient(135deg, rgba(80,20,12,.55), rgba(40,12,8,.5));
+  border-color:rgba(255,120,60,.4);
+}
+.battle-side.ally{
+  background:linear-gradient(135deg, rgba(12,50,40,.55), rgba(8,30,28,.5));
+  border-color:rgba(90,200,150,.35);
+}
+.battle-side .side-label{
+  font-size:11px; letter-spacing:.12em;
+  color:rgba(255,255,255,.55);
+  margin-bottom:4px;
+  font-family:'JetBrains Mono',monospace;
+}
+.battle-side .side-name{
+  font-family:'Fraunces',serif; font-size:16px;
+  display:flex; justify-content:space-between; align-items:center;
+  gap:8px; margin-bottom:8px; flex-wrap:wrap;
+}
+.battle-side.enemy .side-name{ color:#FFD28A; }
+.battle-side.ally .side-name{ color:#B8F0D0; }
+.battle-side .side-meta{
+  font-size:12px; color:rgba(255,230,200,.75);
+  font-family:'JetBrains Mono',monospace;
+}
+.boss-hud .bar-row,
+.battle-side .bar-row{
+  display:flex; align-items:center; gap:8px; margin:5px 0; font-size:12px; color:#F5E6C8;
+}
+.battle-side .bar-row span.lab{ width:42px; flex-shrink:0; }
+.battle-side .bar-row span.num{ width:64px; text-align:right; font-family:'JetBrains Mono',monospace; font-size:11px; }
+.battle-side .bar-track{
+  flex:1; height:12px; border-radius:99px; overflow:hidden;
+  background:rgba(0,0,0,.4); border:1px solid rgba(255,255,255,.12);
+}
+.battle-side .bar-track > i{ display:block; height:100%; border-radius:99px; transition:width .25s ease; }
+.battle-side .bar-track.hp > i{ background:linear-gradient(90deg,#E07A5F,#C41E1E); }
+.battle-side .bar-track.rage > i{ background:linear-gradient(90deg,#D4A017,#FF6B3D,#ff2a2a); }
+.battle-side .bar-track.player > i{ background:linear-gradient(90deg,#5BBF8C,#2A9B6B); }
+/* 相容舊 class */
+.boss-hud{
+  background:rgba(0,0,0,.35);
+  border:1px solid rgba(255,160,80,.35);
+  border-radius:12px;
+  padding:10px 12px;
+  margin-bottom:12px;
+}
+.boss-log{
+  font-size:13px; color:#FFE2A8; text-align:center; min-height:20px; margin:6px 0 4px;
+  font-family:'Fraunces',serif;
+}
+.boss-log.danger{ color:#FF8A70; }
+.boss-log.win{ color:#9BD7FF; }
+/* ---------- 島嶼寵物 ---------- */
+.island-pet{
+  position:absolute;
+  left:18%; top:58%;
+  transform:translate(-50%, -50%);
+  z-index:4;
+  display:flex; flex-direction:column; align-items:center; gap:4px;
+  cursor:pointer; border:none; background:transparent; padding:0;
+  filter:drop-shadow(0 4px 8px rgba(0,0,0,.25));
+}
+.island-pet .pet-sprite{
+  font-size:42px; line-height:1;
+  animation:petBob 2.4s ease-in-out infinite;
+  transition:transform .2s ease;
+}
+.island-pet .pet-sprite.pet-img{
+  display:block;
+  width:56px; height:56px;
+  border-radius:50%;
+  object-fit:cover;
+  border:2px solid rgba(255,255,255,.85);
+  box-shadow:0 3px 10px rgba(0,0,0,.25);
+  font-size:0;
+}
+.island-pet:hover .pet-sprite{ transform:scale(1.12); }
+.island-pet .pet-name-tag{
+  font-family:'Fraunces',serif; font-size:11px;
+  background:rgba(255,255,255,.92); color:#2A4A40;
+  border:1px solid rgba(42,123,107,.25);
+  border-radius:999px; padding:2px 8px;
+  white-space:nowrap;
+}
+.island-pet .pet-mood{
+  font-size:14px; line-height:1;
+}
+@keyframes petBob{
+  0%,100%{ transform:translateY(0); }
+  50%{ transform:translateY(-6px); }
+}
+.island-pet.happy .pet-sprite{ animation:petHappy .6s ease; }
+@keyframes petHappy{
+  0%,100%{ transform:scale(1) rotate(0); }
+  30%{ transform:scale(1.2) rotate(-8deg); }
+  60%{ transform:scale(1.2) rotate(8deg); }
+}
+.pet-fab{
+  position:fixed; left:18px; bottom:18px;
+  z-index:500; display:none;
+  align-items:center; gap:8px;
+  background:linear-gradient(180deg,#3A8FBF,#2A6B90);
+  color:#F0F8FF; border:2px solid #8EC8E8; border-radius:999px;
+  padding:10px 16px; cursor:pointer;
+  font-family:'Fraunces',serif; font-weight:600; font-size:14px;
+  box-shadow:0 6px 18px rgba(0,0,0,.22);
+  pointer-events:auto;
+}
+body.on-island .pet-fab,
+body:has(.app-shell.mode-island) .pet-fab{ display:inline-flex; }
+body.in-place .pet-fab{ display:inline-flex; bottom:80px; }
+.pet-fab:hover{ transform:scale(1.04); }
+.pet-overlay{
+  position:fixed; inset:0; z-index:1100;
+  background:rgba(20,30,36,.55); backdrop-filter:blur(3px);
+  display:flex; align-items:center; justify-content:center; padding:20px;
+}
+.pet-overlay.hidden{ display:none !important; }
+.pet-panel{
+  width:min(420px, 96vw);
+  background:
+    linear-gradient(180deg, rgba(247,251,250,.88) 0%, rgba(232,244,240,.90) 100%),
+    url('Frog.jpg') center/cover no-repeat;
+  border:1.5px solid rgba(42,123,107,.25);
+  border-radius:18px; padding:22px 20px 18px;
+  box-shadow:0 16px 40px rgba(0,0,0,.22);
+  color:#1E3A34;
+  position:relative;
+  overflow:hidden;
+}
+.pet-panel h2{
+  margin:0 0 4px; font-family:'Fraunces',serif; font-size:24px; text-align:center;
+}
+.pet-panel .pet-sub{ text-align:center; color:#5A7A72; font-size:13px; margin:0 0 14px; }
+.pet-hero{
+  text-align:center; font-size:72px; line-height:1; margin:8px 0 10px;
+  filter:drop-shadow(0 6px 10px rgba(0,0,0,.12));
+}
+.pet-hero.happy{ animation:petHappy .6s ease; }
+.pet-bars{ display:flex; flex-direction:column; gap:8px; margin:12px 0; }
+.pet-bar-row{ display:flex; align-items:center; gap:8px; font-size:12.5px; }
+.pet-bar-row span.label{ width:52px; color:#4A6A62; }
+.pet-bar-track{
+  flex:1; height:10px; border-radius:99px; background:rgba(0,0,0,.08); overflow:hidden;
+}
+.pet-bar-track > i{ display:block; height:100%; border-radius:99px; }
+.pet-bar-track.bond > i{ background:linear-gradient(90deg,#E07A9A,#C45C8A); }
+.pet-bar-track.hunger > i{ background:linear-gradient(90deg,#E0B04A,#C48A2A); }
+.pet-bar-track.mood > i{ background:linear-gradient(90deg,#5BBF8C,#2A9B6B); }
+.pet-meta{
+  text-align:center; font-size:13px; color:#3A5A52; margin:8px 0 12px;
+  font-family:'Fraunces',serif;
+}
+.pet-actions{ display:flex; flex-wrap:wrap; gap:8px; justify-content:center; margin-bottom:10px; }
+.pet-actions button{
+  font-family:'Fraunces',serif; font-size:13px;
+  border-radius:999px; padding:8px 14px; cursor:pointer;
+  border:1px solid rgba(42,123,107,.3); background:#fff; color:#1E5A4A;
+}
+.pet-actions button.primary{
+  background:linear-gradient(180deg,#2A9B6B,#1E7A54); color:#fff; border:none;
+}
+.pet-actions button:disabled{ opacity:.45; cursor:not-allowed; }
+.pet-speech{
+  min-height:40px; text-align:center; font-size:13.5px; color:#2A4A40;
+  background:rgba(255,255,255,.75); border-radius:12px; padding:10px 12px;
+  margin-bottom:12px; border:1px dashed rgba(42,123,107,.25);
+}
+.pet-species-grid{
+  display:grid; grid-template-columns:1fr 1fr; gap:8px; margin:12px 0;
+}
+.pet-species-card{
+  border:1.5px solid rgba(42,123,107,.22); border-radius:12px;
+  background:#fff; padding:12px 8px; cursor:pointer; text-align:center;
+}
+.pet-species-card:hover{ border-color:#2A9B6B; background:#F0FAF6; }
+.pet-species-card .sp-emoji{ font-size:36px; }
+.pet-species-card .sp-name{ font-family:'Fraunces',serif; font-size:14px; margin-top:4px; }
+.pet-species-card .sp-desc{ font-size:11px; color:#6A8A82; margin-top:2px; }
+.pet-close-btn{
+  width:100%; margin-top:4px; padding:10px;
+  border-radius:10px; border:none; cursor:pointer;
+  background:#2A7B6B; color:#fff; font-family:'Fraunces',serif; font-size:14px;
+}
+.pet-rename-row{ display:flex; gap:6px; justify-content:center; margin-top:6px; }
+.pet-rename-row input{
+  border:1px solid rgba(42,123,107,.3); border-radius:8px; padding:6px 10px;
+  font-size:13px; width:140px;
+}
+
+
 /* ---------- 複習 flashcard ---------- */
 .review-setup-card{ text-align:center; padding:28px 24px; }
 .review-setup-card p{ color:var(--ink-soft); font-size:13.5px; margin:4px 0 18px; }
@@ -1414,12 +2009,9 @@ body:has(.app-shell.mode-island) .adventurer-fab{ display:inline-flex; }
         <div class="mission-board-content">
           <h2 id="dailyTitle" class="sr-only">主線任務</h2>
           <div class="daily-date" id="dailyDate"></div>
-          <div class="daily-deadline-row">
-            <div class="daily-deadline" id="dailyDeadline"></div>
-            <button type="button" class="daily-reshuffle-btn" id="dailyReshuffleBtn" title="用最新的資料重新安排今天的任務">🔀 重排</button>
-          </div>
+          <div class="daily-deadline hidden" id="dailyDeadline"></div>
           <div class="daily-task-list" id="dailyTask"></div>
-          <div class="mission-badge-area">
+          <div class="mission-badge-area hidden">
             <div class="daily-badge-label">🏅 今日徽章</div>
             <div class="daily-badge" id="dailyBadge"></div>
             <p class="daily-badge-note">完成主線任務即可獲得！</p>
@@ -1440,6 +2032,16 @@ body:has(.app-shell.mode-island) .adventurer-fab{ display:inline-flex; }
     <div class="badge-anim-name" id="badgeAnimName"></div>
     <button type="button" class="daily-btn" id="badgeAnimClose">太棒了！</button>
   </div>
+</div>
+
+<!-- 寵物按鈕 -->
+<button type="button" class="pet-fab" id="petFab" title="島嶼寵物">
+  <span>🐾</span><span>寵物</span>
+</button>
+
+<!-- 寵物面板 -->
+<div id="petOverlay" class="pet-overlay hidden" role="dialog" aria-modal="true">
+  <div class="pet-panel" id="petPanel"></div>
 </div>
 
 <!-- 左側主線任務按鈕 -->
@@ -1537,27 +2139,32 @@ body:has(.app-shell.mode-island) .adventurer-fab{ display:inline-flex; }
         <!-- 熱點位置依地圖大致區域：火山=試煉、湖邊=圖書館、椰林=單字、沙灘=時光、工坊=左下、鐘樓=中央偏右 -->
         <button type="button" class="island-spot" data-section="review" style="--nav-color:#D4A017; left:48%; top:28%;">
           <span class="spot-icon-bg">🗼</span>
-          <span class="spot-label-bg"><span class="spot-label">試煉之塔</span><span class="spot-sub">複習</span></span>
+          <span class="spot-label-bg"><span class="spot-label">火山試煉塔</span><span class="spot-sub">複習</span></span>
         </button>
         <button type="button" class="island-spot" data-section="ledger" style="--nav-color:#2A7B6B; left:32%; top:48%;">
           <span class="spot-icon-bg">📚</span>
-          <span class="spot-label-bg"><span class="spot-label">知識圖書館</span><span class="spot-sub">講義紀錄</span></span>
+          <span class="spot-label-bg"><span class="spot-label">湖畔圖書館</span><span class="spot-sub">講義紀錄</span></span>
         </button>
         <button type="button" class="island-spot" data-section="mistakes" style="--nav-color:#C45C4A; left:22%; top:62%;">
           <span class="spot-icon-bg">🛠️</span>
-          <span class="spot-label-bg"><span class="spot-label">訂正工坊</span><span class="spot-sub">錯題本</span></span>
+          <span class="spot-label-bg"><span class="spot-label">錯題鍛造屋</span><span class="spot-sub">錯題本</span></span>
         </button>
         <button type="button" class="island-spot" data-section="study" style="--nav-color:#3A6B8A; left:55%; top:52%;">
           <span class="spot-icon-bg">🕰️</span>
-          <span class="spot-label-bg"><span class="spot-label">專注鐘樓</span><span class="spot-sub">讀書時間</span></span>
+          <span class="spot-label-bg"><span class="spot-label">靜心燈塔</span><span class="spot-sub">讀書時間</span></span>
         </button>
         <button type="button" class="island-spot" data-section="vocab" style="--nav-color:#8B5A8C; left:68%; top:42%;">
           <span class="spot-icon-bg">🌺</span>
-          <span class="spot-label-bg"><span class="spot-label">單字花園</span><span class="spot-sub">我的單字本</span></span>
+          <span class="spot-label-bg"><span class="spot-label">語彙椰林</span><span class="spot-sub">英文單字</span></span>
         </button>
         <button type="button" class="island-spot" data-section="daily" style="--nav-color:#3A8FBF; left:50%; top:72%;">
           <span class="spot-icon-bg">🏝️</span>
           <span class="spot-label-bg"><span class="spot-label">時光沙灘</span><span class="spot-sub">每日紀錄</span></span>
+        </button>
+        <button type="button" class="island-pet" id="islandPet" title="島上夥伴">
+          <span class="pet-sprite" id="islandPetSprite">🥚</span>
+          <span class="pet-mood" id="islandPetMood"></span>
+          <span class="pet-name-tag" id="islandPetTag">未孵化</span>
         </button>
       </div>
       <p class="island-hint">點選島上的場所開始探索 ✦</p>
@@ -2684,6 +3291,7 @@ async function notifyDailyComplete(){
   const body = (isReroll ? '重排後的新一輪任務也全部寫完，一樣拿到今天的徽章！' : '恭喜你完成今天的所有任務，記得看看獲得的徽章～') + ` +${DAILY_TASK_EXP} EXP`;
   const badgeText = dailyBadges[(dailyIndex() + dailyRoundNumber() - 1) % dailyBadges.length];
   playBadgeAnimation(badgeText);
+  if(typeof petGainExp === 'function') petGainExp(30, 'daily');
   showDailyToast({ icon: '🏅', title, body });
   sendBrowserNotification(title, body);
   const levelAfter = experienceStats().level;
@@ -2786,17 +3394,18 @@ async function showDailyTask(){
     const bt = activeBonusTask;
     const pages = bt.start === bt.end ? `${bt.start}` : `${bt.start}～${bt.end}`;
     const done = isBonusTaskDone();
-    bonusHtml = `<div class="task-sheet bonus-sheet">
-      <span class="task-main">${done ? '✅' : '🎁'} <b>加碼任務：${escapeHtml(bt.bookName)}</b>：第 ${pages} 頁</span>
+    bonusHtml = `<div class="task-sheet bonus-sheet task-item" style="--tilt:1.2deg">
+      <span class="task-main">${done ? '✅' : '🎁'} <b>加碼：${escapeHtml(bt.bookName)}</b>：第 ${pages} 頁</span>
       <span class="task-progress">${done ? '已完成，賺到！' : '寫少少也給獎勵～'}</span>
-      <button type="button" class="bonus-reshuffle-btn" id="bonusReshuffleBtn" title="不想寫這本？換一個加碼任務試試" style="margin-top:6px">🔀 換一個</button>
     </div>`;
   }
 
+  const deadlineText = `🎯 目標：11/15 前讀完所有書（還剩 ${daysUntilYearEnd()} 天）`;
   if(activeDailyTasks.length){
     const totalPages = activeDailyTasks.reduce((sum,t)=>sum + t.end - t.start + 1, 0);
     const donePages = completedDailyPages(activeDailyTasks);
     const overallPct = dailyCompletionPct(activeDailyTasks);
+    const tilts = [-1.4, 1.1, -0.9, 1.3, -1.2, 0.8, -1.0, 1.0];
     const rows = activeDailyTasks.map((task, i)=>{
       const pages = task.start === task.end ? `${task.start}` : `${task.start}～${task.end}`;
       const taskTotal = task.end - task.start + 1;
@@ -2804,16 +3413,65 @@ async function showDailyTask(){
       const bookTarget = book ? Number(book.target) || 0 : 0;
       const sharePct = bookTarget > 0 ? Math.round((taskTotal / bookTarget) * 100) : null;
       const shareLabel = sharePct === null ? '未設定目標' : `佔本書 ${sharePct}%`;
-      return `<div class="task-sheet"><span class="task-main"><b>${i + 1}. ${escapeHtml(task.bookName)}</b>：第 ${pages} 頁</span><span class="task-progress">${shareLabel}</span></div>`;
+      const tilt = tilts[i % tilts.length];
+      return `<div class="task-sheet task-item" style="--tilt:${tilt}deg"><span class="task-main"><b>${i + 1}. ${escapeHtml(task.bookName)}</b>：第 ${pages} 頁</span><span class="task-progress">${shareLabel}</span></div>`;
     }).join('');
-    taskEl.innerHTML = `<div class="task-sheet progress-sheet"><span class="task-progress-total">今日總進度：<b>${overallPct}%</b>（${donePages} / ${totalPages} 頁）</span></div>${rows}${bonusHtml}`;
+    const rewardBadge = dailyBadges[(index + round - 1) % dailyBadges.length];
+    const rewardHtml = `<div class="task-sheet reward-sheet" style="--tilt:-1.1deg">
+      <span class="reward-label">🏅 任務報酬</span>
+      <span class="reward-badge">${rewardBadge}</span>
+      <span class="reward-note">完成主線即可獲得</span>
+    </div>`;
+    taskEl.innerHTML = `<div class="task-sheet progress-sheet">
+      <span class="task-progress-total">今日總進度<br><b>${overallPct}%</b><br>（${donePages} / ${totalPages} 頁）</span>
+      <span class="task-deadline-line">${deadlineText}</span>
+    </div>
+    <div class="right-sheets">${rows}${bonusHtml}${rewardHtml}</div>`;
   }else{
-    taskEl.innerHTML = `<div class="task-sheet"><p style="margin:0">先新增講義與目標頁數，明天就會自動安排任務。</p></div>${bonusHtml}`;
+    const rewardBadgeEmpty = dailyBadges[(index + dailyRoundNumber(plan) - 1) % dailyBadges.length];
+    taskEl.innerHTML = `<div class="task-sheet progress-sheet">
+      <span class="task-progress-total">尚無任務</span>
+      <span class="task-deadline-line">${deadlineText}</span>
+    </div>
+    <div class="right-sheets">
+      <div class="task-sheet task-item" style="--tilt:-1deg"><p style="margin:0">先新增講義與目標頁數，明天就會自動安排任務。</p></div>
+      ${bonusHtml}
+      <div class="task-sheet reward-sheet" style="--tilt:-1.1deg">
+        <span class="reward-label">🏅 任務報酬</span>
+        <span class="reward-badge">${rewardBadgeEmpty}</span>
+        <span class="reward-note">完成主線即可獲得</span>
+      </div>
+    </div>`;
   }
   badgeEl.textContent = dailyBadges[(index + round - 1) % dailyBadges.length];
   updateReshuffleButtonState();
   const bonusBtn = document.getElementById('bonusReshuffleBtn');
   if(bonusBtn) bonusBtn.addEventListener('click', reshuffleBonusTask);
+  const reshuffleBtn = document.getElementById('dailyReshuffleBtn');
+  if(reshuffleBtn && !reshuffleBtn.dataset.bound){
+    reshuffleBtn.dataset.bound = '1';
+    reshuffleBtn.addEventListener('click', async ()=>{
+      const plan = await getDailyTaskPlan();
+      const pct = dailyCompletionPct(plan.tasks || []);
+      if(pct < 100){
+        const usedKey = passwordReshuffleUsedKey();
+        if(localStorage.getItem(usedKey) === '1'){
+          showDailyToast({ icon:'🔒', title:'密碼破例只能用一次', body:'已經用過囉，寫到 100% 才能再重排唷' });
+          return;
+        }
+        const input = prompt('今天還沒寫完，輸入密碼可以破例重排一次：');
+        if(input === null) return;
+        if(input !== RESHUFFLE_PASSWORD){
+          showDailyToast({ icon:'🔒', title:'密碼不對', body:'先寫完今天的任務，或輸入正確密碼才能重排' });
+          return;
+        }
+        localStorage.setItem(usedKey, '1');
+        await reshuffleDailyTasks(true);
+        return;
+      }
+      await reshuffleDailyTasks(false);
+    });
+  }
   await updateDailyProgress();
   await checkAchievements();
   updateMissionFabDot();
@@ -3161,7 +3819,7 @@ function vocabReviewOverviewHTML(){
           依艾賓浩斯遺忘曲線，記憶會隨時間呈指數下降（R = e<sup>−t/S</sup>）。每次答對，複習間隔就拉長一階；答錯則退回兩階重新加強。保留率低於 90% 的單字視為「該複習」。
         </div>
         <div class="review-steps">${steps}</div>
-        ${vocab.length >= 2 ? `<button type="button" class="ghost-btn" id="reviewNowBtn">🧠 用遺忘曲線出題（優先考快忘掉的字）</button>` : ''}
+        <div class="review-note" style="margin-top:8px;">複習請前往「🌋 火山試煉塔」挑戰 BOSS；每次答題會慢慢推進複習階段，不會一次到滿。</div>
       </div>
     </details>
   `;
@@ -3203,41 +3861,14 @@ function vocabListHTML(list){
 
 function renderVocabPanel(){
   const panel = document.getElementById('vocabPanel');
-  if(vocabMemorySession){
-    panel.innerHTML = `<div class="panel">${vocabMemorySessionHTML()}</div>`;
-    bindVocabMemoryEvents();
-    return;
-  }
-  if(vocabTypingSession){
-    panel.innerHTML = `<div class="panel">${vocabTypingSessionHTML()}</div>`;
-    bindVocabTypingEvents();
-    return;
-  }
-  if(vocabScrambleSession){
-    panel.innerHTML = `<div class="panel">${vocabScrambleSessionHTML()}</div>`;
-    bindVocabScrambleEvents();
-    return;
-  }
-  if(vocabListeningSession){
-    panel.innerHTML = `<div class="panel">${vocabListeningSessionHTML()}</div>`;
-    bindVocabListeningEvents();
-    return;
-  }
-  if(vocabQuizSession){
-    panel.innerHTML = `<div class="panel">${vocabQuizSessionHTML()}</div>`;
-    bindVocabQuizEvents();
-    return;
-  }
-  if(vocabShowQuizSetup){
-    panel.innerHTML = `<div class="panel">${vocabQuizSetupHTML()}</div>`;
-    bindVocabQuizSetupEvents();
-    return;
-  }
-  if(vocabShowGameMenu){
-    panel.innerHTML = `<div class="panel">${vocabGameMenuHTML()}</div>`;
-    bindVocabGameMenuEvents();
-    return;
-  }
+  // 語彙椰林：只管理英文單字（新增／列表），複習改走火山試煉塔
+  vocabMemorySession = null;
+  vocabTypingSession = null;
+  vocabScrambleSession = null;
+  vocabListeningSession = null;
+  vocabQuizSession = null;
+  vocabShowQuizSetup = false;
+  vocabShowGameMenu = false;
 
   const filtered = vocabCefrFilter === 'all' ? vocab : vocab.filter(v=>v.cefr===vocabCefrFilter);
   const counts = vocabCefrCounts();
@@ -3245,7 +3876,7 @@ function renderVocabPanel(){
   panel.innerHTML = `
     <div class="panel">
       <div class="section-head">
-        <h2>我的單字本</h2>
+        <h2>語彙椰林 · 英文單字</h2>
         <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
           ${vocabSelectMode ? `
             <span style="font-size:12.5px;color:var(--ink-soft);font-family:'JetBrains Mono',monospace;">已選 ${vocabSelectedIds.size} 個</span>
@@ -3253,7 +3884,6 @@ function renderVocabPanel(){
             <button type="button" class="solid-btn" id="deleteSelectedVocabBtn" style="background:var(--danger);" ${vocabSelectedIds.size===0?'disabled':''}>刪除已選</button>
             <button type="button" class="ghost-btn" id="cancelVocabSelectBtn">取消選擇</button>
           ` : `
-            ${vocab.length ? `<button type="button" class="ghost-btn" id="startVocabGameMenuBtn">🎮 練習遊戲</button>` : ''}
             ${vocab.length ? `<button type="button" class="ghost-btn" id="toggleVocabSelectBtn">☑️ 選擇刪除</button>` : ''}
             ${vocab.length ? `<button type="button" class="ghost-btn" id="deleteAllVocabBtn" style="color:var(--danger);border-color:var(--danger);">🗑 全部刪除</button>` : ''}
             <button type="button" class="solid-btn" id="toggleVocabFormBtn">${vocabShowForm ? '－ 收起表單' : '＋ 新增單字'}</button>
@@ -3270,8 +3900,8 @@ function renderVocabPanel(){
       ${vocab.length ? vocabToolbarHTML() : ''}
       ${vocab.length === 0 ? `
         <div class="empty">
-          <h2>單字本還是空的</h2>
-          <p>按上方「＋ 新增單字」開始輸入第一個英文單字吧。</p>
+          <h2>椰林裡還沒有單字</h2>
+          <p>按上方「＋ 新增單字」加入英文單字；複習請前往火山試煉塔！</p>
           <button type="button" class="vocab-seed-btn" id="seedVocabBtn">或者先載入 12 個試用單字試試看</button>
         </div>
       ` : (filtered.length === 0 ? `
@@ -3474,24 +4104,32 @@ function vocabWordExists(word, excludeId){
 // VOCAB_MASTER_STREAK 次就標記為精熟；答錯會重置連續次數，但已經精熟過的單字不會被打回原形。
 const VOCAB_MASTER_STREAK = 3;
 
+/** 遺忘曲線進度：答對 +1 階、答錯 -2 階（不會一次到滿） */
+function applyVocabReviewStage(v, correct){
+  if(!v) return null;
+  if(!vocabReviewState) loadVocabReviewState();
+  const cur = getVocabReview(v);
+  const before = cur.stage;
+  const after = correct
+    ? Math.min(REVIEW_MAX_STAGE, before + 1)
+    : Math.max(0, before - 2);
+  vocabReviewState[v.id] = { stage: after, last: new Date().toISOString() };
+  saveVocabReviewState();
+  v.review_stage = after;
+  v.last_reviewed = vocabReviewState[v.id].last;
+  try{
+    db.from('vocab').update({ review_stage: v.review_stage, last_reviewed: v.last_reviewed }).eq('id', v.id)
+      .then(res=>{ if(res && res.error) console.warn('複習進度未同步到雲端', res.error.message); });
+  }catch(_e){}
+  return { before, after, word: v.word, translation: v.translation||'', id: v.id, correct: !!correct };
+}
 async function recordVocabAnswer(vocabId, correct){
   const v = vocab.find(x=>x.id===vocabId);
   if(!v || !currentUser) return;
   playAnswerSound(correct);
   if(autoSpeakOn) setTimeout(()=>speakVocabWord(v.word), correct ? 380 : 200);
-  // 遺忘曲線：答對升一階、答錯退兩階，並把「最後複習時間」更新為現在
-  const cur = getVocabReview(v);
-  vocabReviewState[v.id] = {
-    stage: correct ? Math.min(REVIEW_MAX_STAGE, cur.stage + 1) : Math.max(0, cur.stage - 2),
-    last: new Date().toISOString()
-  };
-  saveVocabReviewState(); // 本機備份
-  v.review_stage = vocabReviewState[v.id].stage;
-  v.last_reviewed = vocabReviewState[v.id].last;
-  // 同步到雲端；欄位還沒建立時會失敗，但不影響下面的精熟紀錄與本機備份
-  db.from('vocab').update({ review_stage: v.review_stage, last_reviewed: v.last_reviewed }).eq('id', vocabId)
-    .then(res=>{ if(res && res.error) console.warn('複習進度未同步到雲端（請確認已新增 review_stage / last_reviewed 欄位）', res.error.message); });
-  v.correct_streak =correct ? (Number(v.correct_streak)||0) + 1 : 0;
+  applyVocabReviewStage(v, correct);
+  v.correct_streak = correct ? (Number(v.correct_streak)||0) + 1 : 0;
   if(!v.mastered && v.correct_streak >= VOCAB_MASTER_STREAK){
     v.mastered = true;
   }
@@ -5233,6 +5871,274 @@ function bindDailyPanelEvents(agg){
 }
 
 
+
+/* ---------------- 島嶼寵物模式 ---------------- */
+const PET_SPECIES = [
+  { id:'seafrog', emoji:'🐸', name:'海水蛙', desc:'島上唯一的夥伴・陪你複習與冒險' },
+];
+let islandPet = null;
+
+function petStorageKey(){
+  const uid = currentUser ? (currentUser.id || 'guest') : 'guest';
+  return 'islandPet:' + uid;
+}
+function defaultPet(){
+  return null; // 尚未認養
+}
+function loadPet(){
+  try{
+    const raw = localStorage.getItem(petStorageKey());
+    if(!raw){ islandPet = null; return; }
+    islandPet = JSON.parse(raw);
+    // 目前只有海水蛙：統一物種與預設名
+    if(islandPet){
+      islandPet.species = 'seafrog';
+      if(!islandPet.name || ['島嶼小龍','熔岩狐','椰林貓','沙灘龜'].includes(islandPet.name)){
+        islandPet.name = '海水蛙';
+      }
+    }
+    // 自然衰減：依上次互動時間略降飢餓/心情
+    if(islandPet && islandPet.lastSeen){
+      const days = Math.max(0, (Date.now() - islandPet.lastSeen) / 86400000);
+      if(days >= 0.2){
+        islandPet.hunger = Math.max(0, (islandPet.hunger||50) - Math.floor(days*12));
+        islandPet.mood = Math.max(0, (islandPet.mood||50) - Math.floor(days*8));
+        islandPet.lastSeen = Date.now();
+        savePet();
+      }
+    }
+  }catch(e){ islandPet = null; }
+}
+function savePet(){
+  if(!islandPet){ localStorage.removeItem(petStorageKey()); return; }
+  islandPet.lastSeen = Date.now();
+  localStorage.setItem(petStorageKey(), JSON.stringify(islandPet));
+}
+function petSpecies(id){
+  return PET_SPECIES.find(s=>s.id===id) || PET_SPECIES[0];
+}
+function petLevel(exp){
+  const e = Number(exp)||0;
+  return Math.floor(e / 80) + 1;
+}
+function petExpInLevel(exp){
+  const e = Number(exp)||0;
+  return e % 80;
+}
+/** 寵物強度：與錯題數量、複習次數正相關（再加養成 EXP） */
+function petStudyStats(){
+  const list = Array.isArray(mistakes) ? mistakes : [];
+  const mistakeCount = list.length;
+  const reviewTotal = list.reduce((s,m)=> s + (Number(m.review_count)||0), 0);
+  return { mistakeCount, reviewTotal };
+}
+function petPower(){
+  loadPet();
+  const { mistakeCount, reviewTotal } = petStudyStats();
+  const exp = islandPet ? (Number(islandPet.exp)||0) : 0;
+  // 基礎 10 + 每題錯題 2 + 每次複習 1 + 養成 EXP/10
+  const power = 10 + mistakeCount * 2 + reviewTotal * 1 + Math.floor(exp / 10);
+  return {
+    power: Math.max(10, power),
+    mistakeCount,
+    reviewTotal,
+    expBonus: Math.floor(exp / 10)
+  };
+}
+function petMoodEmoji(p){
+  if(!p) return '';
+  const m = (p.mood||0);
+  if(m >= 80) return '✨';
+  if(m >= 50) return '😊';
+  if(m >= 25) return '😐';
+  return '💤';
+}
+function petSpeech(p){
+  if(!p) return '在島上孵一顆蛋，開始你的夥伴旅程吧！';
+  const sp = petSpecies(p.species);
+  const lines = [];
+  if((p.hunger||0) < 30) lines.push(`${sp.emoji} 肚子好餓…去完成主線任務可以拿點心！`);
+  else if((p.mood||0) < 30) lines.push(`${sp.emoji} 有點無聊…摸我一下或去火山試煉吧！`);
+  else if((p.bond||0) >= 80) lines.push(`${sp.emoji} 和你的羈絆好深，今天也一起登頂吧！`);
+  else lines.push(`${sp.emoji} ${p.name} 準備好陪你複習了～`);
+  return lines[Math.floor(Math.random()*lines.length)] || lines[0];
+}
+function adoptPet(speciesId, name){
+  const sp = petSpecies(speciesId);
+  islandPet = {
+    species: sp.id,
+    name: (name && name.trim()) || '海水蛙',
+    exp: 0,
+    bond: 20,
+    hunger: 70,
+    mood: 70,
+    adoptedAt: new Date().toISOString().slice(0,10),
+    lastSeen: Date.now(),
+    lastFed: 0,
+    lastPlay: 0
+  };
+  savePet();
+  renderIslandPet();
+  renderPetPanel();
+}
+function petGainExp(amount, reason){
+  loadPet();
+  if(!islandPet || !amount) return;
+  islandPet.exp = (islandPet.exp||0) + amount;
+  islandPet.bond = Math.min(100, (islandPet.bond||0) + Math.max(1, Math.floor(amount/15)));
+  islandPet.mood = Math.min(100, (islandPet.mood||0) + Math.max(2, Math.floor(amount/10)));
+  savePet();
+  renderIslandPet();
+  const el = document.getElementById('islandPet');
+  if(el){ el.classList.remove('happy'); void el.offsetWidth; el.classList.add('happy'); }
+}
+function feedPet(){
+  if(!islandPet) return;
+  const now = Date.now();
+  if(now - (islandPet.lastFed||0) < 30*60*1000){
+    showPetToast('剛剛吃過了，再過一下子才能餵～');
+    return;
+  }
+  islandPet.hunger = Math.min(100, (islandPet.hunger||0) + 25);
+  islandPet.mood = Math.min(100, (islandPet.mood||0) + 8);
+  islandPet.bond = Math.min(100, (islandPet.bond||0) + 3);
+  islandPet.lastFed = now;
+  savePet();
+  renderIslandPet();
+  renderPetPanel(true);
+  showPetToast(`${islandPet.name} 吃得好開心！`);
+}
+function playWithPet(){
+  if(!islandPet) return;
+  const now = Date.now();
+  if(now - (islandPet.lastPlay||0) < 20*60*1000){
+    showPetToast('玩累了，休息一下再陪我玩～');
+    return;
+  }
+  islandPet.mood = Math.min(100, (islandPet.mood||0) + 18);
+  islandPet.bond = Math.min(100, (islandPet.bond||0) + 5);
+  islandPet.hunger = Math.max(0, (islandPet.hunger||0) - 6);
+  islandPet.lastPlay = now;
+  islandPet.exp = (islandPet.exp||0) + 5;
+  savePet();
+  renderIslandPet();
+  renderPetPanel(true);
+  showPetToast(`和 ${islandPet.name} 玩得好開心！+5 EXP`);
+}
+function showPetToast(msg){
+  if(typeof showDailyToast === 'function'){
+    showDailyToast({ icon:'🐾', title:'島嶼寵物', body: msg });
+  }
+}
+function renderIslandPet(){
+  loadPet();
+  const sprite = document.getElementById('islandPetSprite');
+  const tag = document.getElementById('islandPetTag');
+  const mood = document.getElementById('islandPetMood');
+  if(!sprite || !tag) return;
+  if(!islandPet){
+    if(sprite.tagName === 'IMG'){
+      // keep as is
+    }else{
+      sprite.textContent = '🥚';
+      sprite.classList.remove('pet-img');
+    }
+    tag.textContent = '海水蛙・未孵化';
+    if(mood) mood.textContent = '';
+    return;
+  }
+  const sp = petSpecies(islandPet.species);
+  const pw = petPower();
+  // 島上顯示海水蛙圖片
+  if(sprite.tagName === 'IMG'){
+    sprite.src = 'Frog.jpg';
+    sprite.alt = islandPet.name || '海水蛙';
+    sprite.classList.add('pet-img');
+  }else{
+    sprite.outerHTML = `<img class="pet-sprite pet-img" id="islandPetSprite" src="Frog.jpg" alt="${escapeHtml(islandPet.name||'海水蛙')}">`;
+  }
+  tag.textContent = `${islandPet.name} · 強度 ${pw.power}`;
+  if(mood) mood.textContent = petMoodEmoji(islandPet);
+}
+function renderPetPanel(happy){
+  loadPet();
+  const panel = document.getElementById('petPanel');
+  if(!panel) return;
+  if(!islandPet){
+    panel.innerHTML = `
+      <h2>🥚 孵化海水蛙</h2>
+      <p class="pet-sub">島上唯一的夥伴，陪你複習與冒險</p>
+      <div class="pet-hero">🐸</div>
+      <p class="pet-speech">一隻名叫「海水蛙」的小生命正等待破殼…</p>
+      <div class="pet-actions">
+        <button type="button" class="primary" id="petAdoptBtn">🐸 迎接海水蛙</button>
+      </div>
+      <p class="pet-sub">認養後會出現在島上，完成任務、試煉都可養成。</p>
+      <button type="button" class="pet-close-btn" id="petCloseBtn">先不要</button>
+    `;
+    document.getElementById('petAdoptBtn')?.addEventListener('click', ()=>{
+      adoptPet('seafrog', '海水蛙');
+      showPetToast('海水蛙加入複習島嶼了！');
+    });
+    document.getElementById('petCloseBtn')?.addEventListener('click', closePetPanel);
+    return;
+  }
+  const sp = petSpecies(islandPet.species);
+  const lv = petLevel(islandPet.exp);
+  const expNow = petExpInLevel(islandPet.exp);
+  const pw = petPower();
+  panel.innerHTML = `
+    <h2>🐾 ${escapeHtml(islandPet.name)}</h2>
+    <p class="pet-sub">${sp.emoji} ${sp.name} · 羈絆夥伴</p>
+    <div class="pet-hero ${happy?'happy':''}" style="font-size:0;line-height:0;"><img src="Frog.jpg" alt="海水蛙" style="width:120px;height:120px;border-radius:50%;object-fit:cover;border:3px solid rgba(255,255,255,.9);box-shadow:0 6px 16px rgba(0,0,0,.2);"></div>
+    <div class="pet-speech">${escapeHtml(petSpeech(islandPet))}</div>
+    <div class="pet-meta">強度 <b>${pw.power}</b> · Lv. ${lv} · 羈絆 ${islandPet.bond||0}</div>
+    <p class="pet-sub" style="margin:0 0 8px">錯題 ${pw.mistakeCount} 題（+${pw.mistakeCount*2}）· 複習 ${pw.reviewTotal} 次（+${pw.reviewTotal}）· 養成 +${pw.expBonus}</p>
+    <div class="pet-bars">
+      <div class="pet-bar-row"><span class="label">飽食</span><div class="pet-bar-track hunger"><i style="width:${islandPet.hunger||0}%"></i></div><span>${islandPet.hunger||0}</span></div>
+      <div class="pet-bar-row"><span class="label">心情</span><div class="pet-bar-track mood"><i style="width:${islandPet.mood||0}%"></i></div><span>${islandPet.mood||0}</span></div>
+      <div class="pet-bar-row"><span class="label">羈絆</span><div class="pet-bar-track bond"><i style="width:${islandPet.bond||0}%"></i></div><span>${islandPet.bond||0}</span></div>
+    </div>
+    <div class="pet-actions">
+      <button type="button" class="primary" id="petFeedBtn">🍖 餵食</button>
+      <button type="button" id="petPlayBtn">🎾 玩耍</button>
+      <button type="button" id="petRenameBtn">✏️ 改名</button>
+    </div>
+    <div class="pet-rename-row hidden" id="petRenameRow">
+      <input type="text" id="petRenameInput" maxlength="10" value="${escapeHtml(islandPet.name)}">
+      <button type="button" class="primary" id="petRenameSave">儲存</button>
+    </div>
+    <p class="pet-sub">完成主線、火山試煉、答對題目都會讓夥伴成長</p>
+    <button type="button" class="pet-close-btn" id="petCloseBtn">關閉</button>
+  `;
+  document.getElementById('petFeedBtn')?.addEventListener('click', feedPet);
+  document.getElementById('petPlayBtn')?.addEventListener('click', playWithPet);
+  document.getElementById('petRenameBtn')?.addEventListener('click', ()=>{
+    document.getElementById('petRenameRow')?.classList.remove('hidden');
+  });
+  document.getElementById('petRenameSave')?.addEventListener('click', ()=>{
+    const v = document.getElementById('petRenameInput')?.value?.trim();
+    if(v){ islandPet.name = v; savePet(); renderIslandPet(); renderPetPanel(); }
+  });
+  document.getElementById('petCloseBtn')?.addEventListener('click', closePetPanel);
+}
+function openPetPanel(){
+  renderPetPanel();
+  document.getElementById('petOverlay')?.classList.remove('hidden');
+}
+function closePetPanel(){
+  document.getElementById('petOverlay')?.classList.add('hidden');
+}
+function bindPetUI(){
+  document.getElementById('petFab')?.addEventListener('click', openPetPanel);
+  document.getElementById('islandPet')?.addEventListener('click', openPetPanel);
+  document.getElementById('petOverlay')?.addEventListener('click', (e)=>{
+    if(e.target.id === 'petOverlay') closePetPanel();
+  });
+  loadPet();
+  renderIslandPet();
+}
+
 function showIslandHome(){
   currentSection = 'island';
   const shell = document.getElementById('appShell');
@@ -5245,6 +6151,7 @@ function showIslandHome(){
   document.querySelectorAll('.nav-item, .island-spot').forEach(el=>{
     el.classList.remove('active');
   });
+  if(typeof renderIslandPet === 'function') renderIslandPet();
 }
 
 function switchSection(section){
@@ -5714,116 +6621,413 @@ async function submitMistakeForm(e){
 
 /* ---------------- 複習 ---------------- */
 
+
+/* ---- 火山試煉塔：熱度與樓層 ---- */
+function mistakeHeat(m){
+  if(!m) return 0;
+  if(isMastered(m)) return 0;
+  let h = 55;
+  h += Math.max(0, 25 - (Number(m.review_count)||0) * 4);
+  h -= (Number(m.streak)||0) * 18;
+  if((Number(m.streak)||0) === 0 && (Number(m.review_count)||0) > 0) h += 18;
+  return Math.max(1, Math.min(100, Math.round(h)));
+}
+function heatFloor(heat){
+  if(heat <= 0) return 0;
+  if(heat >= 70) return 4;
+  if(heat >= 45) return 3;
+  if(heat >= 25) return 2;
+  return 1;
+}
+const VOLCANO_FLOORS = [
+  { id:4, name:'白熱層', icon:'⚪', desc:'C1–C2 高階單字', minHeat:70, play:'高階單字 BOSS' },
+  { id:3, name:'熔岩層', icon:'🟠', desc:'B2 單字', minHeat:45, play:'中高階單字 BOSS' },
+  { id:2, name:'赤紅層', icon:'🔴', desc:'B1 單字', minHeat:25, play:'中階單字 BOSS' },
+  { id:1, name:'餘燼層', icon:'🟤', desc:'A1–A2 基礎單字', minHeat:1, play:'基礎單字 BOSS' },
+];
+function floorMeta(id){ return VOLCANO_FLOORS.find(f=>f.id===id); }
+function mistakesOnFloor(floorId, pool){
+  return (pool||[]).filter(m=>heatFloor(mistakeHeat(m)) === floorId);
+}
+function highestAvailableFloor(pool){
+  for(const f of VOLCANO_FLOORS){
+    if(mistakesOnFloor(f.id, pool).length) return f.id;
+  }
+  return 0;
+}
+/* 火山試煉改為英文單字 BOSS：樓層對應 CEFR */
+function vocabFloorOf(v){
+  const c = (v && v.cefr) || 'A1';
+  if(c === 'C1' || c === 'C2') return 4;
+  if(c === 'B2') return 3;
+  if(c === 'B1') return 2;
+  return 1; // A1 A2
+}
+function vocabOnFloor(floorId, pool){
+  return (pool||[]).filter(v=>vocabFloorOf(v) === Number(floorId));
+}
+function highestVocabFloor(pool){
+  for(const f of VOLCANO_FLOORS){
+    if(vocabOnFloor(f.id, pool).length) return f.id;
+  }
+  return 0;
+}
+function lavaSecondsForVocab(v){
+  const f = vocabFloorOf(v);
+  return ({1:20,2:16,3:13,4:10})[f] || 15;
+}
+/** 單字 BOSS：中文題，四選一英文 */
+function vocabBossChoices(correct){
+  const others = vocab.filter(v=>v.id !== correct.id).map(v=>v.word);
+  const pool = others.slice();
+  for(let i=pool.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [pool[i],pool[j]]=[pool[j],pool[i]]; }
+  const picks = pool.slice(0,3);
+  while(picks.length < 3) picks.push('—');
+  const opts = [correct.word, ...picks];
+  for(let i=opts.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [opts[i],opts[j]]=[opts[j],opts[i]]; }
+  return opts;
+}
+
+function volcanoStatus(pool, cooledCount){
+  const hot = (pool||[]).filter(m=>!isMastered(m)).length;
+  if(hot === 0 && cooledCount > 0) return { key:'dormant', label:'❄️ 休眠・成功登頂', line:'所有錯題已冷卻，火山進入休眠！' };
+  if(hot <= 3) return { key:'cooling', label:'🧊 降溫中', line:'只剩最後幾題熱源，火山正在降溫…' };
+  return { key:'active', label:'🔥 活躍', line:`火山活躍中・尚有 ${hot} 題未冷卻` };
+}
+function comboLabel(n){
+  if(n >= 10) return '極寒風暴 ×'+n;
+  if(n >= 5) return '冰封 ×'+n;
+  if(n >= 3) return '寒霜 ×'+n;
+  if(n >= 2) return '連擊 ×'+n;
+  return '';
+}
+function bossNameForFloor(floor){
+  const map = {4:'白熱巨魔',3:'熔岩獸',2:'赤紅守衛',1:'餘燼幽靈'};
+  if(floor === 'all') return '火山霸主';
+  return map[Number(floor)] || '熔岩魔';
+}
+/** BOSS 稀有度：普通／稀有／史詩／傳說 */
+const BOSS_RARITIES = [
+  { id:'common',  label:'普通',  weight:50, hpMul:1.0,  atkMul:1.0, rageMul:1.0, color:'#C4A574', stars:'★' },
+  { id:'rare',    label:'稀有',  weight:30, hpMul:1.35, atkMul:1.2, rageMul:1.1, color:'#5B9BD5', stars:'★★' },
+  { id:'epic',    label:'史詩',  weight:15, hpMul:1.7,  atkMul:1.45,rageMul:1.25,color:'#9B6BFF', stars:'★★★' },
+  { id:'legend',  label:'傳說',  weight:5,  hpMul:2.2,  atkMul:1.8, rageMul:1.4, color:'#FFB020', stars:'★★★★' },
+];
+function rollBossRarity(){
+  const total = BOSS_RARITIES.reduce((s,r)=>s+r.weight,0);
+  let n = Math.random()*total;
+  for(const r of BOSS_RARITIES){
+    n -= r.weight;
+    if(n <= 0) return r;
+  }
+  return BOSS_RARITIES[0];
+}
+function shuffleIds(ids){
+  const a = ids.slice();
+  for(let i=a.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [a[i],a[j]]=[a[j],a[i]]; }
+  return a;
+}
+/** 戰鬥越久 BOSS 越強：每 3 回合升一級 */
+function bossPhase(session){
+  const turns = session.turnCount || 0;
+  return Math.floor(turns / 3); // 0,1,2...
+}
+function bossAtkScale(session){
+  const rarity = session.bossRarity || BOSS_RARITIES[0];
+  const phase = bossPhase(session);
+  return (rarity.atkMul || 1) * (1 + phase * 0.18);
+}
+function bossRageScale(session){
+  const rarity = session.bossRarity || BOSS_RARITIES[0];
+  const phase = bossPhase(session);
+  return (rarity.rageMul || 1) * (1 + phase * 0.1);
+}
+
+
+function summitKey(){
+  const uid = currentUser ? (currentUser.id || 'guest') : 'guest';
+  return 'volcano_summit_'+uid;
+}
+
+
 function renderReviewPanel(){
   const panel = document.getElementById('reviewPanel');
   if(reviewSession){ panel.innerHTML = `<div class="panel">${reviewSessionHTML()}</div>`; bindReviewSessionEvents(); return; }
 
-  const subs = mistakeSubjects();
-  const pool = reviewSubjectFilter === 'all' ? mistakes : mistakes.filter(m=>m.subject===reviewSubjectFilter);
-  const eligible = reviewOnlyUnmastered ? pool.filter(m=>!isMastered(m)) : pool;
+  const pool = vocab.slice();
+  const n = pool.length;
 
   panel.innerHTML = `
-    <div class="panel review-setup-card">
-      <h2 style="font-family:'Fraunces',serif;margin:0 0 4px;">開始複習</h2>
-      <p>選擇要複習的科目範圍，逐題作答並立刻看到對錯</p>
-      <div class="chip-row" style="justify-content:center;">
-        <button type="button" class="chip ${reviewSubjectFilter==='all'?'active':''}" data-subject="all">全部科目</button>
-        ${subs.map(s=>`<button type="button" class="chip ${reviewSubjectFilter===s?'active':''}" data-subject="${escapeHtml(s)}">${escapeHtml(s)}</button>`).join('')}
+    <div class="volcano-lobby">
+      <h2>🌋 火山試煉塔</h2>
+      <p class="vl-sub">英文單字 BOSS・戰至一方倒下・BOSS 有稀有度且會越打越強</p>
+      <div class="volcano-stage" style="justify-content:center;">
+        <div class="volcano-visual ${n? '':'dormant'}" style="min-height:220px;width:min(240px,90%);">
+          <div class="volcano-status-badge">${n ? '🔥 單字 BOSS 戰' : '❄️ 尚無單字'}</div>
+          <div style="position:absolute;inset:50px 16px 16px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;z-index:2;text-align:center;">
+            <div style="font-size:48px;line-height:1;">👹</div>
+            <div style="color:#FFE2A8;font-family:'Fraunces',serif;font-size:15px;">普通／稀有／史詩／傳說</div>
+            <div style="color:#C4A574;font-size:12.5px;line-height:1.45;">看中選英 · 答對攻擊<br>答錯加怒氣 · 怒氣滿放大招</div>
+          </div>
+        </div>
+        <div class="volcano-side">
+          <div class="volcano-stat-line">單字庫 <b>${n}</b> 個（來自語彙椰林）</div>
+          <div class="volcano-stat-line">每次開戰隨機稀有度；每 3 回合 BOSS 強化一級</div>
+          <div class="volcano-stat-line">戰鬥會一直進行，直到你或 BOSS 的 HP 歸零</div>
+          <div class="volcano-actions" style="margin-top:12px;justify-content:flex-start;">
+            ${n === 0
+              ? `<div class="empty" style="color:#C4A574;"><h2 style="color:#9BD7FF;">❄️ 尚無單字</h2><p>先到「語彙椰林」新增英文單字，再回來挑戰！</p></div>`
+              : `<button type="button" class="solid-btn" id="startBossFightBtn">🔥 開始 BOSS 戰（${n} 字）</button>`}
+          </div>
+        </div>
       </div>
-      <div class="review-toggle">
-        <input type="checkbox" id="onlyUnmasteredChk" ${reviewOnlyUnmastered?'checked':''}>
-        <label for="onlyUnmasteredChk">只複習尚未熟練的題目</label>
-      </div>
-      ${eligible.length === 0 ? `
-        <div class="empty"><h2>目前沒有可複習的題目</h2><p>試試切換篩選條件，或先去「錯題本」新增一些題目。</p></div>
-      ` : `<button type="button" class="solid-btn" id="startReviewBtn">開始複習（共 ${eligible.length} 題）</button>`}
     </div>
   `;
-  document.querySelectorAll('#reviewPanel .chip').forEach(el=>{
-    el.addEventListener('click', ()=>{ reviewSubjectFilter = el.dataset.subject; renderReviewPanel(); });
-  });
-  const chk = document.getElementById('onlyUnmasteredChk');
-  if(chk) chk.addEventListener('change', (e)=>{ reviewOnlyUnmastered = e.target.checked; renderReviewPanel(); });
-  const startBtn = document.getElementById('startReviewBtn');
-  if(startBtn) startBtn.addEventListener('click', startReviewSession);
+  const btn = document.getElementById('startBossFightBtn');
+  if(btn) btn.addEventListener('click', ()=> startReviewSession({ floor: 'all' }));
 }
 
-function startReviewSession(){
-  const pool = reviewSubjectFilter === 'all' ? mistakes : mistakes.filter(m=>m.subject===reviewSubjectFilter);
-  const eligible = reviewOnlyUnmastered ? pool.filter(m=>!isMastered(m)) : pool;
-  const queue = eligible.map(m=>m.id);
-  for(let i=queue.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [queue[i],queue[j]]=[queue[j],queue[i]]; }
-  reviewSession = { queue, idx:0, correctCount:0, picked:null, revealed:false, lastCorrect:false };
+let lavaTimerId = null;
+function clearLavaTimer(){
+  if(lavaTimerId){ clearInterval(lavaTimerId); lavaTimerId = null; }
+}
+function lavaSecondsForMistake(m){
+  const f = heatFloor(mistakeHeat(m));
+  // 越熱越趕：白熱 10 秒、熔岩 13、赤紅 16、餘燼 20
+  return ({0:20,1:20,2:16,3:13,4:10})[f] || 15;
+}
+function startLavaTimer(){
+  clearLavaTimer();
+  if(!reviewSession || reviewSession.revealed) return;
+  const total = reviewSession.timeLimit || 15;
+  const started = reviewSession.questionStartedAt || Date.now();
+  const tick = ()=>{
+    if(!reviewSession || reviewSession.revealed){ clearLavaTimer(); return; }
+    const leftMs = Math.max(0, total*1000 - (Date.now() - started));
+    const left = leftMs / 1000;
+    const fill = document.getElementById('lavaTimerFill');
+    const lab = document.getElementById('lavaTimerLabel');
+    const pct = Math.max(0, Math.min(100, (left / total) * 100));
+    if(fill){
+      fill.style.width = pct + '%';
+      fill.classList.toggle('urgent', left <= 3);
+    }
+    if(lab) lab.textContent = `熔岩 ${Math.ceil(left)}s`;
+    if(leftMs <= 0){
+      clearLavaTimer();
+      if(!reviewSession.revealed){
+        reviewSession.picked = null;
+        reviewSession.timedOut = true;
+        revealReviewAnswer();
+      }
+    }
+  };
+  tick();
+  lavaTimerId = setInterval(tick, 100);
+}
+
+function startReviewSession(opts){
+  opts = opts || {};
+  const eligible = vocab.slice();
+  const floor = 'all';
+  if(!eligible.length){
+    if(typeof showDailyToast === 'function'){
+      showDailyToast({ icon:'🌋', title:'沒有單字可戰', body:'先去語彙椰林新增英文單字吧' });
+    }
+    return;
+  }
+  const poolIds = eligible.map(v=>v.id);
+  const queue = shuffleIds(poolIds);
+  clearLavaTimer();
+  const rarity = rollBossRarity();
+  const bossNames = ['熔岩獸','火山巨魔','餘燼魔','赤紅守衛','白熱龍'];
+  const baseName = bossNames[Math.floor(Math.random()*bossNames.length)];
+  const bossName = `${rarity.label}·${baseName}`;
+  // 基礎血量再乘稀有度
+  const baseHp = Math.max(80, Math.min(220, 70 + poolIds.length * 12));
+  const bossMaxHp = Math.round(baseHp * rarity.hpMul);
+  reviewSession = {
+    queue, idx:0, correctCount:0, wrongCount:0, picked:null, revealed:false, lastCorrect:false, floor,
+    poolIds, // 用完可再洗牌繼續打
+    timed: true,
+    fastCount: 0,
+    timedOutCount: 0,
+    combo: 0,
+    maxCombo: 0,
+    turnCount: 0,
+    questionStartedAt: Date.now(),
+    timeLimit: 15,
+    timedOut: false,
+    _timerForIdx: -1,
+    bossMode: true,
+    bossRarity: rarity,
+    bossName,
+    bossMaxHp,
+    bossHp: bossMaxHp,
+    bossRage: 0,
+    bossRageMax: 100,
+    playerMaxHp: 100,
+    playerHp: 100,
+    battleLog: `${rarity.stars} ${bossName} 出現了！（會越打越強，戰至一方倒下）`,
+    battleOver: false,
+    battleWon: false,
+    wordProgress: [] // {id,word,translation,before,after,correct}
+  };
   renderReviewPanel();
 }
 
+function ensureBossQueue(){
+  // 佇列用完就再洗牌，直到分出勝負
+  if(!reviewSession) return;
+  if(reviewSession.idx < (reviewSession.queue||[]).length) return;
+  const pool = (reviewSession.poolIds && reviewSession.poolIds.length)
+    ? reviewSession.poolIds
+    : (vocab||[]).map(v=>v.id);
+  if(!pool.length) return;
+  reviewSession.queue = (reviewSession.queue||[]).concat(shuffleIds(pool));
+}
 function reviewSessionHTML(){
-  const total = reviewSession.queue.length;
-  if(reviewSession.idx >= total){
+  ensureBossQueue();
+  const bossDead = (reviewSession.bossHp||0) <= 0;
+  const playerDead = (reviewSession.playerHp||0) <= 0;
+  if(reviewSession.battleOver || bossDead || playerDead){
+    clearLavaTimer();
+    if(bossDead) { reviewSession.battleOver = true; reviewSession.battleWon = true; }
+    else if(playerDead) { reviewSession.battleOver = true; reviewSession.battleWon = false; }
+    const won = reviewSession.battleWon;
     const correct = reviewSession.correctCount;
+    const turns = reviewSession.turnCount || 0;
+    const rarity = reviewSession.bossRarity || BOSS_RARITIES[0];
+    const progList = reviewSession.wordProgress || [];
+    // 同一單字可能出現多次：顯示最後一次階段
+    const byId = new Map();
+    progList.forEach(p=>{ byId.set(p.id, p); });
+    const uniq = Array.from(byId.values());
+    const stageLabel = (s)=>`Lv.${s}/${REVIEW_MAX_STAGE}`;
+    const progHtml = uniq.length ? `
+      <div class="boss-word-progress" style="text-align:left;margin:14px auto 0;max-width:420px;">
+        <div style="font-family:'Fraunces',serif;font-size:14px;color:#FFE2A8;margin-bottom:8px;">本場單字複習進度</div>
+        <div style="max-height:200px;overflow:auto;display:flex;flex-direction:column;gap:6px;">
+          ${uniq.map(p=>{
+            const arrow = p.before === p.after ? '→' : (p.after > p.before ? '↑' : '↓');
+            const col = p.correct ? '#9BD7FF' : '#FFB0A0';
+            return `<div style="background:rgba(0,0,0,.28);border-radius:8px;padding:8px 10px;font-size:12.5px;color:#F5E6C8;">
+              <b style="color:#FFE2A8;">${escapeHtml(p.word)}</b>
+              <span style="color:#C4A574;"> ${escapeHtml(p.translation)}</span>
+              <span style="float:right;color:${col};font-family:'JetBrains Mono',monospace;">${stageLabel(p.before)} ${arrow} ${stageLabel(p.after)}</span>
+            </div>`;
+          }).join('')}
+        </div>
+        <p style="font-size:11.5px;color:#C4A574;margin:8px 0 0;">答對升 1 階、答錯退 2 階，不會一次到最完美。</p>
+      </div>` : '';
     return `
-      <div class="flash-wrap">
+      <div class="flash-wrap lava-mode">
         <div class="summary-card">
-          <span class="subject-tag">複習結果</span>
-          <div class="score">${correct} <span>/ ${total}</span></div>
-          <p style="color:var(--ink-soft);font-size:13.5px;">答對率 ${total?Math.round(correct/total*100):0}%</p>
+          <span class="subject-tag">${won?'🏆 BOSS 擊破！':'💀 挑戰結束'}</span>
+          <div class="score">${won?'WIN':'LOSE'}</div>
+          <p style="color:${rarity.color};font-size:14px;font-family:'Fraunces',serif;">${rarity.stars} ${escapeHtml(reviewSession.bossName||'BOSS')}（${rarity.label}）</p>
+          <p style="color:var(--ink-soft);font-size:13.5px;">回合 ${turns} · 答對 ${correct} · 答錯 ${reviewSession.wrongCount||0} · 最高連擊 ${reviewSession.maxCombo||0}</p>
+          ${progHtml}
           <div class="flash-actions" style="justify-content:center;margin-top:16px;">
-            <button type="button" class="ghost-btn" id="backToSetupBtn">回到設定</button>
-            <button type="button" class="solid-btn" id="restartReviewBtn">再複習一次</button>
+            <button type="button" class="ghost-btn" id="backToSetupBtn">回到塔廳</button>
+            <button type="button" class="solid-btn" id="restartReviewBtn">再次挑戰</button>
           </div>
         </div>
       </div>`;
   }
-  const m = mistakes.find(x=>x.id===reviewSession.queue[reviewSession.idx]);
-  if(!m){ reviewSession.idx++; return reviewSessionHTML(); }
+  const v = vocab.find(x=>x.id===reviewSession.queue[reviewSession.idx]);
+  if(!v){ reviewSession.idx++; return reviewSessionHTML(); }
   const revealed = reviewSession.revealed;
 
-  let bodyHtml = '';
-  if(m.type !== 'fill'){
-    bodyHtml = (m.options||[]).map((opt,i)=>{
-      const letter = OPTION_LABELS[i];
-      let cls = 'choice-btn';
-      if(revealed){
-        if(letter === m.correct_answer) cls += ' reveal-correct';
-        else if(letter === reviewSession.picked) cls += ' reveal-wrong';
-      }else if(letter === reviewSession.picked) cls += ' picked';
-      return `<button type="button" class="${cls}" data-letter="${letter}" ${revealed?'disabled':''}><span>${letter}.</span><span>${escapeHtml(opt)}</span></button>`;
-    }).join('');
-  }else{
-    bodyHtml = `<input type="text" class="fill-answer-input" id="fillAnswerInput" placeholder="輸入你的答案" ${revealed?'disabled':''} value="${revealed?escapeHtml(reviewSession.picked||''):''}">`;
+  // 快取本題選項
+  if(!reviewSession._choices || reviewSession._choicesFor !== v.id){
+    reviewSession._choices = vocabBossChoices(v);
+    reviewSession._choicesFor = v.id;
+    reviewSession._correctWord = v.word;
   }
+  const choices = reviewSession._choices;
+  const correctWord = reviewSession._correctWord || v.word;
+
+  let bodyHtml = choices.map((opt,i)=>{
+    const letter = OPTION_LABELS[i];
+    let cls = 'choice-btn';
+    if(revealed){
+      if(opt === correctWord) cls += ' reveal-correct';
+      else if(letter === reviewSession.picked) cls += ' reveal-wrong';
+    }else if(letter === reviewSession.picked) cls += ' picked';
+    return `<button type="button" class="${cls}" data-letter="${letter}" data-word="${escapeHtml(opt)}" ${revealed?'disabled':''}><span>${letter}.</span><span>${escapeHtml(opt)}</span></button>`;
+  }).join('');
 
   let resultHtml = '';
   if(revealed){
-    resultHtml = `
-      <div class="result-banner ${reviewSession.lastCorrect?'ok':'no'}">${reviewSession.lastCorrect?'✓ 答對了':'✗ 答錯了'}</div>
-      ${m.type==='fill' ? `<div class="correct-line">正確答案：<b>${escapeHtml(m.correct_answer)}</b></div>` : ''}
-    `;
+    resultHtml = `<div class="result-banner ${reviewSession.lastCorrect?'ok':'no'}">${escapeHtml(reviewSession.battleLog||'')}</div>
+      <div class="correct-line">正確答案：<b>${escapeHtml(correctWord)}</b>＝${escapeHtml(v.translation||'')}</div>`;
   }
 
+  const limit = lavaSecondsForVocab(v);
+  if(!revealed){
+    if(reviewSession._timerForIdx !== reviewSession.idx){
+      reviewSession.questionStartedAt = Date.now();
+      reviewSession.timeLimit = limit;
+      reviewSession._timerForIdx = reviewSession.idx;
+      reviewSession.timedOut = false;
+    }
+  }
+  const timeLimit = reviewSession.timeLimit || limit;
+  const hpPct = Math.max(0, Math.min(100, (reviewSession.bossHp / reviewSession.bossMaxHp) * 100));
+  const ragePct = Math.max(0, Math.min(100, (reviewSession.bossRage / reviewSession.bossRageMax) * 100));
+  const phpPct = Math.max(0, Math.min(100, (reviewSession.playerHp / reviewSession.playerMaxHp) * 100));
+  const comboTxt = comboLabel(reviewSession.combo||0);
+
   return `
-    <div class="flash-wrap">
-      <div class="flash-progress"><span>第 ${reviewSession.idx+1} / ${total} 題</span><span>答對 ${reviewSession.correctCount} 題</span></div>
-      <div class="flash-bar"><div class="fill" style="width:${(reviewSession.idx/total*100)}%"></div></div>
+    <div class="flash-wrap lava-mode">
+      <div class="floor-banner">🌋 單字 BOSS · ${escapeHtml((reviewSession.bossRarity||{}).stars||'')} ${escapeHtml(reviewSession.bossName||'熔岩魔')} · 強化 Lv.${bossPhase(reviewSession)+1}</div>
+      <div class="boss-arena">
+        <div class="battle-side ally">
+          <div class="side-label">我方</div>
+          <div class="side-name">
+            <span>🛡️ 冒險者${(typeof islandPet!=='undefined' && islandPet && islandPet.name) ? ' · 🐸 '+escapeHtml(islandPet.name) : ''}</span>
+            <span class="side-meta">連擊 ${reviewSession.combo||0}</span>
+          </div>
+          <div class="bar-row"><span class="lab">血量</span><div class="bar-track player"><i style="width:${phpPct}%"></i></div><span class="num">${Math.max(0,reviewSession.playerHp|0)}/${reviewSession.playerMaxHp}</span></div>
+          <div class="bar-row"><span class="lab">回合</span><div class="bar-track player"><i style="width:${Math.min(100,((reviewSession.turnCount||0)%10)*10+10)}%"></i></div><span class="num">${(reviewSession.turnCount||0)+1}</span></div>
+        </div>
+        <div class="battle-side enemy">
+          <div class="side-label">對方</div>
+          <div class="side-name">
+            <span style="color:${(reviewSession.bossRarity||{}).color||'#FFD28A'}">👹 ${escapeHtml(reviewSession.bossName||'BOSS')}</span>
+            <span class="side-meta">強化 Lv.${bossPhase(reviewSession)+1}</span>
+          </div>
+          <div class="bar-row"><span class="lab">血量</span><div class="bar-track hp"><i style="width:${hpPct}%"></i></div><span class="num">${Math.max(0,reviewSession.bossHp|0)}/${reviewSession.bossMaxHp}</span></div>
+          <div class="bar-row"><span class="lab">怒氣</span><div class="bar-track rage"><i style="width:${ragePct}%"></i></div><span class="num">${reviewSession.bossRage|0}/${reviewSession.bossRageMax}</span></div>
+        </div>
+      </div>
+      ${comboTxt?`<div class="combo-banner">${comboTxt}</div>`:''}
+      <div class="boss-log ${revealed && !reviewSession.lastCorrect?'danger':''}">${escapeHtml(reviewSession.battleLog||'看中文，選出正確英文！')}</div>
+      <div class="flash-progress"><span>第 ${(reviewSession.turnCount||0)+1} 回合</span><span>答對 ${reviewSession.correctCount} · 答錯 ${reviewSession.wrongCount||0}</span></div>
+      <div class="lava-timer-row">
+        <span class="lava-timer-label" id="lavaTimerLabel">時限 ${timeLimit}s</span>
+        <div class="lava-timer-track"><div class="lava-timer-fill ${revealed?'frozen':''}" id="lavaTimerFill" style="width:100%"></div></div>
+      </div>
       <div class="flashcard">
-        <span class="subject-tag">${escapeHtml(m.subject||'未分類')}</span>
-        <div class="m-question">${escapeHtml(m.question)}</div>
+        <span class="subject-tag">${escapeHtml(v.cefr||'A1')} · 中→英</span>
+        <div class="m-question">${escapeHtml(v.translation||'')}</div>
         ${bodyHtml}
         ${resultHtml}
         <div class="flash-actions">
-          ${m.type==='fill' && !revealed ? `<button type="button" class="solid-btn" id="submitFillBtn">送出答案</button>` : ''}
-          ${revealed ? `<button type="button" class="solid-btn" id="nextCardBtn">${reviewSession.idx+1>=total?'查看結果':'下一題'}</button>` : ''}
+          ${revealed ? `<button type="button" class="solid-btn" id="nextCardBtn">${(reviewSession.bossHp<=0||reviewSession.playerHp<=0||reviewSession.battleOver)?'查看結果':'下一回合'}</button>` : ''}
         </div>
       </div>
     </div>
   `;
 }
-
 function bindReviewSessionEvents(){
   document.querySelectorAll('#reviewPanel .choice-btn').forEach(el=>{
     el.addEventListener('click', ()=>{
       if(reviewSession.revealed) return;
       reviewSession.picked = el.dataset.letter;
+      reviewSession.pickedWord = el.dataset.word || '';
+      reviewSession.timedOut = false;
       revealReviewAnswer();
     });
   });
@@ -5831,36 +7035,173 @@ function bindReviewSessionEvents(){
   if(submitFillBtn) submitFillBtn.addEventListener('click', ()=>{
     const input = document.getElementById('fillAnswerInput');
     reviewSession.picked = input ? input.value.trim() : '';
+    reviewSession.timedOut = false;
     revealReviewAnswer();
   });
   const fillInput = document.getElementById('fillAnswerInput');
   if(fillInput) fillInput.addEventListener('keydown', (e)=>{ if(e.key==='Enter'){ e.preventDefault(); submitFillBtn?.click(); } });
   const nextBtn = document.getElementById('nextCardBtn');
   if(nextBtn) nextBtn.addEventListener('click', ()=>{
-    reviewSession.idx++; reviewSession.revealed = false; reviewSession.picked = null;
+    clearLavaTimer();
+    reviewSession.idx++;
+    reviewSession.revealed = false;
+    reviewSession.picked = null;
+    reviewSession.pickedWord = '';
+    reviewSession.timedOut = false;
+    reviewSession._choices = null;
+    reviewSession._choicesFor = null;
+    ensureBossQueue();
     renderReviewPanel();
   });
   const backBtn = document.getElementById('backToSetupBtn');
-  if(backBtn) backBtn.addEventListener('click', ()=>{ reviewSession = null; renderReviewPanel(); });
+  if(backBtn) backBtn.addEventListener('click', ()=>{ clearLavaTimer(); reviewSession = null; renderReviewPanel(); });
   const restartBtn = document.getElementById('restartReviewBtn');
-  if(restartBtn) restartBtn.addEventListener('click', startReviewSession);
+  if(restartBtn) restartBtn.addEventListener('click', ()=>{ clearLavaTimer(); startReviewSession({ floor: reviewSession && reviewSession.floor }); });
+  // 開始／繼續熔岩倒數
+  if(reviewSession && !reviewSession.revealed && !reviewSession.battleOver){
+    ensureBossQueue();
+    startLavaTimer();
+  }
+}
+
+
+let _audioCtx = null;
+function getAudioCtx(){
+  if(!_audioCtx){
+    const AC = window.AudioContext || window.webkitAudioContext;
+    if(AC) _audioCtx = new AC();
+  }
+  if(_audioCtx && _audioCtx.state === 'suspended'){
+    _audioCtx.resume().catch(()=>{});
+  }
+  return _audioCtx;
+}
+/** 答對：清脆上升音；連擊越高音越高 */
+function playCorrectSound(combo){
+  try{
+    const ctx = getAudioCtx();
+    if(!ctx) return;
+    const now = ctx.currentTime;
+    const c = Math.max(1, Math.min(Number(combo)||1, 12));
+    // 以 C5 為底，每連擊半音上移，最高約到很高的叮叮
+    const base = 523.25 * Math.pow(2, (c - 1) / 12);
+    const notes = [base, base * 1.25, base * 1.5];
+    notes.forEach((freq, i)=>{
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = 'sine';
+      osc.frequency.value = Math.min(freq, 2800);
+      const vol = Math.min(0.22, 0.14 + c * 0.008);
+      gain.gain.setValueAtTime(0.0001, now);
+      gain.gain.exponentialRampToValueAtTime(vol, now + 0.02 + i*0.045);
+      gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.2 + i*0.045);
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start(now + i*0.045);
+      osc.stop(now + 0.26 + i*0.045);
+    });
+  }catch(e){}
+}
+/** 答錯：低沉短音 */
+function playWrongSound(){
+  try{
+    const ctx = getAudioCtx();
+    if(!ctx) return;
+    const now = ctx.currentTime;
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = 'triangle';
+    osc.frequency.setValueAtTime(180, now);
+    osc.frequency.exponentialRampToValueAtTime(90, now + 0.2);
+    gain.gain.setValueAtTime(0.0001, now);
+    gain.gain.exponentialRampToValueAtTime(0.15, now + 0.02);
+    gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.25);
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.start(now);
+    osc.stop(now + 0.28);
+  }catch(e){}
 }
 
 async function revealReviewAnswer(){
-  const m = mistakes.find(x=>x.id===reviewSession.queue[reviewSession.idx]);
+  clearLavaTimer();
+  const v = vocab.find(x=>x.id===reviewSession.queue[reviewSession.idx]);
+  if(!v){ renderReviewPanel(); return; }
   let correct;
-  if(m.type === 'fill'){
-    correct = (reviewSession.picked||'').trim().toLowerCase() === (m.correct_answer||'').trim().toLowerCase();
+  if(reviewSession.timedOut){
+    correct = false;
   }else{
-    correct = reviewSession.picked === m.correct_answer;
+    // picked 存 letter；用 data-word 對照
+    const word = (reviewSession.pickedWord || '').trim();
+    const ans = (reviewSession._correctWord || v.word || '').trim().toLowerCase();
+    correct = word.toLowerCase() === ans;
   }
+  if(correct && reviewSession.timed && reviewSession.questionStartedAt && reviewSession.timeLimit){
+    const used = (Date.now() - reviewSession.questionStartedAt) / 1000;
+    if(used <= reviewSession.timeLimit * 0.5) reviewSession.fastCount = (reviewSession.fastCount||0) + 1;
+  }
+  if(reviewSession.timedOut) reviewSession.timedOutCount = (reviewSession.timedOutCount||0) + 1;
   reviewSession.revealed = true;
   reviewSession.lastCorrect = correct;
-  if(correct){ reviewSession.correctCount++; m.streak = (m.streak||0) + 1; } else { m.streak = 0; }
-  m.review_count = (m.review_count||0) + 1;
+
+  // ---- BOSS 戰鬥結算 ----
+  reviewSession.turnCount = (reviewSession.turnCount||0) + 1;
+  const atkScale = bossAtkScale(reviewSession);
+  const rageScale = bossRageScale(reviewSession);
+  const phase = bossPhase(reviewSession);
+
+  if(correct){
+    reviewSession.correctCount++;
+    v.correct_streak = (v.correct_streak||0) + 1;
+    reviewSession.combo = (reviewSession.combo||0) + 1;
+    reviewSession.maxCombo = Math.max(reviewSession.maxCombo||0, reviewSession.combo);
+    playCorrectSound(reviewSession.combo);
+    const petBonus = (typeof petPower === 'function') ? Math.floor(petPower().power / 20) : 0;
+    const dmg = 14 + (reviewSession.combo * 4) + petBonus;
+    reviewSession.bossHp = Math.max(0, (reviewSession.bossHp||0) - dmg);
+    reviewSession.bossRage = Math.max(0, (reviewSession.bossRage||0) - 8);
+    if(reviewSession.bossHp <= 0){
+      reviewSession.battleLog = `💥 你造成 ${dmg} 傷害！${reviewSession.bossName} 被擊倒了！`;
+      reviewSession.battleOver = true;
+      reviewSession.battleWon = true;
+    }else{
+      reviewSession.battleLog = `⚔️ 攻擊命中！${dmg} 傷害（連擊 ×${reviewSession.combo}${petBonus?` · 海水蛙 +${petBonus}`:''}）· BOSS 強化 Lv.${phase+1}`;
+    }
+    if(typeof petGainExp === 'function') petGainExp(8, 'review');
+  } else {
+    playWrongSound();
+    reviewSession.wrongCount = (reviewSession.wrongCount||0) + 1;
+    v.correct_streak = 0;
+    reviewSession.combo = 0;
+    const rageGain = Math.round((reviewSession.timedOut ? 35 : 28) * rageScale);
+    reviewSession.bossRage = Math.min(reviewSession.bossRageMax||100, (reviewSession.bossRage||0) + rageGain);
+    if((reviewSession.bossRage||0) >= (reviewSession.bossRageMax||100)){
+      const specialDmg = Math.round(28 * atkScale);
+      reviewSession.playerHp = Math.max(0, (reviewSession.playerHp||0) - specialDmg);
+      reviewSession.bossRage = 0;
+      reviewSession.battleLog = `🔥 ${reviewSession.bossName} 怒氣全滿，使出大招！你受到 ${specialDmg} 傷害！（強化 Lv.${phase+1}）`;
+    }else{
+      const normalDmg = Math.round(10 * atkScale);
+      reviewSession.playerHp = Math.max(0, (reviewSession.playerHp||0) - normalDmg);
+      reviewSession.battleLog = `🗡️ ${reviewSession.bossName} 普通攻擊！你受到 ${normalDmg} 傷害（怒氣 +${rageGain} · 強化 Lv.${phase+1}）`;
+    }
+    if((reviewSession.playerHp||0) <= 0){
+      reviewSession.battleOver = true;
+      reviewSession.battleWon = false;
+      reviewSession.battleLog += ' 你倒下了…';
+    }
+  }
+  v.review_count = (v.review_count||0) + 1;
+  // 遺忘曲線：每次只進一步，不會一次到最完美
+  const prog = applyVocabReviewStage(v, correct);
+  if(prog){
+    if(!reviewSession.wordProgress) reviewSession.wordProgress = [];
+    reviewSession.wordProgress.push(prog);
+  }
   renderReviewPanel();
-  const { error } = await db.from('mistakes').update({ review_count:m.review_count, streak:m.streak }).eq('id', m.id);
-  if(error) console.error('更新複習紀錄失敗', error);
+  try{
+    await db.from('vocab').update({ correct_streak: v.correct_streak||0, review_count: v.review_count||0 }).eq('id', v.id);
+  }catch(err){ console.error('更新單字紀錄失敗', err); }
 }
 
 function cumulativeFor(bookId){
@@ -6280,6 +7621,7 @@ async function init(){
     requestNotifyPermission();
     await showDailyTask();
   });
+  bindPetUI();
   document.getElementById('missionFab')?.addEventListener('click', async ()=>{
     requestNotifyPermission();
     await showDailyTask();
@@ -6290,7 +7632,7 @@ async function init(){
   document.getElementById('badgeAnimOverlay')?.addEventListener('click', (e)=>{
     if(e.target.id === 'badgeAnimOverlay') e.target.classList.add('hidden');
   });
-  document.getElementById('dailyReshuffleBtn').addEventListener('click', async ()=>{
+  document.getElementById('dailyReshuffleBtn')?.addEventListener('click', async ()=>{
     const plan = await getDailyTaskPlan();
     const pct = dailyCompletionPct(plan.tasks || []);
     if(pct < 100){
