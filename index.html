@@ -1997,6 +1997,31 @@ body.in-place .pet-fab{ display:inline-flex; bottom:80px; }
 .summary-card{ text-align:center; padding:34px 20px; }
 .summary-card .score{ font-family:'JetBrains Mono',monospace; font-size:42px; font-weight:700; margin:8px 0; }
 .summary-card .score span{ color:var(--brass); }
+
+/* 考卷驛站 */
+.exam-card{
+  background:#FCFAF5; border:1px solid rgba(139,107,74,.22);
+  border-radius:12px; padding:14px 16px; margin-bottom:10px;
+  border-left:4px solid #8B6B4A;
+}
+.exam-card .exam-title{
+  font-family:'Fraunces',serif; font-size:16px; color:#3A2A1A; margin:0 0 6px;
+}
+.exam-card .exam-meta{
+  font-size:12.5px; color:#6B5A48; display:flex; flex-wrap:wrap; gap:6px 12px;
+}
+.exam-card .exam-meta span{
+  background:rgba(139,107,74,.1); border-radius:999px; padding:2px 8px;
+}
+.exam-card .exam-score{
+  font-family:'JetBrains Mono',monospace; font-size:18px; font-weight:700;
+  color:#8B6B4A; margin-top:8px;
+}
+.exam-form .row2{ display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+.exam-form .row3{ display:grid; grid-template-columns:1fr 1fr 1fr; gap:10px; }
+@media (max-width:640px){
+  .exam-form .row2, .exam-form .row3{ grid-template-columns:1fr; }
+}
 </style>
 </head>
 <body>
@@ -2161,6 +2186,10 @@ body.in-place .pet-fab{ display:inline-flex; bottom:80px; }
           <span class="spot-icon-bg">🏝️</span>
           <span class="spot-label-bg"><span class="spot-label">時光沙灘</span><span class="spot-sub">每日紀錄</span></span>
         </button>
+        <button type="button" class="island-spot" data-section="exams" style="--nav-color:#8B6B4A; left:38%; top:38%;">
+          <span class="spot-icon-bg">📜</span>
+          <span class="spot-label-bg"><span class="spot-label">考卷驛站</span><span class="spot-sub">考卷登記</span></span>
+        </button>
         <button type="button" class="island-pet" id="islandPet" title="島上夥伴">
           <span class="pet-sprite" id="islandPetSprite">🥚</span>
           <span class="pet-mood" id="islandPetMood"></span>
@@ -2176,6 +2205,7 @@ body.in-place .pet-fab{ display:inline-flex; bottom:80px; }
       <div id="dailyPanel" class="hidden"><div class="loading">讀取資料中…</div></div>
       <div id="vocabPanel" class="hidden"><div class="loading">讀取資料中…</div></div>
       <div id="studyPanel" class="hidden"><div class="loading">讀取資料中…</div></div>
+      <div id="examsPanel" class="hidden"><div class="loading">讀取資料中…</div></div>
     </div>
   </div>
 </div>
@@ -2460,6 +2490,11 @@ let reviewSession = null; // {queue:[ids], idx, correctCount, picked, revealed, 
 
 /* ---------------- 我的單字本：全域狀態 ---------------- */
 let vocab = [];              // [{id,word,translation,cefr,created_at}]
+let exams = [];              // 考卷登記
+let examShowForm = false;
+let examFormError = '';
+let examFilterYear = 'all';
+let examFilterSubject = 'all';
 const CEFR_LEVELS = ['A1','A2','B1','B2','C1','C2'];
 const CEFR_COLORS = { A1:'#3A8B6C', A2:'#2F5D50', B1:'#3A6B8A', B2:'#4A5B9E', C1:'#7A4A6B', C2:'#A03A2E' };
 let vocabShowForm = false;
@@ -6154,6 +6189,260 @@ function showIslandHome(){
   if(typeof renderIslandPet === 'function') renderIslandPet();
 }
 
+
+/* ---------------- 考卷驛站：考卷登記 ---------------- */
+const EXAM_LEVELS = [
+  { id:'elementary', label:'國小' },
+  { id:'junior', label:'國中' },
+];
+const EXAM_GRADES_ELE = ['一年級','二年級','三年級','四年級','五年級','六年級'];
+const EXAM_GRADES_JUN = ['七年級','八年級','九年級'];
+const EXAM_SEMESTERS = ['上學期','下學期'];
+const EXAM_SUBJECTS = ['國文','英語','數學','自然','社會','健康與體育','藝術','綜合活動','科技','其他'];
+const EXAM_ROUNDS = ['第一次段考','第二次段考','第三次段考','期末考','小考','模擬考','其他'];
+
+function examStorageKey(){
+  const uid = currentUser ? (currentUser.id || 'guest') : 'guest';
+  return 'exams:' + uid;
+}
+function loadExams(){
+  try{
+    const raw = localStorage.getItem(examStorageKey());
+    exams = raw ? JSON.parse(raw) : [];
+    if(!Array.isArray(exams)) exams = [];
+  }catch(e){ exams = []; }
+}
+function saveExams(){
+  try{ localStorage.setItem(examStorageKey(), JSON.stringify(exams)); }
+  catch(e){ console.error('儲存考卷失敗', e); }
+}
+function currentSchoolYearOptions(){
+  // 民國學年度，以現在年份推算前後幾年
+  const roc = new Date().getFullYear() - 1911;
+  const years = [];
+  for(let y = roc + 1; y >= roc - 6; y--) years.push(String(y));
+  return years;
+}
+function gradesForLevel(level){
+  return level === 'elementary' ? EXAM_GRADES_ELE : EXAM_GRADES_JUN;
+}
+function examDisplayTitle(e){
+  return `${e.subject} · ${e.round}`;
+}
+function renderExamsPanel(){
+  const panel = document.getElementById('examsPanel');
+  if(!panel) return;
+  loadExams();
+  let list = exams.slice().sort((a,b)=>{
+    const ya = Number(b.school_year)||0, yb = Number(a.school_year)||0;
+    if(ya !== yb) return ya - yb;
+    return (b.created_at||'').localeCompare(a.created_at||'');
+  });
+  if(examFilterYear !== 'all') list = list.filter(e=>String(e.school_year)===String(examFilterYear));
+  if(examFilterSubject !== 'all') list = list.filter(e=>e.subject===examFilterSubject);
+  const years = [...new Set(exams.map(e=>String(e.school_year)))].sort((a,b)=>Number(b)-Number(a));
+  const subjects = [...new Set(exams.map(e=>e.subject))];
+
+  panel.innerHTML = `
+    <div class="panel">
+      <div class="section-head">
+        <h2>📜 考卷驛站</h2>
+        <button type="button" class="solid-btn" id="toggleExamFormBtn">${examShowForm ? '－ 收起表單' : '＋ 登記考卷'}</button>
+      </div>
+      ${examShowForm ? examFormHTML() : ''}
+      ${exams.length ? `
+        <div class="chip-row">
+          <button type="button" class="chip ${examFilterYear==='all'?'active':''}" data-eyear="all">全部學年</button>
+          ${years.map(y=>`<button type="button" class="chip ${examFilterYear===y?'active':''}" data-eyear="${escapeHtml(y)}">${escapeHtml(y)} 學年</button>`).join('')}
+        </div>
+        <div class="chip-row">
+          <button type="button" class="chip ${examFilterSubject==='all'?'active':''}" data-esub="all">全部科目</button>
+          ${subjects.map(s=>`<button type="button" class="chip ${examFilterSubject===s?'active':''}" data-esub="${escapeHtml(s)}">${escapeHtml(s)}</button>`).join('')}
+        </div>
+      ` : ''}
+      ${list.length === 0 ? `
+        <div class="empty">
+          <h2>${exams.length ? '這個篩選下沒有考卷' : '還沒有登記考卷'}</h2>
+          <p>按上方「＋ 登記考卷」，選擇國中／國小、學年度、年級、學期、科目與段考次。</p>
+        </div>
+      ` : list.map(examCardHTML).join('')}
+    </div>
+  `;
+  bindExamsPanelEvents();
+}
+function examFormHTML(){
+  const years = currentSchoolYearOptions();
+  const defaultYear = years[1] || years[0];
+  return `
+    <form class="vocab-form exam-form" id="examForm">
+      ${examFormError ? `<div class="vocab-form-error">${escapeHtml(examFormError)}</div>` : ''}
+      <div class="row2">
+        <div class="field">
+          <label>國中／國小</label>
+          <select id="exLevel">
+            ${EXAM_LEVELS.map(l=>`<option value="${l.id}">${l.label}</option>`).join('')}
+          </select>
+        </div>
+        <div class="field">
+          <label>學年度（民國）</label>
+          <select id="exYear">
+            ${years.map(y=>`<option value="${y}" ${y===defaultYear?'selected':''}>${y} 學年度</option>`).join('')}
+          </select>
+        </div>
+      </div>
+      <div class="row3">
+        <div class="field">
+          <label>年級</label>
+          <select id="exGrade">
+            ${gradesForLevel('junior').map(g=>`<option value="${g}">${g}</option>`).join('')}
+          </select>
+        </div>
+        <div class="field">
+          <label>學期</label>
+          <select id="exSemester">
+            ${EXAM_SEMESTERS.map(s=>`<option value="${s}">${s}</option>`).join('')}
+          </select>
+        </div>
+        <div class="field">
+          <label>段考次</label>
+          <select id="exRound">
+            ${EXAM_ROUNDS.map(r=>`<option value="${r}">${r}</option>`).join('')}
+          </select>
+        </div>
+      </div>
+      <div class="row2">
+        <div class="field">
+          <label>科目</label>
+          <select id="exSubject">
+            ${EXAM_SUBJECTS.map(s=>`<option value="${s}">${s}</option>`).join('')}
+          </select>
+        </div>
+        <div class="field">
+          <label>考試日期（選填）</label>
+          <input type="date" id="exDate">
+        </div>
+      </div>
+      <div class="row2">
+        <div class="field">
+          <label>得分（選填）</label>
+          <input type="number" id="exScore" min="0" max="100" step="0.5" placeholder="例如 88">
+        </div>
+        <div class="field">
+          <label>滿分（選填）</label>
+          <input type="number" id="exFull" min="1" max="100" step="1" value="100" placeholder="100">
+        </div>
+      </div>
+      <div class="field">
+        <label>備註（選填）</label>
+        <input type="text" id="exNote" placeholder="例如：第 3～5 課、需訂正念法">
+      </div>
+      <div class="mistake-form-actions">
+        <button type="button" class="ghost-btn" id="cancelExamFormBtn">取消</button>
+        <button type="submit" class="solid-btn">登記考卷</button>
+      </div>
+    </form>
+  `;
+}
+function examCardHTML(e){
+  const levelLabel = (EXAM_LEVELS.find(l=>l.id===e.level)||{}).label || e.level || '';
+  const scoreHtml = (e.score !== null && e.score !== '' && e.score !== undefined)
+    ? `<div class="exam-score">${escapeHtml(String(e.score))}${e.full_score ? ' / '+escapeHtml(String(e.full_score)) : ' 分'}</div>`
+    : '';
+  return `
+    <div class="exam-card" data-id="${escapeHtml(e.id)}">
+      <div class="exam-title">${escapeHtml(examDisplayTitle(e))}</div>
+      <div class="exam-meta">
+        <span>${escapeHtml(levelLabel)}</span>
+        <span>${escapeHtml(String(e.school_year))} 學年</span>
+        <span>${escapeHtml(e.grade||'')}</span>
+        <span>${escapeHtml(e.semester||'')}</span>
+        <span>${escapeHtml(e.round||'')}</span>
+        ${e.exam_date ? `<span>${escapeHtml(e.exam_date)}</span>` : ''}
+      </div>
+      ${scoreHtml}
+      ${e.note ? `<p style="margin:8px 0 0;font-size:13px;color:#5A4A38;">${escapeHtml(e.note)}</p>` : ''}
+      <div style="margin-top:10px;display:flex;justify-content:flex-end;">
+        <button type="button" class="ghost-btn exam-del" data-id="${escapeHtml(e.id)}" style="color:var(--danger);border-color:var(--danger);padding:4px 10px;font-size:12px;">刪除</button>
+      </div>
+    </div>
+  `;
+}
+function bindExamsPanelEvents(){
+  document.getElementById('toggleExamFormBtn')?.addEventListener('click', ()=>{
+    examShowForm = !examShowForm;
+    examFormError = '';
+    renderExamsPanel();
+  });
+  document.getElementById('cancelExamFormBtn')?.addEventListener('click', ()=>{
+    examShowForm = false;
+    examFormError = '';
+    renderExamsPanel();
+  });
+  const levelSel = document.getElementById('exLevel');
+  const gradeSel = document.getElementById('exGrade');
+  if(levelSel && gradeSel){
+    const syncGrades = ()=>{
+      const grades = gradesForLevel(levelSel.value);
+      gradeSel.innerHTML = grades.map(g=>`<option value="${g}">${g}</option>`).join('');
+    };
+    levelSel.addEventListener('change', syncGrades);
+    // 預設國中 → 七年級已在 form；若改國小要同步
+  }
+  document.getElementById('examForm')?.addEventListener('submit', (ev)=>{
+    ev.preventDefault();
+    submitExamForm();
+  });
+  document.querySelectorAll('#examsPanel [data-eyear]').forEach(el=>{
+    el.addEventListener('click', ()=>{ examFilterYear = el.dataset.eyear; renderExamsPanel(); });
+  });
+  document.querySelectorAll('#examsPanel [data-esub]').forEach(el=>{
+    el.addEventListener('click', ()=>{ examFilterSubject = el.dataset.esub; renderExamsPanel(); });
+  });
+  document.querySelectorAll('#examsPanel .exam-del').forEach(el=>{
+    el.addEventListener('click', ()=>{
+      if(!confirm('確定刪除這份考卷登記？')) return;
+      exams = exams.filter(x=>x.id !== el.dataset.id);
+      saveExams();
+      renderExamsPanel();
+    });
+  });
+}
+function submitExamForm(){
+  examFormError = '';
+  const level = document.getElementById('exLevel')?.value;
+  const school_year = document.getElementById('exYear')?.value;
+  const grade = document.getElementById('exGrade')?.value;
+  const semester = document.getElementById('exSemester')?.value;
+  const subject = document.getElementById('exSubject')?.value;
+  const round = document.getElementById('exRound')?.value;
+  const exam_date = document.getElementById('exDate')?.value || '';
+  const scoreRaw = document.getElementById('exScore')?.value;
+  const fullRaw = document.getElementById('exFull')?.value;
+  const note = (document.getElementById('exNote')?.value || '').trim();
+  if(!level || !school_year || !grade || !semester || !subject || !round){
+    examFormError = '請完整選擇國中／國小、學年度、年級、學期、科目與段考次';
+    renderExamsPanel();
+    return;
+  }
+  const score = scoreRaw === '' || scoreRaw === undefined ? null : Number(scoreRaw);
+  const full_score = fullRaw === '' || fullRaw === undefined ? null : Number(fullRaw);
+  const entry = {
+    id: (window.crypto && window.crypto.randomUUID) ? window.crypto.randomUUID() : ('ex-'+Date.now()),
+    level, school_year, grade, semester, subject, round,
+    exam_date, score, full_score, note,
+    created_at: new Date().toISOString(),
+    user_id: currentUser ? currentUser.id : 'guest'
+  };
+  exams.unshift(entry);
+  saveExams();
+  examShowForm = false;
+  examFormError = '';
+  renderExamsPanel();
+  if(typeof showDailyToast === 'function'){
+    showDailyToast({ icon:'📜', title:'考卷已登記', body: `${subject} · ${round}` });
+  }
+}
+
 function switchSection(section){
   if(!section || section === 'island'){
     showIslandHome();
@@ -6177,11 +6466,13 @@ function switchSection(section){
   document.getElementById('dailyPanel').classList.toggle('hidden', section !== 'daily');
   document.getElementById('vocabPanel').classList.toggle('hidden', section !== 'vocab');
   document.getElementById('studyPanel').classList.toggle('hidden', section !== 'study');
+  document.getElementById('examsPanel')?.classList.toggle('hidden', section !== 'exams');
   if(section === 'mistakes'){ mistakeShowForm = false; renderMistakesPanel(); }
   if(section === 'review'){ reviewSession = null; renderReviewPanel(); }
   if(section === 'daily'){ renderDailyPanel(); }
   if(section === 'vocab'){ vocabShowForm = false; vocabShowQuizSetup = false; vocabQuizSession = null; vocabSelectMode = false; vocabSelectedIds = new Set(); renderVocabPanel(); }
   if(section === 'study'){ studyShowManualForm = false; studyManualError = ''; renderStudyPanel(); }
+  if(section === 'exams'){ examShowForm = false; examFormError = ''; renderExamsPanel(); }
 }
 
 /* ---------------- 錯題本：整理 ---------------- */
